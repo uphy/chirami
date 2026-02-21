@@ -1,0 +1,56 @@
+name: Fusen
+
+options:
+  bundleIdPrefix: com.uphy
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+
+packages:
+  swift-markdown:
+    url: https://github.com/swiftlang/swift-markdown
+    from: "0.3.0"
+  HotKey:
+    url: https://github.com/soffes/HotKey
+    from: "0.2.0"
+  Yams:
+    url: https://github.com/jpsim/Yams
+    from: "5.0.0"
+  Highlightr:
+    url: https://github.com/raspu/Highlightr
+    from: "2.2.1"
+
+targets:
+  Fusen:
+    type: application
+    platform: macOS
+    sources:
+      - path: Fusen
+    info:
+      path: Fusen/Info.plist
+      properties:
+        CFBundleDisplayName: Fusen
+        CFBundleName: Fusen
+        LSMinimumSystemVersion: "$(MACOSX_DEPLOYMENT_TARGET)"
+        LSUIElement: true
+        NSHumanReadableCopyright: "Copyright © 2024 uphy"
+        NSPrincipalClass: NSApplication
+        NSDesktopFolderUsageDescription: "Fusen needs access to Desktop to read and write your note files."
+        NSDocumentsFolderUsageDescription: "Fusen needs access to Documents to read and write your note files."
+        NSDownloadsFolderUsageDescription: "Fusen needs access to Downloads to read and write your note files."
+    settings:
+      base:
+        SWIFT_VERSION: "5.9"
+        MACOSX_DEPLOYMENT_TARGET: "14.0"
+        PRODUCT_BUNDLE_IDENTIFIER: com.uphy.Fusen
+        ENABLE_HARDENED_RUNTIME: YES
+        CODE_SIGN_ENTITLEMENTS: Fusen/Fusen.entitlements
+    dependencies:
+      - package: swift-markdown
+        product: Markdown
+      - package: HotKey
+        product: HotKey
+      - package: Yams
+        product: Yams
+      - package: Highlightr
+        product: Highlightr

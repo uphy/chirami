@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+#MISE description="~/Applications にインストール"
+#MISE depends=["build"]
+set -euo pipefail
+
+app_path="build/Fusen.app"
+if [ ! -d "$app_path" ]; then
+  echo "Error: $app_path not found"
+  exit 1
+fi
+
+# 実行中かチェック
+was_running=false
+if pgrep -x Fusen >/dev/null 2>&1; then
+  was_running=true
+  pkill -x Fusen
+  sleep 0.5
+fi
+
+mkdir -p ~/Applications
+rm -rf ~/Applications/Fusen.app
+cp -R "$app_path" ~/Applications/Fusen.app
+echo "Installed to ~/Applications/Fusen.app"
+
+# 起動中だったら再起動
+if [ "$was_running" = true ]; then
+  open ~/Applications/Fusen.app
+  echo "Restarted Fusen"
+fi

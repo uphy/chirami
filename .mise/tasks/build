@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+#MISE description="Release ビルド (.app バンドル生成)"
+set -euo pipefail
+
+swift build -c release
+
+# .app バンドル構成
+app_dir="build/Fusen.app/Contents"
+mkdir -p "$app_dir/MacOS" "$app_dir/Resources"
+
+cp .build/release/Fusen "$app_dir/MacOS/Fusen"
+
+# Info.plist の Xcode 変数を実値に置換
+sed \
+  -e 's/$(DEVELOPMENT_LANGUAGE)/en/' \
+  -e 's/$(EXECUTABLE_NAME)/Fusen/' \
+  -e 's/$(PRODUCT_BUNDLE_IDENTIFIER)/com.uphy.Fusen/' \
+  -e 's/$(MACOSX_DEPLOYMENT_TARGET)/14.0/' \
+  Fusen/Info.plist > "$app_dir/Info.plist"
+
+echo "Built build/Fusen.app"

@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+#MISE description="ビルド成果物を削除"
+set -euo pipefail
+
+rm -rf build .build
+echo "Cleaned build directory"

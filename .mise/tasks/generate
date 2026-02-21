@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+#MISE description="xcodegen でプロジェクトファイルを生成"
+#MISE sources=["project.yml"]
+#MISE outputs=["Fusen.xcodeproj/project.pbxproj"]
+set -euo pipefail
+
+xcodegen generate

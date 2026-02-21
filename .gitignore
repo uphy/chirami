@@ -1,0 +1,11 @@
+.DS_Store
+*.xcuserstate
+xcuserdata/
+.build/
+build/
+DerivedData/
+Package.resolved
+.swiftpm/
+*.xccheckout
+*.moved-aside
+*.pbxuser
