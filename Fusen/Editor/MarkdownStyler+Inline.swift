@@ -8,7 +8,9 @@ extension MarkdownStyler {
     static let italicPattern = try! NSRegularExpression(pattern: #"(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)|(?<!_)_(?!_)(.+?)(?<!_)_(?!_)"#)
     static let strikethroughPattern = try! NSRegularExpression(pattern: #"~~(.+?)~~"#)
     static let inlineCodePattern = try! NSRegularExpression(pattern: #"`(.+?)`"#)
-    static let linkPattern = try! NSRegularExpression(pattern: #"\[(.+?)\]\((.+?)\)"#)
+    // Negative lookbehind (?<!!) prevents matching image syntax ![alt](url)
+    static let linkPattern = try! NSRegularExpression(pattern: #"(?<!!)\[(.+?)\]\((.+?)\)"#)
+    static let imagePattern = try! NSRegularExpression(pattern: #"!\[([^\]]*)\]\(([^\)]+)\)"#)
 
     // MARK: - Rendered inline styles
 
@@ -39,6 +41,7 @@ extension MarkdownStyler {
                      hideMarkers: true, markerLength: 1)
 
         applyLinkPattern(to: storage, in: text, offset: offset)
+        applyImagePattern(to: storage, in: text, offset: offset)
     }
 
     // MARK: - Raw (editing) inline styles
@@ -61,6 +64,7 @@ extension MarkdownStyler {
                         ])
 
         applyRawLinkPattern(to: storage, in: text, offset: offset)
+        applyRawImagePattern(to: storage, in: text, offset: offset)
     }
 
     // MARK: - Pattern application helpers
@@ -181,6 +185,69 @@ extension MarkdownStyler {
             if textRange.location != NSNotFound {
                 let adjustedRange = NSRange(location: textRange.location + offset, length: textRange.length)
                 storage.addAttributes([.foregroundColor: noteColor.linkColor], range: adjustedRange)
+            }
+        }
+    }
+
+    // MARK: - Image pattern (rendered)
+
+    private func applyImagePattern(to storage: NSMutableAttributedString, in text: String, offset: Int) {
+        let nsText = text as NSString
+        let matches = Self.imagePattern.matches(in: text, range: NSRange(location: 0, length: nsText.length))
+        for match in matches {
+            let fullRange = NSRange(location: match.range.location + offset, length: match.range.length)
+            let urlRange = match.range(at: 2)
+            guard urlRange.location != NSNotFound else { continue }
+            let urlString = nsText.substring(with: urlRange)
+
+            // Hide entire `![alt](url)` — image is drawn by BulletLayoutManager
+            storage.addAttributes(Self.hiddenAttributes, range: fullRange)
+
+            // Mark `!` with the image URL so BulletLayoutManager can look it up
+            let bangRange = NSRange(location: fullRange.location, length: 1)
+            storage.addAttribute(.imageIcon, value: urlString as NSString, range: bangRange)
+
+            // Reserve vertical space for the image via paragraph minimumLineHeight
+            let paraRange = (storage.string as NSString).paragraphRange(for: fullRange)
+            let imageHeight = scaledImageHeight(for: urlString)
+            let style = NSMutableParagraphStyle()
+            style.lineSpacing = 0
+            style.minimumLineHeight = imageHeight
+            storage.addAttribute(.paragraphStyle, value: style, range: paraRange)
+
+            // Trigger async load if the image is not yet cached
+            let onReload = onImageLoaded
+            ImageCache.shared.load(urlString) { onReload?() }
+        }
+    }
+
+    /// Returns the display height for `urlString` given the current container width.
+    /// Uses a placeholder if the image is not yet cached.
+    private func scaledImageHeight(for urlString: String) -> CGFloat {
+        guard let image = ImageCache.shared.image(for: urlString) else {
+            return 100  // placeholder height while loading
+        }
+        let size = image.size
+        guard size.width > 0, size.height > 0 else { return 100 }
+        let maxWidth = max(containerWidth - 20, 50)
+        let maxHeight: CGFloat = 400
+        let scale = min(maxWidth / size.width, maxHeight / size.height)
+        return (size.height * scale).rounded()
+    }
+
+    // MARK: - Image pattern (raw/editing)
+
+    private func applyRawImagePattern(to storage: NSMutableAttributedString, in text: String, offset: Int) {
+        let nsText = text as NSString
+        let matches = Self.imagePattern.matches(in: text, range: NSRange(location: 0, length: nsText.length))
+        for match in matches {
+            let fullRange = NSRange(location: match.range.location + offset, length: match.range.length)
+            storage.addAttributes([.foregroundColor: NSColor.secondaryLabelColor], range: fullRange)
+
+            let altRange = match.range(at: 1)
+            if altRange.location != NSNotFound && altRange.length > 0 {
+                let adjustedAlt = NSRange(location: altRange.location + offset, length: altRange.length)
+                storage.addAttributes([.foregroundColor: noteColor.linkColor], range: adjustedAlt)
             }
         }
     }

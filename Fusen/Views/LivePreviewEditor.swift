@@ -181,25 +181,88 @@ class MarkdownTextView: NSTextView {
         }
     }
 
-    // MARK: - Toggle task list (Cmd+L)
+    // MARK: - Keyboard shortcuts
 
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
         let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
         if flags == .command, let chars = event.charactersIgnoringModifiers {
-            if chars == "l" {
+            switch chars {
+            case "l":
                 toggleTaskList()
                 return true
-            }
-            if chars == "=" || chars == "+" {
+            case "=", "+":
                 adjustFontSize(by: 1)
                 return true
-            }
-            if chars == "-" {
+            case "-":
                 adjustFontSize(by: -1)
                 return true
+            case "b":
+                wrapWithMarkdown(open: "**", close: "**")
+                return true
+            case "i":
+                wrapWithMarkdown(open: "*", close: "*")
+                return true
+            case "f":
+                // LSUIElement apps have no menu bar, so NSTextView's find bar won't
+                // be triggered automatically. Invoke it directly.
+                let item = NSMenuItem()
+                item.tag = Int(NSTextFinder.Action.showFindInterface.rawValue)
+                performFindPanelAction(item)
+                return true
+            default:
+                break
             }
         }
         return super.performKeyEquivalent(with: event)
+    }
+
+    // MARK: - Inline Markdown wrapping (bold / italic)
+
+    private func wrapWithMarkdown(open: String, close: String) {
+        guard let storage = textStorage else { return }
+        let sel = selectedRange()
+        let nsString = storage.string as NSString
+        let fullLength = nsString.length
+        let openLen = (open as NSString).length
+        let closeLen = (close as NSString).length
+
+        if sel.length > 0 {
+            // If the selection is already surrounded by these markers, unwrap it.
+            let beforeStart = sel.location - openLen
+            let afterEnd = sel.location + sel.length + closeLen
+            if beforeStart >= 0 && afterEnd <= fullLength {
+                let beforeRange = NSRange(location: beforeStart, length: openLen)
+                let afterRange = NSRange(location: sel.location + sel.length, length: closeLen)
+                if nsString.substring(with: beforeRange) == open &&
+                    nsString.substring(with: afterRange) == close {
+                    let fullRange = NSRange(location: beforeStart, length: openLen + sel.length + closeLen)
+                    let inner = nsString.substring(with: sel)
+                    if shouldChangeText(in: fullRange, replacementString: inner) {
+                        storage.replaceCharacters(in: fullRange, with: inner)
+                        setSelectedRange(NSRange(location: beforeStart, length: (inner as NSString).length))
+                        didChangeText()
+                    }
+                    return
+                }
+            }
+            // Wrap the selection.
+            let inner = nsString.substring(with: sel)
+            let wrapped = "\(open)\(inner)\(close)"
+            if shouldChangeText(in: sel, replacementString: wrapped) {
+                storage.replaceCharacters(in: sel, with: wrapped)
+                setSelectedRange(NSRange(location: sel.location + openLen, length: (inner as NSString).length))
+                didChangeText()
+            }
+        } else {
+            // No selection: insert the marker pair and place the cursor between them.
+            let insertion = "\(open)\(close)"
+            let insertRange = NSRange(location: sel.location, length: 0)
+            if shouldChangeText(in: insertRange, replacementString: insertion) {
+                storage.replaceCharacters(in: insertRange, with: insertion)
+                setSelectedRange(NSRange(location: sel.location + openLen, length: 0))
+                didChangeText()
+            }
+        }
     }
 
     private static let taskCheckedPattern = try! NSRegularExpression(
@@ -441,6 +504,8 @@ struct LivePreviewEditor: NSViewRepresentable {
         textView.isHorizontallyResizable = false
         textView.autoresizingMask = [.width]
         textView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+        textView.usesFindBar = true
+        textView.isIncrementalSearchingEnabled = true
 
         let coordinator = context.coordinator
         textView.onCheckboxClick = { [weak coordinator] charIndex in
@@ -634,6 +699,18 @@ struct LivePreviewEditor: NSViewRepresentable {
             if let layoutManager = textView.layoutManager as? BulletLayoutManager {
                 layoutManager.baseFontSize = fontSize
             }
+
+            // Provide current container width for image scaling
+            if let width = textView.textContainer?.size.width, width > 0 {
+                styler.containerWidth = width
+            }
+
+            // Re-apply styling when async images finish loading
+            styler.onImageLoaded = { [weak self, weak textView] in
+                guard let self, let textView else { return }
+                self.applyStyling(to: textView)
+            }
+
             let text = storage.string
             let cursorLocation = isWindowFocused ? textView.selectedRange().location : NSNotFound
             let safeLocation = isWindowFocused ? min(cursorLocation, text.utf16.count) : NSNotFound

@@ -18,6 +18,7 @@ class NoteStore: ObservableObject {
         // Reload when config changes externally
         appConfig.$data
             .dropFirst()
+            .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in self?.loadFromConfig() }
             .store(in: &cancellables)
     }

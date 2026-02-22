@@ -15,6 +15,11 @@ extension NSAttributedString.Key {
     static let inlineCodeBackground = NSAttributedString.Key("fusen.inlineCodeBackground")
     /// Marks a range as a block quote. Drawn by BulletLayoutManager with a left border.
     static let blockQuoteBorder = NSAttributedString.Key("fusen.blockQuoteBorder")
+    /// Marks a range as a thematic break (---). Drawn by BulletLayoutManager as a horizontal line.
+    static let thematicBreak = NSAttributedString.Key("fusen.thematicBreak")
+    /// Marks the `!` character of an image. Value: URL string (NSString).
+    /// BulletLayoutManager looks up the image from ImageCache and draws it inline.
+    static let imageIcon = NSAttributedString.Key("fusen.imageIcon")
 }
 
 extension NSRange {

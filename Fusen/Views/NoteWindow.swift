@@ -206,6 +206,7 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
         panel.alphaValue = updated.transparency
         panel.title = updated.title
         panel.level = updated.alwaysOnTop ? .floating : .normal
+        contentModel.fontSize = updated.fontSize
     }
 
     // MARK: - NSWindowDelegate

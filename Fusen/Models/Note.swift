@@ -13,7 +13,7 @@ struct Note: Identifiable, Equatable {
     var hotkey: String? = nil
 
     static func == (lhs: Note, rhs: Note) -> Bool {
-        lhs.id == rhs.id && lhs.color == rhs.color && lhs.transparency == rhs.transparency && lhs.title == rhs.title && lhs.path == rhs.path && lhs.alwaysOnTop == rhs.alwaysOnTop && lhs.hotkey == rhs.hotkey
+        lhs.id == rhs.id && lhs.color == rhs.color && lhs.transparency == rhs.transparency && lhs.title == rhs.title && lhs.path == rhs.path && lhs.alwaysOnTop == rhs.alwaysOnTop && lhs.hotkey == rhs.hotkey && lhs.fontSize == rhs.fontSize
     }
 }
 

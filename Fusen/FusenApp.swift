@@ -37,6 +37,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             .sink { [weak self] _ in
                 Task { @MainActor in
                     self?.registerAllHotkeys()
+                    self?.windowManager.reloadWindows()
                 }
             }
             .store(in: &cancellables)
@@ -44,6 +45,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func registerAllHotkeys() {
         hotkeyService.unregisterAll()
+        if let globalKey = AppConfig.shared.config.hotkey {
+            hotkeyService.register(id: "global:toggleAll", keyString: globalKey) { [weak self] in
+                Task { @MainActor in
+                    self?.windowManager.toggleAllWindows()
+                }
+            }
+        }
         for note in noteStore.notes {
             guard let keyString = note.hotkey else { continue }
             let noteId = note.id

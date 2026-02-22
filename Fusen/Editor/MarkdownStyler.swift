@@ -18,6 +18,12 @@ class MarkdownStyler {
     let noteColor: NoteColor
     let baseFontSize: CGFloat
 
+    /// Width of the text container; used to compute scaled image heights for paragraph layout.
+    var containerWidth: CGFloat = 380
+
+    /// Called on the main thread when an async image finishes loading. Trigger re-styling here.
+    var onImageLoaded: (() -> Void)?
+
     static let hiddenAttributes: [NSAttributedString.Key: Any] = [
         .foregroundColor: NSColor.clear,
         .font: NSFont.systemFont(ofSize: 0.001)
@@ -155,6 +161,9 @@ class MarkdownStyler {
         case is Table:
             applyTableRawStyle(to: storage, range: range, in: text)
 
+        case is ThematicBreak:
+            applyRawThematicBreakStyle(to: storage, range: range)
+
         default:
             break
         }
@@ -179,6 +188,9 @@ class MarkdownStyler {
 
         case is Table:
             applyTableStyle(to: storage, range: range, in: text)
+
+        case is ThematicBreak:
+            applyThematicBreakStyle(to: storage, range: range)
 
         default:
             applyInlineStyles(to: storage, range: range, in: text)

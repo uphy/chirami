@@ -73,6 +73,21 @@ class BulletLayoutManager: NSLayoutManager {
             NSBezierPath(roundedRect: borderRect, xRadius: borderWidth / 2, yRadius: borderWidth / 2).fill()
         }
 
+        // Thematic breaks — draw a 1px horizontal separator line
+        textStorage.enumerateAttribute(.thematicBreak, in: charRange, options: []) { value, attrRange, _ in
+            guard value != nil else { return }
+            let glyphRange = glyphRange(forCharacterRange: attrRange, actualCharacterRange: nil)
+            var lineRect = NSRect.zero
+            enumerateLineFragments(forGlyphRange: glyphRange) { rect, _, _, _, _ in
+                lineRect = rect
+            }
+            guard lineRect != .zero else { return }
+            let y = (origin.y + lineRect.midY).rounded() - 0.5
+            let lineWidth = textContainer.size.width - 16
+            NSColor.separatorColor.setFill()
+            NSBezierPath(rect: NSRect(x: origin.x + 8, y: y, width: lineWidth, height: 1)).fill()
+        }
+
         // Inline code backgrounds with rounded corners
         textStorage.enumerateAttribute(.inlineCodeBackground, in: charRange, options: []) { value, attrRange, _ in
             guard let color = value as? NSColor else { return }
@@ -104,6 +119,16 @@ class BulletLayoutManager: NSLayoutManager {
             let symbolName = checked ? "checkmark.square.fill" : "square"
             let color = checked ? NSColor.controlAccentColor : NSColor.secondaryLabelColor
             drawSFSymbol(symbolName, at: range, origin: origin, color: color, size: baseFontSize)
+        }
+
+        // Draw inline images (or a placeholder icon while loading)
+        textStorage.enumerateAttribute(.imageIcon, in: charRange, options: []) { value, range, _ in
+            guard let urlString = value as? String else { return }
+            if let image = ImageCache.shared.image(for: urlString) {
+                drawInlineImage(image, at: range, origin: origin)
+            } else {
+                drawSFSymbolAtGlyphPosition("photo", at: range, origin: origin, color: NSColor.secondaryLabelColor, size: baseFontSize)
+            }
         }
     }
 
@@ -159,6 +184,60 @@ class BulletLayoutManager: NSLayoutManager {
         let x = origin.x + pos.lineRect.origin.x + 2 + CGFloat(pos.level) * 20
         let textFont = NSFont.systemFont(ofSize: size)
         let textCenterY = pos.baselineY - textFont.capHeight / 2
+        let y = textCenterY - imageSize.height / 2
+        tinted.draw(in: NSRect(x: x, y: y, width: imageSize.width, height: imageSize.height))
+    }
+
+    /// Draws a loaded image inline at the glyph position of the `!` marker character.
+    /// Scales the image to fit the line fragment height while capping at the container width.
+    private func drawInlineImage(_ image: NSImage, at range: NSRange, origin: NSPoint) {
+        let glyphIndex = glyphIndexForCharacter(at: range.location)
+        guard textContainer(forGlyphAt: glyphIndex, effectiveRange: nil) != nil else { return }
+        guard let ctx = NSGraphicsContext.current?.cgContext else { return }
+        guard let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return }
+
+        let lineRect = lineFragmentRect(forGlyphAt: glyphIndex, effectiveRange: nil)
+        let glyphLocation = location(forGlyphAt: glyphIndex)
+        let availableWidth = (textContainers.first?.size.width ?? 380) - glyphLocation.x - 16
+
+        let imageSize = image.size
+        guard imageSize.width > 0, imageSize.height > 0 else { return }
+
+        let scale = min(availableWidth / imageSize.width, lineRect.height / imageSize.height)
+        let drawWidth = (imageSize.width * scale).rounded()
+        let drawHeight = (imageSize.height * scale).rounded()
+
+        let x = origin.x + lineRect.origin.x + glyphLocation.x
+        let y = origin.y + lineRect.origin.y + ((lineRect.height - drawHeight) / 2).rounded()
+
+        // NSTextView is flipped (y increases downward). CGContext.draw(cgImage:in:) assumes
+        // unflipped coordinates (y increases upward). Apply an explicit flip so the image
+        // appears right-side up: translate to the image's bottom-left in the flipped view,
+        // then negate the y-axis so CGContext's "up" maps to the screen's "up".
+        ctx.saveGState()
+        ctx.translateBy(x: x, y: y + drawHeight)
+        ctx.scaleBy(x: 1, y: -1)
+        ctx.draw(cgImage, in: CGRect(x: 0, y: 0, width: drawWidth, height: drawHeight))
+        ctx.restoreGState()
+    }
+
+    /// Draws an SF Symbol at the actual glyph position (for inline elements).
+    private func drawSFSymbolAtGlyphPosition(_ name: String, at range: NSRange, origin: NSPoint, color: NSColor, size: CGFloat) {
+        let glyphIndex = glyphIndexForCharacter(at: range.location)
+        guard textContainer(forGlyphAt: glyphIndex, effectiveRange: nil) != nil else { return }
+        let lineRect = lineFragmentRect(forGlyphAt: glyphIndex, effectiveRange: nil)
+        let glyphLocation = location(forGlyphAt: glyphIndex)
+        let baselineY = origin.y + lineRect.origin.y + baselineOffset(forGlyphAt: glyphIndex, fontSize: size)
+
+        let config = NSImage.SymbolConfiguration(pointSize: size, weight: .regular)
+        guard let image = NSImage(systemSymbolName: name, accessibilityDescription: nil)?
+            .withSymbolConfiguration(config) else { return }
+
+        let tinted = image.tinted(with: color)
+        let imageSize = tinted.size
+        let x = origin.x + lineRect.origin.x + glyphLocation.x
+        let textFont = NSFont.systemFont(ofSize: size)
+        let textCenterY = baselineY - textFont.capHeight / 2
         let y = textCenterY - imageSize.height / 2
         tinted.draw(in: NSRect(x: x, y: y, width: imageSize.width, height: imageSize.height))
     }

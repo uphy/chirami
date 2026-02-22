@@ -12,15 +12,18 @@ class FileWatcher {
     init(url: URL, onChange: @escaping () -> Void) {
         self.url = url
         self.onChange = onChange
-        start()
+        start(notifyOnSuccess: false)
     }
 
-    private func start() {
+    /// Opens a new file descriptor and sets up the watcher.
+    /// - Parameter notifyOnSuccess: If true, calls onChange() once the fd is successfully opened.
+    ///   Used after atomic writes so that onChange fires only when the new file is actually readable.
+    private func start(notifyOnSuccess: Bool) {
         stop()
 
         let fd = open(url.path, O_EVTONLY)
         guard fd >= 0 else {
-            // File may not exist yet after atomic write; retry after a delay
+            // File may not exist yet (e.g. between delete and rename in atomic write); retry
             retryStart()
             return
         }
@@ -38,11 +41,11 @@ class FileWatcher {
             let flags = source.data
 
             if flags.contains(.delete) || flags.contains(.rename) {
-                // Atomic write replaced the file; restart watcher with new fd
+                // Atomic write replaced the file; restart watcher with new fd.
+                // Notify onChange only after the new file is confirmed readable.
                 DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 0.1) { [weak self] in
                     guard let self = self, self.isActive else { return }
-                    self.start()
-                    self.onChange()
+                    self.start(notifyOnSuccess: true)
                 }
             } else {
                 self.onChange()
@@ -56,6 +59,10 @@ class FileWatcher {
         }
 
         source.resume()
+
+        if notifyOnSuccess {
+            onChange()
+        }
     }
 
     private func stop() {
@@ -67,7 +74,8 @@ class FileWatcher {
     private func retryStart() {
         DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 0.5) { [weak self] in
             guard let self = self, self.isActive else { return }
-            self.start()
+            // notifyOnSuccess: true — the file should exist now; trigger a reload once open succeeds
+            self.start(notifyOnSuccess: true)
         }
     }
 

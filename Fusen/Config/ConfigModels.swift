@@ -4,6 +4,7 @@ import CryptoKit
 // MARK: - Config (~/.config/fusen/config.yaml)
 
 struct FusenConfig: Codable {
+    var hotkey: String?
     var notes: [NoteConfig] = []
 }
 

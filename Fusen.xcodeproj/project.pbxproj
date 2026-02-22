@@ -13,6 +13,7 @@
 		47609F52BA06C2C31D684125 /* Highlightr in Frameworks */ = {isa = PBXBuildFile; productRef = 173FCA07A5A5CE9ECF0993DB /* Highlightr */; };
 		52AF571E86755BDCF70AF9C3 /* NoteListPopover.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63131F96F88E6661632316D8 /* NoteListPopover.swift */; };
 		595C06753456A6F70B9CC85E /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6477EC65343AA21B8C6B9455 /* AppState.swift */; };
+		5BB072DE646B7601C8CCCCF0 /* ImageCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AD8373EE9242EB738892432 /* ImageCache.swift */; };
 		6368201D070448788BFCBFF8 /* MarkdownStyler+Attributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = D17FD928FC0445860C35C9C7 /* MarkdownStyler+Attributes.swift */; };
 		6D25FCC56BEB7CDAAC843219 /* YAMLStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B2E24DEE60E5C29D85875C7 /* YAMLStore.swift */; };
 		6DEC765903E708C6AC9CA4C3 /* LivePreviewEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7830158D5C242F95FE5F3E90 /* LivePreviewEditor.swift */; };
@@ -35,6 +36,7 @@
 		E9233A31B3EED03350CB15B4 /* GlobalHotkeyService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A311522C466E5D7A84669BA1 /* GlobalHotkeyService.swift */; };
 		EE457638742C63EA641C84C7 /* FusenApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7004D784237018149DFF0E29 /* FusenApp.swift */; };
 		FA7516A274640DE4682EF851 /* ConfigModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = E87FD26BBAAC012942E0F0BA /* ConfigModels.swift */; };
+		FD6848D4E6CBDC24666C7A24 /* MarkdownStyler+ThematicBreak.swift in Sources */ = {isa = PBXBuildFile; fileRef = D598AE6D48995188FA94AA7D /* MarkdownStyler+ThematicBreak.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -46,6 +48,7 @@
 		36C4851176ADA90F34AF2712 /* MarkdownStyler+List.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MarkdownStyler+List.swift"; sourceTree = "<group>"; };
 		45514F76A24CC5B51B8EB1C1 /* FileWatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileWatcher.swift; sourceTree = "<group>"; };
 		4850A45C314DBEFE9D6443E6 /* Fusen.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Fusen.entitlements; sourceTree = "<group>"; };
+		5AD8373EE9242EB738892432 /* ImageCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCache.swift; sourceTree = "<group>"; };
 		63131F96F88E6661632316D8 /* NoteListPopover.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteListPopover.swift; sourceTree = "<group>"; };
 		6477EC65343AA21B8C6B9455 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
 		6AF3BE8D4474AC5C171BA370 /* AppConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConfig.swift; sourceTree = "<group>"; };
@@ -62,6 +65,7 @@
 		C5800A7F6929ADB0626F2FD5 /* MarkdownStyler+Inline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MarkdownStyler+Inline.swift"; sourceTree = "<group>"; };
 		CADFAE6CE8DFA5AA42EEF162 /* NoteWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteWindow.swift; sourceTree = "<group>"; };
 		D17FD928FC0445860C35C9C7 /* MarkdownStyler+Attributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MarkdownStyler+Attributes.swift"; sourceTree = "<group>"; };
+		D598AE6D48995188FA94AA7D /* MarkdownStyler+ThematicBreak.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MarkdownStyler+ThematicBreak.swift"; sourceTree = "<group>"; };
 		DB8DA77B44AD746B0DDBA6BE /* Fusen.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Fusen.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E87FD26BBAAC012942E0F0BA /* ConfigModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfigModels.swift; sourceTree = "<group>"; };
 		F951DC7C3CACCAF005BF01C0 /* NoteStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteStore.swift; sourceTree = "<group>"; };
@@ -113,6 +117,7 @@
 			isa = PBXGroup;
 			children = (
 				B30227545343F59E44D58FC1 /* BulletLayoutManager.swift */,
+				5AD8373EE9242EB738892432 /* ImageCache.swift */,
 				0A43CB1B572ABDEE8CF4F6D9 /* MarkdownStyler.swift */,
 				D17FD928FC0445860C35C9C7 /* MarkdownStyler+Attributes.swift */,
 				1DE519888FC7EEBDB0571904 /* MarkdownStyler+BlockQuote.swift */,
@@ -122,6 +127,7 @@
 				36C4851176ADA90F34AF2712 /* MarkdownStyler+List.swift */,
 				0C71E217E481B258DC4B66B2 /* MarkdownStyler+RangeUtils.swift */,
 				9B802661C5CC13D46EF0B7D3 /* MarkdownStyler+Table.swift */,
+				D598AE6D48995188FA94AA7D /* MarkdownStyler+ThematicBreak.swift */,
 			);
 			path = Editor;
 			sourceTree = "<group>";
@@ -262,6 +268,7 @@
 				3D75B948594751731F210822 /* FileWatcher.swift in Sources */,
 				EE457638742C63EA641C84C7 /* FusenApp.swift in Sources */,
 				E9233A31B3EED03350CB15B4 /* GlobalHotkeyService.swift in Sources */,
+				5BB072DE646B7601C8CCCCF0 /* ImageCache.swift in Sources */,
 				6DEC765903E708C6AC9CA4C3 /* LivePreviewEditor.swift in Sources */,
 				6368201D070448788BFCBFF8 /* MarkdownStyler+Attributes.swift in Sources */,
 				9540A1C2978D56E480653233 /* MarkdownStyler+BlockQuote.swift in Sources */,
@@ -271,6 +278,7 @@
 				C5539A9953551834DA544A60 /* MarkdownStyler+List.swift in Sources */,
 				A1ECFE30E1ACFFFEA3DB371B /* MarkdownStyler+RangeUtils.swift in Sources */,
 				BC9A28B88DB35B0D5D22F620 /* MarkdownStyler+Table.swift in Sources */,
+				FD6848D4E6CBDC24666C7A24 /* MarkdownStyler+ThematicBreak.swift in Sources */,
 				9011A8392B7AA1C6724E5A1C /* MarkdownStyler.swift in Sources */,
 				01FA042741A005B7CF2313F2 /* Note.swift in Sources */,
 				52AF571E86755BDCF70AF9C3 /* NoteListPopover.swift in Sources */,
