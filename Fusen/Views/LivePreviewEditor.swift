@@ -216,6 +216,25 @@ class MarkdownTextView: NSTextView {
         return super.performKeyEquivalent(with: event)
     }
 
+    override func doCommand(by aSelector: Selector) {
+        // In LSUIElement apps without a menu bar, undo:/redo: walk the responder
+        // chain but find no handler, resulting in NSBeep(). Dispatch directly.
+        if aSelector == #selector(UndoManager.undo) {
+            undoManager?.undo()
+            return
+        }
+        if aSelector == #selector(UndoManager.redo) {
+            undoManager?.redo()
+            return
+        }
+        // For commands this text view can handle (setMark:, insertNewline:, etc.),
+        // delegate to the normal NSTextView dispatch.
+        // For unknown commands, silently ignore instead of beeping.
+        if responds(to: aSelector) {
+            super.doCommand(by: aSelector)
+        }
+    }
+
     // MARK: - Inline Markdown wrapping (bold / italic)
 
     private func wrapWithMarkdown(open: String, close: String) {
@@ -752,16 +771,6 @@ struct LivePreviewEditor: NSViewRepresentable {
             if textView.hasMarkedText() { return }
             text.wrappedValue = textView.string
             applyStyling(to: textView)
-        }
-
-        func textView(_ textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
-            // Suppress beep for commands that NSTextView cannot handle.
-            // In LSUIElement apps without a menu bar, standard selectors like undo:
-            // reach the end of the responder chain unhandled, causing NSBeep().
-            if !textView.responds(to: commandSelector) {
-                return true
-            }
-            return false
         }
 
         func textViewDidChangeSelection(_ notification: Notification) {
