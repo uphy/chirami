@@ -432,9 +432,3 @@ class NoteMenuActions: NSObject {
         context.showColorPicker.wrappedValue = true
     }
 }
-
-// MARK: - NSColor → SwiftUI Color
-
-private extension NSColor {
-    var swiftUI: Color { Color(self) }
-}

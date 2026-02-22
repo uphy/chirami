@@ -16,7 +16,7 @@ class NoteStore: ObservableObject {
         loadFromConfig()
 
         // Reload when config changes externally
-        appConfig.$config
+        appConfig.$data
             .dropFirst()
             .sink { [weak self] _ in self?.loadFromConfig() }
             .store(in: &cancellables)
@@ -30,7 +30,7 @@ class NoteStore: ObservableObject {
         notes = config.notes.compactMap { noteConfig in
             guard let fallbackURL = resolvePath(noteConfig.path) else { return nil }
 
-            let id = noteConfig.id ?? fallbackURL.deletingPathExtension().lastPathComponent
+            let id = noteConfig.effectiveId
             let url = resolveBookmark(for: id) ?? fallbackURL
             let title = noteConfig.title ?? id
             let color = noteConfig.color.flatMap { NoteColor(rawValue: $0) } ?? .yellow
@@ -82,10 +82,7 @@ class NoteStore: ObservableObject {
 
     func updateColor(_ color: NoteColor, for note: Note) {
         appConfig.update { config in
-            if let idx = config.notes.firstIndex(where: {
-                let id = $0.id ?? URL(fileURLWithPath: $0.path).deletingPathExtension().lastPathComponent
-                return id == note.id
-            }) {
+            if let idx = config.notes.firstIndex(where: { $0.effectiveId == note.id }) {
                 config.notes[idx].color = color.rawValue
             }
         }
@@ -94,10 +91,7 @@ class NoteStore: ObservableObject {
 
     func updateTransparency(_ value: Double, for note: Note) {
         appConfig.update { config in
-            if let idx = config.notes.firstIndex(where: {
-                let id = $0.id ?? URL(fileURLWithPath: $0.path).deletingPathExtension().lastPathComponent
-                return id == note.id
-            }) {
+            if let idx = config.notes.firstIndex(where: { $0.effectiveId == note.id }) {
                 config.notes[idx].transparency = value
             }
         }

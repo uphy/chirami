@@ -1,94 +1,56 @@
 import Foundation
-import Yams
 
-class AppState: ObservableObject {
+class AppState: YAMLStore<FusenState> {
     static let shared = AppState()
 
-    private let stateURL: URL
-    @Published private(set) var state: FusenState = FusenState()
+    var state: FusenState { data }
+
+    private static let defaultWindowState = WindowState(
+        position: CGPoint(x: 100, y: 200),
+        size: CGSize(width: 300, height: 400),
+        visible: true
+    )
 
     private init() {
         let stateDir = FileManager.realHomeDirectory
             .appendingPathComponent(".local/state/fusen")
-        stateURL = stateDir.appendingPathComponent("state.yaml")
-
-        try? FileManager.default.createDirectory(at: stateDir, withIntermediateDirectories: true)
-        load()
-    }
-
-    func load() {
-        guard let data = try? Data(contentsOf: stateURL),
-              let yaml = String(data: data, encoding: .utf8) else {
-            state = FusenState()
-            return
-        }
-        do {
-            state = try YAMLDecoder().decode(FusenState.self, from: yaml)
-        } catch {
-            print("State load error: \(error)")
-            state = FusenState()
-        }
-    }
-
-    func save() {
-        do {
-            let yaml = try YAMLEncoder().encode(state)
-            try yaml.write(to: stateURL, atomically: true, encoding: .utf8)
-        } catch {
-            print("State save error: \(error)")
-        }
+        super.init(directory: stateDir, fileName: "state.yaml", label: "State", defaultValue: FusenState())
     }
 
     func windowState(for noteId: String) -> WindowState? {
-        state.windows[noteId]
+        data.windows[noteId]
     }
 
     func updateWindow(for noteId: String, position: CGPoint, size: CGSize, visible: Bool) {
-        state.windows[noteId] = WindowState(position: position, size: size, visible: visible)
-        save()
+        update { $0.windows[noteId] = WindowState(position: position, size: size, visible: visible) }
     }
 
-    func saveBookmark(for noteId: String, data: Data) {
-        state.bookmarks[noteId] = data.base64EncodedString()
-        save()
+    func saveBookmark(for noteId: String, data bookmarkData: Data) {
+        update { $0.bookmarks[noteId] = bookmarkData.base64EncodedString() }
     }
 
     func bookmarkData(for noteId: String) -> Data? {
-        guard let base64 = state.bookmarks[noteId] else { return nil }
+        guard let base64 = data.bookmarks[noteId] else { return nil }
         return Data(base64Encoded: base64)
     }
 
     func removeBookmark(for noteId: String) {
-        state.bookmarks.removeValue(forKey: noteId)
-        save()
+        update { $0.bookmarks.removeValue(forKey: noteId) }
     }
 
     func setAlwaysOnTop(_ value: Bool, for noteId: String) {
-        if var ws = state.windows[noteId] {
-            ws.alwaysOnTop = value
-            state.windows[noteId] = ws
-        } else {
-            state.windows[noteId] = WindowState(
-                position: CGPoint(x: 100, y: 200),
-                size: CGSize(width: 300, height: 400),
-                visible: true,
-                alwaysOnTop: value
-            )
-        }
-        save()
+        updateWindowState(for: noteId) { $0.alwaysOnTop = value }
     }
 
     func setVisible(_ visible: Bool, for noteId: String) {
-        if var ws = state.windows[noteId] {
-            ws.visible = visible
+        updateWindowState(for: noteId) { $0.visible = visible }
+    }
+
+    private func updateWindowState(for noteId: String, _ modify: (inout WindowState) -> Void) {
+        update { state in
+            var ws = state.windows[noteId] ?? Self.defaultWindowState
+            modify(&ws)
             state.windows[noteId] = ws
-        } else {
-            state.windows[noteId] = WindowState(
-                position: CGPoint(x: 100, y: 200),
-                size: CGSize(width: 300, height: 400),
-                visible: visible
-            )
         }
-        save()
     }
 }

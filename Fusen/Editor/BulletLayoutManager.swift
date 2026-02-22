@@ -133,46 +133,48 @@ class BulletLayoutManager: NSLayoutManager {
         return textStorage.attribute(.listNestingLevel, at: charLocation, effectiveRange: nil) as? Int ?? 0
     }
 
-    private func drawSFSymbol(_ name: String, at range: NSRange, origin: NSPoint, color: NSColor, size: CGFloat) {
-        let glyphIndex = glyphIndexForCharacter(at: range.location)
-        guard textContainer(forGlyphAt: glyphIndex, effectiveRange: nil) != nil else { return }
+    private struct GlyphPosition {
+        let glyphIndex: Int
+        let lineRect: NSRect
+        let level: Int
+        let baselineY: CGFloat
+    }
 
-        var lineRange = NSRange()
-        let lineRect = lineFragmentRect(forGlyphAt: glyphIndex, effectiveRange: &lineRange)
+    private func glyphPosition(at range: NSRange, origin: NSPoint, fontSize: CGFloat) -> GlyphPosition? {
+        let glyphIndex = glyphIndexForCharacter(at: range.location)
+        guard textContainer(forGlyphAt: glyphIndex, effectiveRange: nil) != nil else { return nil }
+        let lineRect = lineFragmentRect(forGlyphAt: glyphIndex, effectiveRange: nil)
+        let level = nestingLevel(at: range.location)
+        let baselineY = origin.y + lineRect.origin.y + baselineOffset(forGlyphAt: glyphIndex, fontSize: fontSize)
+        return GlyphPosition(glyphIndex: glyphIndex, lineRect: lineRect, level: level, baselineY: baselineY)
+    }
+
+    private func drawSFSymbol(_ name: String, at range: NSRange, origin: NSPoint, color: NSColor, size: CGFloat) {
+        guard let pos = glyphPosition(at: range, origin: origin, fontSize: size) else { return }
 
         let config = NSImage.SymbolConfiguration(pointSize: size, weight: .regular)
         guard let image = NSImage(systemSymbolName: name, accessibilityDescription: nil)?
             .withSymbolConfiguration(config) else { return }
 
-        let level = nestingLevel(at: range.location)
         let tinted = image.tinted(with: color)
         let imageSize = tinted.size
-        let x = origin.x + lineRect.origin.x + 2 + CGFloat(level) * 20
-        let baselineY = origin.y + lineRect.origin.y + baselineOffset(forGlyphAt: glyphIndex, fontSize: size)
+        let x = origin.x + pos.lineRect.origin.x + 2 + CGFloat(pos.level) * 20
         let textFont = NSFont.systemFont(ofSize: size)
-        let textCenterY = baselineY - textFont.capHeight / 2
+        let textCenterY = pos.baselineY - textFont.capHeight / 2
         let y = textCenterY - imageSize.height / 2
         tinted.draw(in: NSRect(x: x, y: y, width: imageSize.width, height: imageSize.height))
     }
 
     private func drawSymbol(_ symbol: String, at range: NSRange, origin: NSPoint, color: NSColor, fontSize: CGFloat) {
-        let glyphIndex = glyphIndexForCharacter(at: range.location)
-        guard textContainer(forGlyphAt: glyphIndex, effectiveRange: nil) != nil else { return }
+        guard let pos = glyphPosition(at: range, origin: origin, fontSize: fontSize) else { return }
 
-        // Use the line fragment rect to get the correct vertical position
-        var lineRange = NSRange()
-        let lineRect = lineFragmentRect(forGlyphAt: glyphIndex, effectiveRange: &lineRange)
-
-        let level = nestingLevel(at: range.location)
         let font = NSFont.systemFont(ofSize: fontSize)
         let attrs: [NSAttributedString.Key: Any] = [
             .font: font,
             .foregroundColor: color
         ]
-        // Position at the start of the line, aligned to the text baseline
-        let x = origin.x + lineRect.origin.x + 5 + CGFloat(level) * 20
-        let baselineY = origin.y + lineRect.origin.y + baselineOffset(forGlyphAt: glyphIndex, fontSize: fontSize)
-        let y = baselineY - font.ascender
+        let x = origin.x + pos.lineRect.origin.x + 5 + CGFloat(pos.level) * 20
+        let y = pos.baselineY - font.ascender
         symbol.draw(at: NSPoint(x: x, y: y), withAttributes: attrs)
     }
 }

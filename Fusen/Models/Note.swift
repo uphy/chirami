@@ -1,5 +1,6 @@
 import Foundation
 import AppKit
+import SwiftUI
 
 struct Note: Identifiable, Equatable {
     let id: String
@@ -16,146 +17,80 @@ struct Note: Identifiable, Equatable {
     }
 }
 
-enum NoteColor: String, CaseIterable, Codable {
-    case yellow, blue, green, pink, purple, gray
+// MARK: - NoteColor
+
+private struct ColorSet {
+    let dark: (r: CGFloat, g: CGFloat, b: CGFloat)
+    let light: (r: CGFloat, g: CGFloat, b: CGFloat)
 
     var nsColor: NSColor {
-        switch self {
-        case .yellow:
-            return NSColor(name: nil) { appearance in
-                appearance.isDark
-                    ? NSColor(red: 0.30, green: 0.28, blue: 0.15, alpha: 1.0)
-                    : NSColor(red: 1.0,  green: 0.96, blue: 0.72, alpha: 1.0)
-            }
-        case .blue:
-            return NSColor(name: nil) { appearance in
-                appearance.isDark
-                    ? NSColor(red: 0.15, green: 0.22, blue: 0.30, alpha: 1.0)
-                    : NSColor(red: 0.72, green: 0.88, blue: 1.0,  alpha: 1.0)
-            }
-        case .green:
-            return NSColor(name: nil) { appearance in
-                appearance.isDark
-                    ? NSColor(red: 0.15, green: 0.28, blue: 0.15, alpha: 1.0)
-                    : NSColor(red: 0.76, green: 0.96, blue: 0.76, alpha: 1.0)
-            }
-        case .pink:
-            return NSColor(name: nil) { appearance in
-                appearance.isDark
-                    ? NSColor(red: 0.30, green: 0.18, blue: 0.22, alpha: 1.0)
-                    : NSColor(red: 1.0,  green: 0.76, blue: 0.84, alpha: 1.0)
-            }
-        case .purple:
-            return NSColor(name: nil) { appearance in
-                appearance.isDark
-                    ? NSColor(red: 0.22, green: 0.18, blue: 0.30, alpha: 1.0)
-                    : NSColor(red: 0.88, green: 0.76, blue: 1.0,  alpha: 1.0)
-            }
-        case .gray:
-            return NSColor(name: nil) { appearance in
-                appearance.isDark
-                    ? NSColor(red: 0.25, green: 0.25, blue: 0.25, alpha: 1.0)
-                    : NSColor(red: 0.88, green: 0.88, blue: 0.88, alpha: 1.0)
-            }
-        }
-    }
-
-    var textColor: NSColor {
-        switch self {
-        case .yellow:
-            return NSColor(name: nil) { appearance in
-                appearance.isDark
-                    ? NSColor(red: 0.92, green: 0.88, blue: 0.65, alpha: 1.0)
-                    : NSColor(red: 0.45, green: 0.38, blue: 0.10, alpha: 1.0)
-            }
-        case .blue:
-            return NSColor(name: nil) { appearance in
-                appearance.isDark
-                    ? NSColor(red: 0.70, green: 0.82, blue: 0.95, alpha: 1.0)
-                    : NSColor(red: 0.12, green: 0.25, blue: 0.45, alpha: 1.0)
-            }
-        case .green:
-            return NSColor(name: nil) { appearance in
-                appearance.isDark
-                    ? NSColor(red: 0.70, green: 0.92, blue: 0.70, alpha: 1.0)
-                    : NSColor(red: 0.15, green: 0.35, blue: 0.15, alpha: 1.0)
-            }
-        case .pink:
-            return NSColor(name: nil) { appearance in
-                appearance.isDark
-                    ? NSColor(red: 0.95, green: 0.72, blue: 0.78, alpha: 1.0)
-                    : NSColor(red: 0.50, green: 0.15, blue: 0.22, alpha: 1.0)
-            }
-        case .purple:
-            return NSColor(name: nil) { appearance in
-                appearance.isDark
-                    ? NSColor(red: 0.85, green: 0.75, blue: 0.95, alpha: 1.0)
-                    : NSColor(red: 0.30, green: 0.15, blue: 0.45, alpha: 1.0)
-            }
-        case .gray:
-            return NSColor(name: nil) { appearance in
-                appearance.isDark
-                    ? NSColor(red: 0.82, green: 0.82, blue: 0.82, alpha: 1.0)
-                    : NSColor(red: 0.25, green: 0.25, blue: 0.25, alpha: 1.0)
-            }
-        }
-    }
-
-    var linkColor: NSColor {
-        switch self {
-        case .yellow:
-            return NSColor(name: nil) { appearance in
-                appearance.isDark
-                    ? NSColor(red: 0.95, green: 0.78, blue: 0.40, alpha: 1.0)
-                    : NSColor(red: 0.55, green: 0.35, blue: 0.05, alpha: 1.0)
-            }
-        case .blue:
-            return NSColor(name: nil) { appearance in
-                appearance.isDark
-                    ? NSColor(red: 0.55, green: 0.78, blue: 1.0, alpha: 1.0)
-                    : NSColor(red: 0.08, green: 0.18, blue: 0.55, alpha: 1.0)
-            }
-        case .green:
-            return NSColor(name: nil) { appearance in
-                appearance.isDark
-                    ? NSColor(red: 0.40, green: 0.85, blue: 0.75, alpha: 1.0)
-                    : NSColor(red: 0.05, green: 0.35, blue: 0.30, alpha: 1.0)
-            }
-        case .pink:
-            return NSColor(name: nil) { appearance in
-                appearance.isDark
-                    ? NSColor(red: 1.0, green: 0.55, blue: 0.65, alpha: 1.0)
-                    : NSColor(red: 0.60, green: 0.10, blue: 0.25, alpha: 1.0)
-            }
-        case .purple:
-            return NSColor(name: nil) { appearance in
-                appearance.isDark
-                    ? NSColor(red: 0.75, green: 0.60, blue: 1.0, alpha: 1.0)
-                    : NSColor(red: 0.35, green: 0.10, blue: 0.55, alpha: 1.0)
-            }
-        case .gray:
-            return NSColor(name: nil) { appearance in
-                appearance.isDark
-                    ? NSColor(red: 0.65, green: 0.72, blue: 0.82, alpha: 1.0)
-                    : NSColor(red: 0.20, green: 0.25, blue: 0.35, alpha: 1.0)
-            }
-        }
-    }
-
-    var displayName: String {
-        switch self {
-        case .yellow: return "Yellow"
-        case .blue:   return "Blue"
-        case .green:  return "Green"
-        case .pink:   return "Pink"
-        case .purple: return "Purple"
-        case .gray:   return "Gray"
+        NSColor(name: nil) { appearance in
+            let c = appearance.isDark ? dark : light
+            return NSColor(red: c.r, green: c.g, blue: c.b, alpha: 1.0)
         }
     }
 }
+
+private struct NoteColorDef {
+    let background: ColorSet
+    let text: ColorSet
+    let link: ColorSet
+}
+
+private let colorTable: [NoteColor: NoteColorDef] = [
+    .yellow: NoteColorDef(
+        background: ColorSet(dark: (0.30, 0.28, 0.15), light: (1.0,  0.96, 0.72)),
+        text:       ColorSet(dark: (0.92, 0.88, 0.65), light: (0.45, 0.38, 0.10)),
+        link:       ColorSet(dark: (0.95, 0.78, 0.40), light: (0.55, 0.35, 0.05))
+    ),
+    .blue: NoteColorDef(
+        background: ColorSet(dark: (0.15, 0.22, 0.30), light: (0.72, 0.88, 1.0)),
+        text:       ColorSet(dark: (0.70, 0.82, 0.95), light: (0.12, 0.25, 0.45)),
+        link:       ColorSet(dark: (0.55, 0.78, 1.0),  light: (0.08, 0.18, 0.55))
+    ),
+    .green: NoteColorDef(
+        background: ColorSet(dark: (0.15, 0.28, 0.15), light: (0.76, 0.96, 0.76)),
+        text:       ColorSet(dark: (0.70, 0.92, 0.70), light: (0.15, 0.35, 0.15)),
+        link:       ColorSet(dark: (0.40, 0.85, 0.75), light: (0.05, 0.35, 0.30))
+    ),
+    .pink: NoteColorDef(
+        background: ColorSet(dark: (0.30, 0.18, 0.22), light: (1.0,  0.76, 0.84)),
+        text:       ColorSet(dark: (0.95, 0.72, 0.78), light: (0.50, 0.15, 0.22)),
+        link:       ColorSet(dark: (1.0,  0.55, 0.65), light: (0.60, 0.10, 0.25))
+    ),
+    .purple: NoteColorDef(
+        background: ColorSet(dark: (0.22, 0.18, 0.30), light: (0.88, 0.76, 1.0)),
+        text:       ColorSet(dark: (0.85, 0.75, 0.95), light: (0.30, 0.15, 0.45)),
+        link:       ColorSet(dark: (0.75, 0.60, 1.0),  light: (0.35, 0.10, 0.55))
+    ),
+    .gray: NoteColorDef(
+        background: ColorSet(dark: (0.25, 0.25, 0.25), light: (0.88, 0.88, 0.88)),
+        text:       ColorSet(dark: (0.82, 0.82, 0.82), light: (0.25, 0.25, 0.25)),
+        link:       ColorSet(dark: (0.65, 0.72, 0.82), light: (0.20, 0.25, 0.35))
+    ),
+]
+
+enum NoteColor: String, CaseIterable, Codable {
+    case yellow, blue, green, pink, purple, gray
+
+    private var def: NoteColorDef { colorTable[self]! }
+
+    var nsColor: NSColor { def.background.nsColor }
+    var textColor: NSColor { def.text.nsColor }
+    var linkColor: NSColor { def.link.nsColor }
+    var displayName: String { rawValue.capitalized }
+}
+
+// MARK: - NSAppearance
 
 extension NSAppearance {
     var isDark: Bool {
         bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
     }
+}
+
+// MARK: - NSColor → SwiftUI Color
+
+extension NSColor {
+    var swiftUI: Color { Color(self) }
 }

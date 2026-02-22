@@ -15,6 +15,10 @@ struct NoteConfig: Codable {
     var fontSize: Int?
     var hotkey: String?
 
+    var effectiveId: String {
+        id ?? URL(fileURLWithPath: path).deletingPathExtension().lastPathComponent
+    }
+
     enum CodingKeys: String, CodingKey {
         case id, path, title, color, transparency, hotkey
         case fontSize = "font_size"

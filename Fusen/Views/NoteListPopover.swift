@@ -106,13 +106,11 @@ struct NoteListView: View {
 
 struct NoteRowView: View {
     let note: Note
-    @State private var isVisible: Bool = true
     private let windowManager = WindowManager.shared
 
     var body: some View {
         Button {
             windowManager.toggleWindow(for: note.id)
-            isVisible = windowManager.isVisible(noteId: note.id)
         } label: {
             HStack(spacing: 8) {
                 RoundedRectangle(cornerRadius: 3)
@@ -210,8 +208,4 @@ private struct HoverEffectModifier: ViewModifier {
             .background(isHovered ? Color.accentColor.opacity(0.1) : Color.clear)
             .onHover { isHovered = $0 }
     }
-}
-
-private extension NSColor {
-    var swiftUI: Color { Color(self) }
 }

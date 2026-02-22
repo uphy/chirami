@@ -35,7 +35,7 @@ class MarkdownTextView: NSTextView {
 
     override func mouseMoved(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
-        if isOverCheckbox(at: point) || isOverLink(at: point) {
+        if charIndexOfCheckbox(at: point) != nil || linkURL(at: point) != nil {
             NSCursor.pointingHand.set()
         } else {
             super.mouseMoved(with: event)
@@ -55,19 +55,11 @@ class MarkdownTextView: NSTextView {
         super.mouseDown(with: event)
     }
 
-    private func isOverLink(at point: NSPoint) -> Bool {
-        return linkURL(at: point) != nil
-    }
-
     private func linkURL(at point: NSPoint) -> URL? {
         guard let storage = textStorage else { return nil }
         let charIndex = characterIndexForInsertion(at: point)
         guard charIndex < storage.length else { return nil }
         return storage.attribute(.link, at: charIndex, effectiveRange: nil) as? URL
-    }
-
-    private func isOverCheckbox(at point: NSPoint) -> Bool {
-        return charIndexOfCheckbox(at: point) != nil
     }
 
     private func charIndexOfCheckbox(at point: NSPoint) -> Int? {
@@ -128,6 +120,43 @@ class MarkdownTextView: NSTextView {
         super.insertText(string, replacementRange: replacementRange)
     }
 
+    // MARK: - Current line helper
+
+    struct CurrentLine {
+        let storage: NSTextStorage
+        let nsString: NSString
+        let cursorLocation: Int
+        let lineRange: NSRange
+        let trimmedLine: String
+        let fullRange: NSRange
+    }
+
+    func currentLine() -> CurrentLine? {
+        guard let storage = textStorage else { return nil }
+        let nsString = storage.string as NSString
+        let cursorLocation = selectedRange().location
+        let lineRange = nsString.lineRange(for: NSRange(location: cursorLocation, length: 0))
+        let lineText = nsString.substring(with: lineRange)
+        let trimmedLine = lineText.hasSuffix("\n") ? String(lineText.dropLast()) : lineText
+        let fullRange = NSRange(location: 0, length: (trimmedLine as NSString).length)
+        return CurrentLine(storage: storage, nsString: nsString, cursorLocation: cursorLocation, lineRange: lineRange, trimmedLine: trimmedLine, fullRange: fullRange)
+    }
+
+    func isListItem(_ line: String, range: NSRange) -> Bool {
+        Self.unorderedListPattern.firstMatch(in: line, range: range) != nil
+            || Self.orderedListPattern.firstMatch(in: line, range: range) != nil
+    }
+
+    // MARK: - Font size adjustment
+
+    private func adjustFontSize(by delta: CGFloat) {
+        let newSize = delta > 0 ? min(currentFontSize + delta, 32) : max(currentFontSize + delta, 8)
+        if newSize != currentFontSize {
+            currentFontSize = newSize
+            onFontSizeChange?(newSize)
+        }
+    }
+
     // MARK: - Toggle task list (Cmd+L)
 
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
@@ -137,22 +166,12 @@ class MarkdownTextView: NSTextView {
                 toggleTaskList()
                 return true
             }
-            // Cmd+= (or Cmd+Shift+=, i.e. Cmd++) to increase font size
             if chars == "=" || chars == "+" {
-                let newSize = min(currentFontSize + 1, 32)
-                if newSize != currentFontSize {
-                    currentFontSize = newSize
-                    onFontSizeChange?(newSize)
-                }
+                adjustFontSize(by: 1)
                 return true
             }
-            // Cmd+- to decrease font size
             if chars == "-" {
-                let newSize = max(currentFontSize - 1, 8)
-                if newSize != currentFontSize {
-                    currentFontSize = newSize
-                    onFontSizeChange?(newSize)
-                }
+                adjustFontSize(by: -1)
                 return true
             }
         }
@@ -173,14 +192,12 @@ class MarkdownTextView: NSTextView {
     )
 
     private func toggleTaskList() {
-        guard let storage = textStorage else { return }
-
-        let nsString = storage.string as NSString
-        let cursorLocation = selectedRange().location
-        let lineRange = nsString.lineRange(for: NSRange(location: cursorLocation, length: 0))
-        let lineText = nsString.substring(with: lineRange)
-        let trimmedLine = lineText.hasSuffix("\n") ? String(lineText.dropLast()) : lineText
-        let fullRange = NSRange(location: 0, length: (trimmedLine as NSString).length)
+        guard let cl = currentLine() else { return }
+        let storage = cl.storage
+        let cursorLocation = cl.cursorLocation
+        let lineRange = cl.lineRange
+        let trimmedLine = cl.trimmedLine
+        let fullRange = cl.fullRange
 
         let replacement: String
 
@@ -230,60 +247,39 @@ class MarkdownTextView: NSTextView {
     private static let indentUnit = "\t"
 
     override func insertTab(_ sender: Any?) {
-        guard let storage = textStorage else {
+        guard let cl = currentLine() else {
             super.insertTab(sender)
             return
         }
 
-        let nsString = storage.string as NSString
-        let cursorLocation = selectedRange().location
-        let lineRange = nsString.lineRange(for: NSRange(location: cursorLocation, length: 0))
-        let lineText = nsString.substring(with: lineRange)
-        let trimmedLine = lineText.hasSuffix("\n") ? String(lineText.dropLast()) : lineText
-        let fullRange = NSRange(location: 0, length: (trimmedLine as NSString).length)
-
-        let isListItem = Self.unorderedListPattern.firstMatch(in: trimmedLine, range: fullRange) != nil
-            || Self.orderedListPattern.firstMatch(in: trimmedLine, range: fullRange) != nil
-
-        guard isListItem else {
+        guard isListItem(cl.trimmedLine, range: cl.fullRange) else {
             super.insertTab(sender)
             return
         }
 
-        let insertRange = NSRange(location: lineRange.location, length: 0)
+        let insertRange = NSRange(location: cl.lineRange.location, length: 0)
         let indent = Self.indentUnit
         if shouldChangeText(in: insertRange, replacementString: indent) {
-            storage.replaceCharacters(in: insertRange, with: indent)
-            let newCursor = cursorLocation + (indent as NSString).length
+            cl.storage.replaceCharacters(in: insertRange, with: indent)
+            let newCursor = cl.cursorLocation + (indent as NSString).length
             setSelectedRange(NSRange(location: newCursor, length: 0))
             didChangeText()
         }
     }
 
     override func insertBacktab(_ sender: Any?) {
-        guard let storage = textStorage else { return }
+        guard let cl = currentLine() else { return }
+        guard isListItem(cl.trimmedLine, range: cl.fullRange) else { return }
 
-        let nsString = storage.string as NSString
-        let cursorLocation = selectedRange().location
-        let lineRange = nsString.lineRange(for: NSRange(location: cursorLocation, length: 0))
-        let lineText = nsString.substring(with: lineRange)
-        let trimmedLine = lineText.hasSuffix("\n") ? String(lineText.dropLast()) : lineText
-        let fullRange = NSRange(location: 0, length: (trimmedLine as NSString).length)
-
-        let isListItem = Self.unorderedListPattern.firstMatch(in: trimmedLine, range: fullRange) != nil
-            || Self.orderedListPattern.firstMatch(in: trimmedLine, range: fullRange) != nil
-
-        guard isListItem else { return }
-
-        // Remove one leading tab if present
         let indent = Self.indentUnit
         let indentLen = (indent as NSString).length
+        let lineText = cl.nsString.substring(with: cl.lineRange)
         guard lineText.hasPrefix(indent) else { return }
 
-        let removeRange = NSRange(location: lineRange.location, length: indentLen)
+        let removeRange = NSRange(location: cl.lineRange.location, length: indentLen)
         if shouldChangeText(in: removeRange, replacementString: "") {
-            storage.replaceCharacters(in: removeRange, with: "")
-            let newCursor = max(lineRange.location, cursorLocation - indentLen)
+            cl.storage.replaceCharacters(in: removeRange, with: "")
+            let newCursor = max(cl.lineRange.location, cl.cursorLocation - indentLen)
             setSelectedRange(NSRange(location: newCursor, length: 0))
             didChangeText()
         }
@@ -299,14 +295,13 @@ class MarkdownTextView: NSTextView {
     )
 
     override func insertNewline(_ sender: Any?) {
-        guard let storage = textStorage else {
+        guard let cl = currentLine() else {
             super.insertNewline(sender)
             return
         }
-
-        let nsString = storage.string as NSString
-        let cursorLocation = selectedRange().location
-        let lineRange = nsString.lineRange(for: NSRange(location: cursorLocation, length: 0))
+        let storage = cl.storage
+        let cursorLocation = cl.cursorLocation
+        let lineRange = cl.lineRange
 
         // If cursor is at the very beginning of the line, just insert a plain newline
         // to avoid duplicating the list marker prefix (e.g. "- [ ]")
@@ -315,11 +310,8 @@ class MarkdownTextView: NSTextView {
             return
         }
 
-        let lineText = nsString.substring(with: lineRange)
-        // Strip trailing newline for matching
-        let trimmedLine = lineText.hasSuffix("\n") ? String(lineText.dropLast()) : lineText
-
-        let fullRange = NSRange(location: 0, length: (trimmedLine as NSString).length)
+        let trimmedLine = cl.trimmedLine
+        let fullRange = cl.fullRange
 
         // Try unordered / task list
         if let match = Self.unorderedListPattern.firstMatch(in: trimmedLine, range: fullRange) {

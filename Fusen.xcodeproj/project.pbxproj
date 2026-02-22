@@ -13,6 +13,7 @@
 		47609F52BA06C2C31D684125 /* Highlightr in Frameworks */ = {isa = PBXBuildFile; productRef = 173FCA07A5A5CE9ECF0993DB /* Highlightr */; };
 		52AF571E86755BDCF70AF9C3 /* NoteListPopover.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63131F96F88E6661632316D8 /* NoteListPopover.swift */; };
 		595C06753456A6F70B9CC85E /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6477EC65343AA21B8C6B9455 /* AppState.swift */; };
+		6D25FCC56BEB7CDAAC843219 /* YAMLStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B2E24DEE60E5C29D85875C7 /* YAMLStore.swift */; };
 		6DEC765903E708C6AC9CA4C3 /* LivePreviewEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7830158D5C242F95FE5F3E90 /* LivePreviewEditor.swift */; };
 		832A18EF3099367169F6E79B /* WindowManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CC0AA3B916EEB95A591FA4C /* WindowManager.swift */; };
 		9011A8392B7AA1C6724E5A1C /* MarkdownStyler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A43CB1B572ABDEE8CF4F6D9 /* MarkdownStyler.swift */; };
@@ -40,6 +41,7 @@
 		7004D784237018149DFF0E29 /* FusenApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FusenApp.swift; sourceTree = "<group>"; };
 		7830158D5C242F95FE5F3E90 /* LivePreviewEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LivePreviewEditor.swift; sourceTree = "<group>"; };
 		98AA77CB0270A3746D840353 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		9B2E24DEE60E5C29D85875C7 /* YAMLStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YAMLStore.swift; sourceTree = "<group>"; };
 		A210F8D7E82D20B209C55E98 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		A311522C466E5D7A84669BA1 /* GlobalHotkeyService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlobalHotkeyService.swift; sourceTree = "<group>"; };
 		B30227545343F59E44D58FC1 /* BulletLayoutManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BulletLayoutManager.swift; sourceTree = "<group>"; };
@@ -106,6 +108,7 @@
 				6AF3BE8D4474AC5C171BA370 /* AppConfig.swift */,
 				6477EC65343AA21B8C6B9455 /* AppState.swift */,
 				E87FD26BBAAC012942E0F0BA /* ConfigModels.swift */,
+				9B2E24DEE60E5C29D85875C7 /* YAMLStore.swift */,
 			);
 			path = Config;
 			sourceTree = "<group>";
@@ -242,6 +245,7 @@
 				D43AACD6ACB54E0BC1F22239 /* NoteStore.swift in Sources */,
 				BC24B468518D9E8AD833DA09 /* NoteWindow.swift in Sources */,
 				832A18EF3099367169F6E79B /* WindowManager.swift in Sources */,
+				6D25FCC56BEB7CDAAC843219 /* YAMLStore.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

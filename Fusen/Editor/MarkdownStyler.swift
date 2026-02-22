@@ -34,9 +34,51 @@ class MarkdownStyler {
             ? "github-dark" : "github"
     }
 
+    private static let hiddenAttributes: [NSAttributedString.Key: Any] = [
+        .foregroundColor: NSColor.clear,
+        .font: NSFont.systemFont(ofSize: 0.001)
+    ]
+
+    private static let boldPattern = try! NSRegularExpression(pattern: #"\*\*(.+?)\*\*|__(.+?)__"#)
+    private static let italicPattern = try! NSRegularExpression(pattern: #"(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)|(?<!_)_(?!_)(.+?)(?<!_)_(?!_)"#)
+    private static let strikethroughPattern = try! NSRegularExpression(pattern: #"~~(.+?)~~"#)
+    private static let inlineCodePattern = try! NSRegularExpression(pattern: #"`(.+?)`"#)
+    private static let linkPattern = try! NSRegularExpression(pattern: #"\[(.+?)\]\((.+?)\)"#)
+
     init(noteColor: NoteColor = .yellow, baseFontSize: CGFloat = 14) {
         self.noteColor = noteColor
         self.baseFontSize = baseFontSize
+    }
+
+    private func isList(_ block: any Markup) -> Bool {
+        block is UnorderedList || block is OrderedList
+    }
+
+    private func headingFontSize(for level: Int) -> CGFloat {
+        let multiplier: CGFloat
+        switch level {
+        case 1: multiplier = 1.7
+        case 2: multiplier = 1.43
+        case 3: multiplier = 1.21
+        default: multiplier = 1.07
+        }
+        return (baseFontSize * multiplier).rounded()
+    }
+
+    /// Iterates over lines in `range` of `text`, tracking the absolute offset of each line start.
+    private func enumerateLines(
+        in text: String,
+        range: NSRange,
+        body: (_ line: String, _ lineStart: Int, _ isFirst: Bool, _ isLast: Bool) -> Void
+    ) {
+        let lines = (text as NSString).substring(with: range).components(separatedBy: "\n")
+        var offset = range.location
+        for (i, line) in lines.enumerated() {
+            let isFirst = i == 0
+            let isLast = i == lines.count - 1
+            body(line, offset, isFirst, isLast)
+            offset += (line as NSString).length + (isLast ? 0 : 1)
+        }
     }
 
     // MARK: - Public
@@ -53,7 +95,7 @@ class MarkdownStyler {
         var leafBlocks: [(node: any Markup, range: NSRange)] = []
         for block in doc.children {
             guard let range = nsRange(for: block, in: text) else { continue }
-            if block is UnorderedList || block is OrderedList {
+            if isList(block) {
                 collectListItems(from: block, in: text, into: &leafBlocks)
             } else {
                 leafBlocks.append((block, range))
@@ -89,7 +131,7 @@ class MarkdownStyler {
         for block in doc.children {
             guard let range = nsRange(for: block, in: text) else { continue }
 
-            if block is UnorderedList || block is OrderedList {
+            if isList(block) {
                 // Style list at item level
                 let ordered = block is OrderedList
                 applyListStyle(to: result, block: block, range: range, in: text, ordered: ordered, cursorRange: cursorRange, cursorLocation: cursorLocation)
@@ -113,7 +155,7 @@ class MarkdownStyler {
             // Trim parent range at the start of the first nested sublist.
             // Child lists have their own entries, so the parent should not cover them.
             for subChild in item.children {
-                if (subChild is UnorderedList || subChild is OrderedList),
+                if isList(subChild),
                    let subRange = nsRange(for: subChild, in: text) {
                     let trimEnd = subRange.location
                     if trimEnd > effectiveR.location && trimEnd < effectiveR.location + effectiveR.length {
@@ -125,7 +167,7 @@ class MarkdownStyler {
 
             result.append((item, effectiveR))
             for subChild in item.children {
-                if subChild is UnorderedList || subChild is OrderedList {
+                if isList(subChild) {
                     collectListItems(from: subChild, in: text, into: &result)
                 }
             }
@@ -172,6 +214,7 @@ class MarkdownStyler {
         NSIntersectionRange(a, b).length > 0 || a.contains(b.location)
     }
 
+
     private func applyRawBlockStyle(for block: any Markup, to storage: NSMutableAttributedString, range: NSRange, in text: String) {
         // Block-type-specific styling (headings, code blocks, block quotes)
         applyRawBlockTypeStyle(for: block, to: storage, range: range, in: text)
@@ -195,53 +238,37 @@ class MarkdownStyler {
             // Content → heading font + normal color
             if range.length > prefixLen {
                 let contentRange = NSRange(location: range.location + prefixLen, length: range.length - prefixLen)
-                let headingSize: CGFloat
-                switch heading.level {
-                case 1: headingSize = (baseFontSize * 1.7).rounded()
-                case 2: headingSize = (baseFontSize * 1.43).rounded()
-                case 3: headingSize = (baseFontSize * 1.21).rounded()
-                default: headingSize = (baseFontSize * 1.07).rounded()
-                }
                 storage.addAttributes([
-                    .font: NSFont.systemFont(ofSize: headingSize, weight: .bold),
+                    .font: NSFont.systemFont(ofSize: headingFontSize(for: heading.level), weight: .bold),
                     .foregroundColor: noteColor.textColor
                 ], range: contentRange)
             }
 
         case is CodeBlock:
             // Fence lines (```) → gray, code body → green + monospace
-            let substring = (text as NSString).substring(with: range)
-            let lines = substring.components(separatedBy: "\n")
-            var currentOffset = range.location
-            for line in lines {
+            enumerateLines(in: text, range: range) { line, offset, _, _ in
                 let lineLen = (line as NSString).length
-                if lineLen > 0 {
-                    let lineRange = NSRange(location: currentOffset, length: lineLen)
-                    if line.hasPrefix("```") {
-                        storage.addAttributes([.foregroundColor: NSColor.secondaryLabelColor], range: lineRange)
-                    } else {
-                        storage.addAttributes([
-                            .font: NSFont.monospacedSystemFont(ofSize: (baseFontSize * 0.86).rounded(), weight: .regular),
-                            .foregroundColor: NSColor.systemGreen
-                        ], range: lineRange)
-                    }
+                guard lineLen > 0 else { return }
+                let lineRange = NSRange(location: offset, length: lineLen)
+                if line.hasPrefix("```") {
+                    storage.addAttributes([.foregroundColor: NSColor.secondaryLabelColor], range: lineRange)
+                } else {
+                    storage.addAttributes([
+                        .font: NSFont.monospacedSystemFont(ofSize: (baseFontSize * 0.86).rounded(), weight: .regular),
+                        .foregroundColor: NSColor.systemGreen
+                    ], range: lineRange)
                 }
-                currentOffset += lineLen + 1 // +1 for newline
             }
 
         case is BlockQuote:
             // ">" markers → gray, content stays normal color
-            let substring = (text as NSString).substring(with: range)
-            let lines = substring.components(separatedBy: "\n")
-            var currentOffset = range.location
-            for line in lines {
+            enumerateLines(in: text, range: range) { line, offset, _, _ in
                 let lineLen = (line as NSString).length
                 if lineLen > 0, line.hasPrefix(">") {
                     let markerLen = line.hasPrefix("> ") ? 2 : 1
-                    let markerRange = NSRange(location: currentOffset, length: markerLen)
+                    let markerRange = NSRange(location: offset, length: markerLen)
                     storage.addAttributes([.foregroundColor: NSColor.secondaryLabelColor], range: markerRange)
                 }
-                currentOffset += lineLen + 1
             }
 
         default:
@@ -276,16 +303,8 @@ class MarkdownStyler {
     // MARK: - Heading
 
     private func applyHeadingStyle(level: Int, to storage: NSMutableAttributedString, range: NSRange) {
-        let headingSize: CGFloat
-        switch level {
-        case 1: headingSize = (baseFontSize * 1.7).rounded()
-        case 2: headingSize = (baseFontSize * 1.43).rounded()
-        case 3: headingSize = (baseFontSize * 1.21).rounded()
-        default: headingSize = (baseFontSize * 1.07).rounded()
-        }
-        let font = NSFont.systemFont(ofSize: headingSize, weight: .bold)
         storage.addAttributes([
-            .font: font,
+            .font: NSFont.systemFont(ofSize: headingFontSize(for: level), weight: .bold),
             .foregroundColor: noteColor.textColor
         ], range: range)
     }
@@ -359,54 +378,40 @@ class MarkdownStyler {
             }
         }
 
-        var currentOffset = range.location
-        for (i, line) in lines.enumerated() {
+        enumerateLines(in: text, range: range) { line, lineStart, isFirst, isLast in
             let lineLen = (line as NSString).length
-            let isFirstLine = (i == 0)
-            let isLastLine = (i == lines.count - 1)
 
             // Build per-line paragraph style (first/last lines get vertical padding)
             let paraStyle = NSMutableParagraphStyle()
             paraStyle.headIndent = horizontalPadding
             paraStyle.firstLineHeadIndent = horizontalPadding
             paraStyle.tailIndent = -horizontalPadding
-            if isFirstLine {
-                paraStyle.paragraphSpacingBefore = verticalPadding
-            }
-            if isLastLine {
-                paraStyle.paragraphSpacing = verticalPadding
-            }
+            if isFirst { paraStyle.paragraphSpacingBefore = verticalPadding }
+            if isLast  { paraStyle.paragraphSpacing = verticalPadding }
 
             // Apply paragraph style to the line (including its trailing newline)
-            let fullLineLen = isLastLine ? lineLen : lineLen + 1
+            let fullLineLen = isLast ? lineLen : lineLen + 1
             if fullLineLen > 0 {
-                let lineRange = NSRange(location: currentOffset, length: fullLineLen)
-                storage.addAttributes([.paragraphStyle: paraStyle], range: lineRange)
+                storage.addAttributes([.paragraphStyle: paraStyle],
+                                      range: NSRange(location: lineStart, length: fullLineLen))
             }
 
             if line.hasPrefix("```") {
-                // Hide fence line text
                 if lineLen > 0 {
-                    let lineRange = NSRange(location: currentOffset, length: lineLen)
-                    storage.addAttributes(hiddenAttributes, range: lineRange)
+                    storage.addAttributes(Self.hiddenAttributes,
+                                          range: NSRange(location: lineStart, length: lineLen))
                 }
-                // Hide the newline after the fence line to collapse the line height
-                if !isLastLine {
-                    let nlRange = NSRange(location: currentOffset + lineLen, length: 1)
-                    storage.addAttributes(hiddenAttributes, range: nlRange)
+                if !isLast {
+                    storage.addAttributes(Self.hiddenAttributes,
+                                          range: NSRange(location: lineStart + lineLen, length: 1))
                 }
-            } else {
-                // Code body line: apply monospace font
-                if lineLen > 0 {
-                    let lineRange = NSRange(location: currentOffset, length: lineLen)
-                    storage.addAttributes([.font: monoFont], range: lineRange)
-                    if highlightColors == nil {
-                        // No syntax highlighting available: fallback to green
-                        storage.addAttributes([.foregroundColor: NSColor.systemGreen], range: lineRange)
-                    }
+            } else if lineLen > 0 {
+                let lineRange = NSRange(location: lineStart, length: lineLen)
+                storage.addAttributes([.font: monoFont], range: lineRange)
+                if highlightColors == nil {
+                    storage.addAttributes([.foregroundColor: NSColor.systemGreen], range: lineRange)
                 }
             }
-            currentOffset += lineLen + (isLastLine ? 0 : 1) // +1 for newline separator
         }
 
         // Apply syntax highlight colors on top
@@ -424,9 +429,6 @@ class MarkdownStyler {
 
     private func applyBlockQuoteStyle(to storage: NSMutableAttributedString, range: NSRange, in text: String) {
         let nsText = text as NSString
-        let substring = nsText.substring(with: range)
-        let lines = substring.components(separatedBy: "\n")
-
         let indent = Self.blockQuoteLeftPadding
 
         // Mark entire range for left border drawing by BulletLayoutManager
@@ -435,11 +437,9 @@ class MarkdownStyler {
             .foregroundColor: NSColor.secondaryLabelColor
         ], range: range)
 
-        var currentOffset = range.location
-        for (i, line) in lines.enumerated() {
+        enumerateLines(in: text, range: range) { line, offset, _, isLast in
             let lineLen = (line as NSString).length
-            let isLastLine = (i == lines.count - 1)
-            let fullLineLen = isLastLine ? lineLen : lineLen + 1
+            let fullLineLen = isLast ? lineLen : lineLen + 1
 
             // Paragraph style with indent
             let paraStyle = NSMutableParagraphStyle()
@@ -447,26 +447,24 @@ class MarkdownStyler {
             paraStyle.firstLineHeadIndent = indent
             paraStyle.lineSpacing = 6
             if fullLineLen > 0 {
-                let lineRange = NSRange(location: currentOffset, length: fullLineLen)
+                let lineRange = NSRange(location: offset, length: fullLineLen)
                 storage.addAttributes([.paragraphStyle: paraStyle], range: lineRange)
             }
 
             // Hide "> " or ">" prefix
             if lineLen > 0, line.hasPrefix(">") {
                 let markerLen = line.hasPrefix("> ") ? 2 : 1
-                let markerRange = NSRange(location: currentOffset, length: markerLen)
-                storage.addAttributes(hiddenAttributes, range: markerRange)
+                let markerRange = NSRange(location: offset, length: markerLen)
+                storage.addAttributes(Self.hiddenAttributes, range: markerRange)
 
                 // Apply inline styles to content after the marker
                 let contentStart = markerLen
                 if lineLen > contentStart {
-                    let contentRange = NSRange(location: currentOffset + contentStart, length: lineLen - contentStart)
+                    let contentRange = NSRange(location: offset + contentStart, length: lineLen - contentStart)
                     let contentText = nsText.substring(with: contentRange)
                     applyInlinePatterns(to: storage, in: contentText, offset: contentRange.location)
                 }
             }
-
-            currentOffset += lineLen + (isLastLine ? 0 : 1)
         }
     }
 
@@ -526,7 +524,7 @@ class MarkdownStyler {
             // Use own content range (excluding nested sublists) for cursor overlap check.
             var ownContentEnd = itemRange.location + itemRange.length
             for subChild in item.children {
-                if (subChild is UnorderedList || subChild is OrderedList),
+                if isList(subChild),
                    let subRange = nsRange(for: subChild, in: text) {
                     ownContentEnd = min(ownContentEnd, subRange.location)
                     break
@@ -554,7 +552,7 @@ class MarkdownStyler {
                 // Hide leading whitespace for nested items
                 if leadingWSLength > 0 {
                     let wsRange = NSRange(location: itemRange.location, length: leadingWSLength)
-                    storage.addAttributes(hiddenAttributes, range: wsRange)
+                    storage.addAttributes(Self.hiddenAttributes, range: wsRange)
                 }
 
                 // Apply paragraph style for indent
@@ -577,7 +575,7 @@ class MarkdownStyler {
                 // Hide leading whitespace for nested items
                 if leadingWSLength > 0 {
                     let wsRange = NSRange(location: itemRange.location, length: leadingWSLength)
-                    storage.addAttributes(hiddenAttributes, range: wsRange)
+                    storage.addAttributes(Self.hiddenAttributes, range: wsRange)
                 }
 
                 if ordered {
@@ -598,7 +596,7 @@ class MarkdownStyler {
                     ], range: charRange)
                     if markerLength > 1 {
                         let spaceRange = NSRange(location: markerAbsLocation + 1, length: markerLength - 1)
-                        storage.addAttributes(hiddenAttributes, range: spaceRange)
+                        storage.addAttributes(Self.hiddenAttributes, range: spaceRange)
                     }
                 }
 
@@ -659,7 +657,7 @@ class MarkdownStyler {
         // Space after marker: hide
         if markerLength > 1 {
             let spaceRange = NSRange(location: markerAbsLocation + 1, length: markerLength - 1)
-            storage.addAttributes(hiddenAttributes, range: spaceRange)
+            storage.addAttributes(Self.hiddenAttributes, range: spaceRange)
         }
 
         // Checkbox syntax "[ ]" or "[x]": hide and tag
@@ -673,7 +671,7 @@ class MarkdownStyler {
 
         // Space after checkbox: hide
         let spaceAfterCheckbox = NSRange(location: markerAbsLocation + markerLength + 3, length: 1)
-        storage.addAttributes(hiddenAttributes, range: spaceAfterCheckbox)
+        storage.addAttributes(Self.hiddenAttributes, range: spaceAfterCheckbox)
     }
 
     /// Applies paragraph style (indent, line spacing) for a list item.
@@ -717,121 +715,57 @@ class MarkdownStyler {
     }
 
     private func applyInlinePatterns(to storage: NSMutableAttributedString, in text: String, offset: Int) {
-        // Bold: **text** or __text__
-        applyPattern(
-            #"\*\*(.+?)\*\*|__(.+?)__"#,
-            to: storage,
-            in: text,
-            offset: offset,
-            attributes: [.font: NSFont.systemFont(ofSize: baseFontSize, weight: .bold)],
-            hideMarkers: true,
-            markerLength: 2
-        )
+        applyPattern(Self.boldPattern, to: storage, in: text, offset: offset,
+                     attributes: [.font: NSFont.systemFont(ofSize: baseFontSize, weight: .bold)],
+                     hideMarkers: true, markerLength: 2)
 
-        // Italic: *text* or _text_
-        applyPattern(
-            #"(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)|(?<!_)_(?!_)(.+?)(?<!_)_(?!_)"#,
-            to: storage,
-            in: text,
-            offset: offset,
-            attributes: [.font: NSFontManager.shared.convert(NSFont.systemFont(ofSize: baseFontSize), toHaveTrait: .italicFontMask)],
-            hideMarkers: true,
-            markerLength: 1
-        )
+        applyPattern(Self.italicPattern, to: storage, in: text, offset: offset,
+                     attributes: [.font: NSFontManager.shared.convert(NSFont.systemFont(ofSize: baseFontSize), toHaveTrait: .italicFontMask)],
+                     hideMarkers: true, markerLength: 1)
 
-        // Strikethrough: ~~text~~
-        applyPattern(
-            #"~~(.+?)~~"#,
-            to: storage,
-            in: text,
-            offset: offset,
-            attributes: [.strikethroughStyle: NSUnderlineStyle.single.rawValue],
-            hideMarkers: true,
-            markerLength: 2
-        )
+        applyPattern(Self.strikethroughPattern, to: storage, in: text, offset: offset,
+                     attributes: [.strikethroughStyle: NSUnderlineStyle.single.rawValue],
+                     hideMarkers: true, markerLength: 2)
 
-        // Inline code: `code`
-        applyPattern(
-            #"`(.+?)`"#,
-            to: storage,
-            in: text,
-            offset: offset,
-            attributes: [
-                .font: NSFont.monospacedSystemFont(ofSize: baseFontSize - 1, weight: .regular),
-                .foregroundColor: NSColor.systemOrange,
-                .inlineCodeBackground: NSColor.labelColor.withAlphaComponent(0.08)
-            ],
-            hideMarkers: true,
-            markerLength: 1
-        )
+        applyPattern(Self.inlineCodePattern, to: storage, in: text, offset: offset,
+                     attributes: [
+                         .font: NSFont.monospacedSystemFont(ofSize: baseFontSize - 1, weight: .regular),
+                         .foregroundColor: NSColor.systemOrange,
+                         .inlineCodeBackground: NSColor.labelColor.withAlphaComponent(0.08)
+                     ],
+                     hideMarkers: true, markerLength: 1)
 
-        // Link: [text](url)
         applyLinkPattern(to: storage, in: text, offset: offset)
     }
 
     private func applyRawInlinePatterns(to storage: NSMutableAttributedString, in text: String, offset: Int) {
-        // Bold: **text** or __text__
-        applyRawPattern(
-            #"\*\*(.+?)\*\*|__(.+?)__"#,
-            to: storage,
-            in: text,
-            offset: offset,
-            contentAttributes: [
-                .font: NSFont.systemFont(ofSize: baseFontSize, weight: .bold),
-                .foregroundColor: noteColor.textColor
-            ]
-        )
+        applyRawPattern(Self.boldPattern, to: storage, in: text, offset: offset,
+                        contentAttributes: [.font: NSFont.systemFont(ofSize: baseFontSize, weight: .bold), .foregroundColor: noteColor.textColor])
 
-        // Italic: *text* or _text_
-        applyRawPattern(
-            #"(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)|(?<!_)_(?!_)(.+?)(?<!_)_(?!_)"#,
-            to: storage,
-            in: text,
-            offset: offset,
-            contentAttributes: [
-                .font: NSFontManager.shared.convert(NSFont.systemFont(ofSize: baseFontSize), toHaveTrait: .italicFontMask),
-                .foregroundColor: noteColor.textColor
-            ]
-        )
+        applyRawPattern(Self.italicPattern, to: storage, in: text, offset: offset,
+                        contentAttributes: [.font: NSFontManager.shared.convert(NSFont.systemFont(ofSize: baseFontSize), toHaveTrait: .italicFontMask), .foregroundColor: noteColor.textColor])
 
-        // Strikethrough: ~~text~~
-        applyRawPattern(
-            #"~~(.+?)~~"#,
-            to: storage,
-            in: text,
-            offset: offset,
-            contentAttributes: [
-                .strikethroughStyle: NSUnderlineStyle.single.rawValue,
-                .foregroundColor: noteColor.textColor
-            ]
-        )
+        applyRawPattern(Self.strikethroughPattern, to: storage, in: text, offset: offset,
+                        contentAttributes: [.strikethroughStyle: NSUnderlineStyle.single.rawValue, .foregroundColor: noteColor.textColor])
 
-        // Inline code: `code`
-        applyRawPattern(
-            #"`(.+?)`"#,
-            to: storage,
-            in: text,
-            offset: offset,
-            contentAttributes: [
-                .font: NSFont.monospacedSystemFont(ofSize: baseFontSize - 1, weight: .regular),
-                .foregroundColor: NSColor.systemOrange,
-                .inlineCodeBackground: NSColor.labelColor.withAlphaComponent(0.08)
-            ]
-        )
+        applyRawPattern(Self.inlineCodePattern, to: storage, in: text, offset: offset,
+                        contentAttributes: [
+                            .font: NSFont.monospacedSystemFont(ofSize: baseFontSize - 1, weight: .regular),
+                            .foregroundColor: NSColor.systemOrange,
+                            .inlineCodeBackground: NSColor.labelColor.withAlphaComponent(0.08)
+                        ])
 
-        // Link: [text](url)
         applyRawLinkPattern(to: storage, in: text, offset: offset)
     }
 
     private func applyRawPattern(
-        _ pattern: String,
+        _ regex: NSRegularExpression,
         to storage: NSMutableAttributedString,
         in text: String,
         offset: Int,
         contentAttributes: [NSAttributedString.Key: Any],
         markerColor: NSColor = .secondaryLabelColor
     ) {
-        guard let regex = try? NSRegularExpression(pattern: pattern) else { return }
         let nsText = text as NSString
         let matches = regex.matches(in: text, range: NSRange(location: 0, length: nsText.length))
         for match in matches {
@@ -871,7 +805,7 @@ class MarkdownStyler {
     }
 
     private func applyRawLinkPattern(to storage: NSMutableAttributedString, in text: String, offset: Int) {
-        guard let regex = try? NSRegularExpression(pattern: #"\[(.+?)\]\((.+?)\)"#) else { return }
+        let regex = Self.linkPattern
         let nsText = text as NSString
         let matches = regex.matches(in: text, range: NSRange(location: 0, length: nsText.length))
         for match in matches {
@@ -889,7 +823,7 @@ class MarkdownStyler {
     }
 
     private func applyPattern(
-        _ pattern: String,
+        _ regex: NSRegularExpression,
         to storage: NSMutableAttributedString,
         in text: String,
         offset: Int,
@@ -897,7 +831,6 @@ class MarkdownStyler {
         hideMarkers: Bool,
         markerLength: Int
     ) {
-        guard let regex = try? NSRegularExpression(pattern: pattern) else { return }
         let nsText = text as NSString
         let matches = regex.matches(in: text, range: NSRange(location: 0, length: nsText.length))
         for match in matches {
@@ -907,17 +840,17 @@ class MarkdownStyler {
             if hideMarkers {
                 // Hide opening marker
                 let openRange = NSRange(location: fullRange.location, length: markerLength)
-                storage.addAttributes(hiddenAttributes, range: openRange)
+                storage.addAttributes(Self.hiddenAttributes, range: openRange)
 
                 // Hide closing marker
                 let closeRange = NSRange(location: fullRange.location + fullRange.length - markerLength, length: markerLength)
-                storage.addAttributes(hiddenAttributes, range: closeRange)
+                storage.addAttributes(Self.hiddenAttributes, range: closeRange)
             }
         }
     }
 
     private func applyLinkPattern(to storage: NSMutableAttributedString, in text: String, offset: Int) {
-        guard let regex = try? NSRegularExpression(pattern: #"\[(.+?)\]\((.+?)\)"#) else { return }
+        let regex = Self.linkPattern
         let nsText = text as NSString
         let matches = regex.matches(in: text, range: NSRange(location: 0, length: nsText.length))
         for match in matches {
@@ -939,14 +872,14 @@ class MarkdownStyler {
             if textRange.location != NSNotFound {
                 // Hide "[" before text
                 let openBracket = NSRange(location: fullRange.location, length: 1)
-                storage.addAttributes(hiddenAttributes, range: openBracket)
+                storage.addAttributes(Self.hiddenAttributes, range: openBracket)
 
                 // Hide "](url)" after text
                 let afterText = NSRange(
                     location: fullRange.location + 1 + textRange.length,
                     length: fullRange.length - 1 - textRange.length
                 )
-                storage.addAttributes(hiddenAttributes, range: afterText)
+                storage.addAttributes(Self.hiddenAttributes, range: afterText)
             }
         }
     }
@@ -962,7 +895,7 @@ class MarkdownStyler {
         let prefixLen = prefix.count
         guard range.length > prefixLen else { return }
         let prefixRange = NSRange(location: range.location, length: prefixLen)
-        storage.addAttributes(hiddenAttributes, range: prefixRange)
+        storage.addAttributes(Self.hiddenAttributes, range: prefixRange)
     }
 
     // MARK: - Source range → NSRange
@@ -994,7 +927,7 @@ class MarkdownStyler {
 
     // MARK: - Attributes
 
-    var baseAttributes: [NSAttributedString.Key: Any] {
+    lazy var baseAttributes: [NSAttributedString.Key: Any] = {
         let paragraphStyle = NSMutableParagraphStyle()
         paragraphStyle.lineSpacing = 6
         return [
@@ -1002,14 +935,7 @@ class MarkdownStyler {
             .foregroundColor: noteColor.textColor,
             .paragraphStyle: paragraphStyle
         ]
-    }
-
-    private var hiddenAttributes: [NSAttributedString.Key: Any] {
-        [
-            .foregroundColor: NSColor.clear,
-            .font: NSFont.systemFont(ofSize: 0.001)
-        ]
-    }
+    }()
 }
 
 private extension NSRange {
