@@ -26,6 +26,7 @@
 		B0FFFAAD10BEC83C7F8C80AA /* AppConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6AF3BE8D4474AC5C171BA370 /* AppConfig.swift */; };
 		BB53120A7C31A89E121ADF85 /* Yams in Frameworks */ = {isa = PBXBuildFile; productRef = 3681D74F1C206E1CA1E7CE18 /* Yams */; };
 		BC24B468518D9E8AD833DA09 /* NoteWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = CADFAE6CE8DFA5AA42EEF162 /* NoteWindow.swift */; };
+		BC9A28B88DB35B0D5D22F620 /* MarkdownStyler+Table.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B802661C5CC13D46EF0B7D3 /* MarkdownStyler+Table.swift */; };
 		C3174B8C71753D02F3D6A928 /* Markdown in Frameworks */ = {isa = PBXBuildFile; productRef = 5D1F54F546894C7EDA72AB27 /* Markdown */; };
 		C50929D3BB96D346F11B4B08 /* HotKey in Frameworks */ = {isa = PBXBuildFile; productRef = CE0415AD13BD10C8FE00353C /* HotKey */; };
 		C5539A9953551834DA544A60 /* MarkdownStyler+List.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36C4851176ADA90F34AF2712 /* MarkdownStyler+List.swift */; };
@@ -54,6 +55,7 @@
 		98AA77CB0270A3746D840353 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		9A4C787CD9BDBD67853C21CE /* MarkdownStyler+Heading.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MarkdownStyler+Heading.swift"; sourceTree = "<group>"; };
 		9B2E24DEE60E5C29D85875C7 /* YAMLStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YAMLStore.swift; sourceTree = "<group>"; };
+		9B802661C5CC13D46EF0B7D3 /* MarkdownStyler+Table.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MarkdownStyler+Table.swift"; sourceTree = "<group>"; };
 		A210F8D7E82D20B209C55E98 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		A311522C466E5D7A84669BA1 /* GlobalHotkeyService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlobalHotkeyService.swift; sourceTree = "<group>"; };
 		B30227545343F59E44D58FC1 /* BulletLayoutManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BulletLayoutManager.swift; sourceTree = "<group>"; };
@@ -119,6 +121,7 @@
 				C5800A7F6929ADB0626F2FD5 /* MarkdownStyler+Inline.swift */,
 				36C4851176ADA90F34AF2712 /* MarkdownStyler+List.swift */,
 				0C71E217E481B258DC4B66B2 /* MarkdownStyler+RangeUtils.swift */,
+				9B802661C5CC13D46EF0B7D3 /* MarkdownStyler+Table.swift */,
 			);
 			path = Editor;
 			sourceTree = "<group>";
@@ -267,6 +270,7 @@
 				9D7BEAB4B5BEDD3C2E3B33E2 /* MarkdownStyler+Inline.swift in Sources */,
 				C5539A9953551834DA544A60 /* MarkdownStyler+List.swift in Sources */,
 				A1ECFE30E1ACFFFEA3DB371B /* MarkdownStyler+RangeUtils.swift in Sources */,
+				BC9A28B88DB35B0D5D22F620 /* MarkdownStyler+Table.swift in Sources */,
 				9011A8392B7AA1C6724E5A1C /* MarkdownStyler.swift in Sources */,
 				01FA042741A005B7CF2313F2 /* Note.swift in Sources */,
 				52AF571E86755BDCF70AF9C3 /* NoteListPopover.swift in Sources */,

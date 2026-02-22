@@ -147,7 +147,9 @@ extension MarkdownStyler {
                 applyListItemRenderedStyle(
                     to: storage, itemRange: itemRange, markerAbsLocation: markerAbsLocation,
                     markerLength: markerLength, isChecked: isChecked, contentStart: contentStart,
-                    ordered: ordered, nestingLevel: nestingLevel, in: text
+                    ordered: ordered, nestingLevel: nestingLevel,
+                    ownContentEnd: ownContentEnd,
+                    in: text
                 )
             }
 
@@ -235,6 +237,7 @@ extension MarkdownStyler {
         contentStart: Int,
         ordered: Bool,
         nestingLevel: Int,
+        ownContentEnd: Int,
         in text: String
     ) {
         let leadingWSLength = markerAbsLocation - itemRange.location
@@ -268,12 +271,17 @@ extension MarkdownStyler {
         }
 
         // Task checkbox content styling (strikethrough for checked)
-        if let checked = isChecked, checked, itemRange.length > contentStart {
-            let contentRange = NSRange(location: itemRange.location + contentStart, length: itemRange.length - contentStart)
-            storage.addAttributes([
-                .strikethroughStyle: NSUnderlineStyle.single.rawValue,
-                .foregroundColor: NSColor.tertiaryLabelColor
-            ], range: contentRange)
+        // Use ownContentEnd to exclude nested sublists from the strikethrough range.
+        if let checked = isChecked, checked {
+            let strikethroughEnd = ownContentEnd - itemRange.location
+            let strikethroughLength = max(0, strikethroughEnd - contentStart)
+            if strikethroughLength > 0 {
+                let contentRange = NSRange(location: itemRange.location + contentStart, length: strikethroughLength)
+                storage.addAttributes([
+                    .strikethroughStyle: NSUnderlineStyle.single.rawValue,
+                    .foregroundColor: NSColor.tertiaryLabelColor
+                ], range: contentRange)
+            }
         }
 
         // Paragraph style

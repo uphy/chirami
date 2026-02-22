@@ -73,7 +73,31 @@ class MarkdownTextView: NSTextView {
            storage.attribute(.taskCheckbox, at: charIndex - 1, effectiveRange: nil) != nil {
             return charIndex - 1
         }
-        return nil
+
+        // Fallback for nested items: the hidden leading chars (whitespace + marker) have
+        // near-zero width, so characterIndexForInsertion misses them. Use a line-based
+        // hit test comparing against the visual checkbox position drawn by BulletLayoutManager.
+        guard let lm = layoutManager, let tc = textContainer else { return nil }
+        let containerOrigin = textContainerOrigin
+        let ptInContainer = NSPoint(x: point.x - containerOrigin.x, y: point.y - containerOrigin.y)
+
+        var lineGlyphRange = NSRange()
+        let glyphIndex = lm.glyphIndex(for: ptInContainer, in: tc, fractionOfDistanceThroughGlyph: nil)
+        let lineFragRect = lm.lineFragmentRect(forGlyphAt: glyphIndex, effectiveRange: &lineGlyphRange)
+        let lineCharRange = lm.characterRange(forGlyphRange: lineGlyphRange, actualGlyphRange: nil)
+
+        var foundIndex: Int? = nil
+        storage.enumerateAttribute(.taskCheckbox, in: lineCharRange, options: []) { value, range, stop in
+            guard value != nil else { return }
+            let level = storage.attribute(.listNestingLevel, at: range.location, effectiveRange: nil) as? Int ?? 0
+            let checkboxX = containerOrigin.x + lineFragRect.origin.x + 2 + CGFloat(level) * 20
+            let checkboxWidth = self.currentFontSize * 1.2
+            if point.x >= checkboxX && point.x <= checkboxX + checkboxWidth {
+                foundIndex = range.location
+                stop.pointee = true
+            }
+        }
+        return foundIndex
     }
 
     // MARK: - Surround selection with paired characters

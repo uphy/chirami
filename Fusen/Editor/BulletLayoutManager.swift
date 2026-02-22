@@ -13,7 +13,6 @@ class BulletLayoutManager: NSLayoutManager {
 
         let charRange = characterRange(forGlyphRange: glyphsToShow, actualGlyphRange: nil)
         let containerWidth = textContainer.size.width
-        let vPad = MarkdownStyler.codeBlockVerticalPadding
 
         textStorage.enumerateAttribute(.codeBlockBackground, in: charRange, options: []) { value, attrRange, _ in
             guard let color = value as? NSColor else { return }
@@ -28,12 +27,11 @@ class BulletLayoutManager: NSLayoutManager {
             }
             guard minY < maxY else { return }
 
-            // Extend background rect by vertical padding
             let bgRect = NSRect(
                 x: origin.x,
-                y: origin.y + minY - vPad,
+                y: origin.y + minY,
                 width: containerWidth,
-                height: (maxY - minY) + vPad * 2
+                height: maxY - minY
             )
             color.setFill()
             NSBezierPath(roundedRect: bgRect, xRadius: 6, yRadius: 6).fill()

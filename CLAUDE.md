@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## プロダクトビジョン
+
+@docs/product-vision.md
+
 ## プロジェクト概要
 
 Fusen は macOS 付箋型 Markdown ノートアプリ。Stickies のシンプルさと Obsidian の Live Preview を plain `.md` ファイルで実現する。メニューバー常駐型（LSUIElement）で、各ノートは独立した NSPanel ウィンドウとして表示される。
@@ -71,9 +75,3 @@ Obsidian 風の Live Preview を実現するコア部分:
 | HotKey | グローバルホットキー登録 |
 | Yams | YAML パーサー |
 | Highlightr | コードブロックの Syntax Highlighting |
-
-## 設計方針
-
-- Markdown ファイルは pure Markdown のみ（メタデータなし）。外部エディタと完全互換を維持する
-- ノートは任意のパスを個別指定（ディレクトリ制約なし）
-- 外部エディタでの変更は DispatchSource ファイル監視で即時反映（`FileWatcher`）

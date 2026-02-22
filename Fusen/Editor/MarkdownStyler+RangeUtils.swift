@@ -11,12 +11,28 @@ extension MarkdownStyler {
         guard let sourceRange = node.range else { return nil }
         guard let startIdx = stringIndex(line: sourceRange.lowerBound.line,
                                          utf8Column: sourceRange.lowerBound.column,
-                                         in: text),
-              let endIdx = stringIndex(line: sourceRange.upperBound.line,
-                                       utf8Column: sourceRange.upperBound.column,
-                                       in: text),
-              startIdx <= endIdx else { return nil }
+                                         in: text) else { return nil }
+
+        // cmark-gfm sometimes reports an out-of-bounds end_column for GFM table nodes.
+        // Fall back to end-of-line when the normal index calculation fails.
+        let endIdx = stringIndex(line: sourceRange.upperBound.line,
+                                 utf8Column: sourceRange.upperBound.column,
+                                 in: text)
+                   ?? endOfLine(line: sourceRange.upperBound.line, in: text)
+
+        guard let endIdx, startIdx <= endIdx else { return nil }
         return NSRange(startIdx..<endIdx, in: text)
+    }
+
+    /// Returns the exclusive end `String.Index` of the given 1-based line
+    /// (points at the `\n` separator, or `endIndex` for the last line).
+    private func endOfLine(line: Int, in text: String) -> String.Index? {
+        var lineStart = text.startIndex
+        for _ in 1..<line {
+            guard let nl = text[lineStart...].firstIndex(of: "\n") else { return nil }
+            lineStart = text.index(after: nl)
+        }
+        return text[lineStart...].firstIndex(of: "\n") ?? text.endIndex
     }
 
     /// Returns the `String.Index` for a given 1-based line and 1-based UTF-8 byte column.

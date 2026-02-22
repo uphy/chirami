@@ -30,9 +30,11 @@ class NoteStore: ObservableObject {
         notes = config.notes.compactMap { noteConfig in
             guard let fallbackURL = resolvePath(noteConfig.path) else { return nil }
 
-            let id = noteConfig.effectiveId
+            let id = noteConfig.noteId
             let url = resolveBookmark(for: id) ?? fallbackURL
-            let title = noteConfig.title ?? id
+            let title = noteConfig.title
+                ?? URL(fileURLWithPath: noteConfig.resolvedPath)
+                    .deletingPathExtension().lastPathComponent
             let color = noteConfig.color.flatMap { NoteColor(rawValue: $0) } ?? .yellow
 
             let transparency = noteConfig.transparency ?? 0.9
@@ -82,7 +84,7 @@ class NoteStore: ObservableObject {
 
     func updateColor(_ color: NoteColor, for note: Note) {
         appConfig.update { config in
-            if let idx = config.notes.firstIndex(where: { $0.effectiveId == note.id }) {
+            if let idx = config.notes.firstIndex(where: { $0.noteId == note.id }) {
                 config.notes[idx].color = color.rawValue
             }
         }
@@ -91,7 +93,7 @@ class NoteStore: ObservableObject {
 
     func updateTransparency(_ value: Double, for note: Note) {
         appConfig.update { config in
-            if let idx = config.notes.firstIndex(where: { $0.effectiveId == note.id }) {
+            if let idx = config.notes.firstIndex(where: { $0.noteId == note.id }) {
                 config.notes[idx].transparency = value
             }
         }
@@ -112,7 +114,6 @@ class NoteStore: ObservableObject {
             : path.path
 
         let noteConfig = NoteConfig(
-            id: nil,
             path: pathStr,
             title: title,
             color: color.rawValue

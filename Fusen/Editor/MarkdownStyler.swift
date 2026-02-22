@@ -12,6 +12,7 @@ import Markdown
 /// - `MarkdownStyler+CodeBlock.swift` — Code block styling with syntax highlighting
 /// - `MarkdownStyler+BlockQuote.swift` — Block quote styling
 /// - `MarkdownStyler+List.swift` — List / task list styling
+/// - `MarkdownStyler+Table.swift` — GFM table styling
 class MarkdownStyler {
 
     let noteColor: NoteColor
@@ -99,8 +100,8 @@ class MarkdownStyler {
 
     private func applyRawBlockStyle(for block: any Markup, to storage: NSMutableAttributedString, range: NSRange, in text: String) {
         applyRawBlockTypeStyle(for: block, to: storage, range: range, in: text)
-        // Code blocks contain literal text -- skip inline pattern matching
-        if block is CodeBlock { return }
+        // Code blocks and tables handle their own content styling — skip generic inline matching
+        if block is CodeBlock || block is Table { return }
         let substring = (text as NSString).substring(with: range)
         applyRawInlinePatterns(to: storage, in: substring, offset: range.location)
     }
@@ -151,6 +152,9 @@ class MarkdownStyler {
                 }
             }
 
+        case is Table:
+            applyTableRawStyle(to: storage, range: range, in: text)
+
         default:
             break
         }
@@ -172,6 +176,9 @@ class MarkdownStyler {
 
         case is BlockQuote:
             applyBlockQuoteStyle(to: storage, range: range, in: text)
+
+        case is Table:
+            applyTableStyle(to: storage, range: range, in: text)
 
         default:
             applyInlineStyles(to: storage, range: range, in: text)

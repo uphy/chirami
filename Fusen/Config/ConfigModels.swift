@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 
 // MARK: - Config (~/.config/fusen/config.yaml)
 
@@ -7,7 +8,6 @@ struct FusenConfig: Codable {
 }
 
 struct NoteConfig: Codable {
-    var id: String?
     var path: String
     var title: String?
     var color: String?
@@ -15,12 +15,20 @@ struct NoteConfig: Codable {
     var fontSize: Int?
     var hotkey: String?
 
-    var effectiveId: String {
-        id ?? URL(fileURLWithPath: path).deletingPathExtension().lastPathComponent
+    var resolvedPath: String {
+        if path.hasPrefix("~/") {
+            return FileManager.realHomeDirectory.path + "/" + path.dropFirst(2)
+        }
+        return path
+    }
+
+    var noteId: String {
+        let digest = SHA256.hash(data: Data(resolvedPath.utf8))
+        return digest.prefix(6).map { String(format: "%02x", $0) }.joined()
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, path, title, color, transparency, hotkey
+        case path, title, color, transparency, hotkey
         case fontSize = "font_size"
     }
 }
