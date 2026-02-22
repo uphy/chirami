@@ -693,16 +693,20 @@ struct LivePreviewEditor: NSViewRepresentable {
                 let maxY = lastRect.maxY
                 guard minY < maxY else { continue }
 
+                let naturalWidths = TableOverlayView.computeColumnWidths(data: data)
+                let tableWidth = naturalWidths.reduce(0, +)
+                let overlayWidth = tableWidth > 0 ? min(tableWidth, containerWidth) : containerWidth
+
                 let overlayFrame = NSRect(
                     x: containerOrigin.x,
                     y: containerOrigin.y + minY,
-                    width: containerWidth,
+                    width: overlayWidth,
                     height: maxY - minY
                 )
 
                 // Convert to overlay-local coordinates (y=0 at top of overlay)
                 let localRowRects = rowRects.map { rect in
-                    NSRect(x: 0, y: rect.minY - minY, width: containerWidth, height: rect.height)
+                    NSRect(x: 0, y: rect.minY - minY, width: overlayWidth, height: rect.height)
                 }
 
                 if let existing = tableOverlays[location] {
@@ -748,6 +752,16 @@ struct LivePreviewEditor: NSViewRepresentable {
             if textView.hasMarkedText() { return }
             text.wrappedValue = textView.string
             applyStyling(to: textView)
+        }
+
+        func textView(_ textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
+            // Suppress beep for commands that NSTextView cannot handle.
+            // In LSUIElement apps without a menu bar, standard selectors like undo:
+            // reach the end of the responder chain unhandled, causing NSBeep().
+            if !textView.responds(to: commandSelector) {
+                return true
+            }
+            return false
         }
 
         func textViewDidChangeSelection(_ notification: Notification) {

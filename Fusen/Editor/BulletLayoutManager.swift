@@ -69,6 +69,13 @@ class BulletLayoutManager: NSLayoutManager {
                 minY = min(minY, usedRect.origin.y)
                 maxY = max(maxY, usedRect.origin.y + usedRect.height)
             }
+
+            // Subtract lineSpacing of the last line to avoid the border extending below the text
+            let lastCharIndex = trimmedRange.location + trimmedRange.length - 1
+            if let paragraphStyle = textStorage.attribute(.paragraphStyle, at: lastCharIndex, effectiveRange: nil) as? NSParagraphStyle {
+                maxY -= paragraphStyle.lineSpacing
+            }
+
             guard minY < maxY else { return }
 
             let borderWidth: CGFloat = 3

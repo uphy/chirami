@@ -24,7 +24,7 @@ extension MarkdownStyler {
                                  range: NSRange(location: lineStart, length: length))
         }
 
-        let overlayData = TableOverlayData.from(table: table)
+        let overlayData = TableOverlayData.from(table: table, baseFontSize: baseFontSize, noteColor: noteColor)
         storage.addAttribute(.tableOverlay, value: overlayData, range: range)
     }
 
