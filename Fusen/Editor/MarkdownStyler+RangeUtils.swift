@@ -1,0 +1,56 @@
+import AppKit
+import Markdown
+
+// MARK: - Source range conversion and utility helpers
+
+extension MarkdownStyler {
+
+    /// Converts a swift-markdown source location to NSRange (UTF-16 units).
+    /// swift-markdown columns are 1-based UTF-8 byte offsets; NSRange uses UTF-16.
+    func nsRange(for node: any Markup, in text: String) -> NSRange? {
+        guard let sourceRange = node.range else { return nil }
+        guard let startIdx = stringIndex(line: sourceRange.lowerBound.line,
+                                         utf8Column: sourceRange.lowerBound.column,
+                                         in: text),
+              let endIdx = stringIndex(line: sourceRange.upperBound.line,
+                                       utf8Column: sourceRange.upperBound.column,
+                                       in: text),
+              startIdx <= endIdx else { return nil }
+        return NSRange(startIdx..<endIdx, in: text)
+    }
+
+    /// Returns the `String.Index` for a given 1-based line and 1-based UTF-8 byte column.
+    func stringIndex(line: Int, utf8Column: Int, in text: String) -> String.Index? {
+        var lineStart = text.startIndex
+        for _ in 1..<line {
+            guard let nl = text[lineStart...].firstIndex(of: "\n") else { return nil }
+            lineStart = text.index(after: nl)
+        }
+        let byteOffset = utf8Column - 1
+        return text.utf8.index(lineStart, offsetBy: byteOffset, limitedBy: text.utf8.endIndex)
+    }
+
+    /// Iterates over lines in `range` of `text`, tracking the absolute offset of each line start.
+    func enumerateLines(
+        in text: String,
+        range: NSRange,
+        body: (_ line: String, _ lineStart: Int, _ isFirst: Bool, _ isLast: Bool) -> Void
+    ) {
+        let lines = (text as NSString).substring(with: range).components(separatedBy: "\n")
+        var offset = range.location
+        for (i, line) in lines.enumerated() {
+            let isFirst = i == 0
+            let isLast = i == lines.count - 1
+            body(line, offset, isFirst, isLast)
+            offset += (line as NSString).length + (isLast ? 0 : 1)
+        }
+    }
+
+    func overlaps(_ a: NSRange, _ b: NSRange) -> Bool {
+        NSIntersectionRange(a, b).length > 0 || a.contains(b.location)
+    }
+
+    func isList(_ block: any Markup) -> Bool {
+        block is UnorderedList || block is OrderedList
+    }
+}
