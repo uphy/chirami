@@ -22,6 +22,15 @@ Xcode プロジェクトは `project.yml` から xcodegen で生成する。`Fus
 
 SPM 依存は初回ビルド時に自動取得される。`swift build` でもビルド可能（Package.swift あり）。
 
+### mise タスク
+
+`.mise/tasks/` にビルド・デプロイ用のタスクを定義している。
+
+- `mise run generate` — xcodegen でプロジェクトファイルを生成
+- `mise run build` — Release ビルド（.app バンドル生成）
+- `mise run apply` — `~/Applications` にインストール（実行中なら再起動）
+- `mise run clean` — ビルド成果物を削除
+
 ## アーキテクチャ
 
 ### Config/State 分離
@@ -49,8 +58,8 @@ YAML の読み書きには Yams を使用。構造体定義は `Config/ConfigMod
 Obsidian 風の Live Preview を実現するコア部分:
 
 - `LivePreviewEditor` — NSViewRepresentable で NSTextView をラップ
-- `MarkdownStyler` — swift-markdown の AST を NSAttributedString に変換。カーソルのあるブロックだけ raw Markdown を表示し、他ブロックはレンダリング済みにする
-- `BlockTracker` — カーソル位置がどのブロックに属するか特定
+- `MarkdownStyler` — swift-markdown の AST を NSAttributedString に変換。カーソルのあるブロックだけ raw Markdown を表示し、他ブロックはレンダリング済みにする。カーソル位置がどのブロックに属するかの特定もここで行う
+- `BulletLayoutManager` — カスタム NSLayoutManager。箇条書きの描画、コードブロック背景、blockquote の border 描画を担当
 
 **注意**: MarkdownStyler では UTF-8 と String.Index/NSRange の変換が重要。非 ASCII テキスト（日本語）でのオフセット計算に注意が必要。
 
@@ -61,6 +70,7 @@ Obsidian 風の Live Preview を実現するコア部分:
 | swift-markdown | Markdown AST パーサー |
 | HotKey | グローバルホットキー登録 |
 | Yams | YAML パーサー |
+| Highlightr | コードブロックの Syntax Highlighting |
 
 ## 設計方針
 
