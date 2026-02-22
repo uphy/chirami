@@ -7,42 +7,25 @@ extension MarkdownStyler {
 
     // MARK: - Rendered mode
 
-    func applyTableStyle(to storage: NSMutableAttributedString, range: NSRange, in text: String) {
-        // Tinted background (lighter than code blocks)
+    func applyTableStyle(to storage: NSMutableAttributedString, table: Table, range: NSRange, in text: String) {
         storage.addAttributes(
-            [.codeBlockBackground: NSColor.labelColor.withAlphaComponent(0.05)],
+            [.foregroundColor: NSColor.clear, .font: NSFont.systemFont(ofSize: baseFontSize)],
             range: range
         )
 
-        enumerateLines(in: text, range: range) { line, lineStart, isFirst, isLast in
+        // Mark separator rows for layout-level collapse by BulletLayoutManager delegate.
+        // Avoid paragraphStyle/font overrides — they interfere with adjacent row heights.
+        enumerateLines(in: text, range: range) { line, lineStart, _, isLast in
+            guard isSeparatorLine(line) else { return }
             let lineLen = (line as NSString).length
             guard lineLen > 0 else { return }
-
-            if isSeparatorLine(line) {
-                // Hide separator row including its trailing newline to avoid blank gaps
-                let hideLen = isLast ? lineLen : lineLen + 1
-                storage.addAttributes(
-                    Self.hiddenAttributes,
-                    range: NSRange(location: lineStart, length: hideLen)
-                )
-                return
-            }
-
-            let lineRange = NSRange(location: lineStart, length: lineLen)
-
-            // Bold monospace for header row, regular for body rows
-            let weight: NSFont.Weight = isFirst ? .bold : .regular
-            storage.addAttributes(
-                [.font: NSFont.monospacedSystemFont(ofSize: baseFontSize, weight: weight)],
-                range: lineRange
-            )
-
-            // Apply inline styles to cell content (bold, italic, code, links)
-            applyInlinePatterns(to: storage, in: line, offset: lineStart)
-
-            // Dim pipe characters last so they stay secondary even if inline styles ran
-            dimTablePipes(in: line, lineStart: lineStart, storage: storage)
+            let length = isLast ? lineLen : lineLen + 1
+            storage.addAttribute(.tableSeparatorRow, value: true,
+                                 range: NSRange(location: lineStart, length: length))
         }
+
+        let overlayData = TableOverlayData.from(table: table)
+        storage.addAttribute(.tableOverlay, value: overlayData, range: range)
     }
 
     // MARK: - Raw (editing) mode

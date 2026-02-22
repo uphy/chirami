@@ -524,6 +524,15 @@ struct LivePreviewEditor: NSViewRepresentable {
         scrollView.drawsBackground = false
 
         context.coordinator.textView = textView
+
+        textView.postsFrameChangedNotifications = true
+        NotificationCenter.default.addObserver(
+            context.coordinator,
+            selector: #selector(Coordinator.textViewFrameDidChange(_:)),
+            name: NSView.frameDidChangeNotification,
+            object: textView
+        )
+
         return scrollView
     }
 
@@ -576,6 +585,7 @@ struct LivePreviewEditor: NSViewRepresentable {
         var text: Binding<String>
         var isApplyingStyling = false
         weak var textView: NSTextView?
+        private var tableOverlays: [Int: TableOverlayView] = [:]  // key = range.location
 
         var isWindowFocused = true
         var noteColor: NoteColor {
@@ -611,7 +621,105 @@ struct LivePreviewEditor: NSViewRepresentable {
         }
 
         deinit {
+            removeAllTableOverlays()
             NotificationCenter.default.removeObserver(self)
+        }
+
+        // MARK: - Table overlay lifecycle
+
+        private func removeAllTableOverlays() {
+            for overlay in tableOverlays.values {
+                overlay.removeFromSuperview()
+            }
+            tableOverlays.removeAll()
+        }
+
+        private func updateTableOverlays(textView: NSTextView) {
+            guard let storage = textView.textStorage,
+                  let layoutManager = textView.layoutManager,
+                  let textContainer = textView.textContainer else { return }
+
+            layoutManager.ensureLayout(for: textContainer)
+
+            let storageRange = NSRange(location: 0, length: storage.length)
+
+            // Collect tableOverlay attributes using longestEffectiveRange to avoid
+            // attribute run fragmentation caused by tableSeparatorRow splitting the range.
+            var found: [Int: TableOverlayData] = [:]
+            storage.enumerateAttribute(.tableOverlay, in: storageRange, options: []) { value, range, _ in
+                guard let data = value as? TableOverlayData else { return }
+                var fullRange = NSRange()
+                storage.attribute(.tableOverlay, at: range.location,
+                                  longestEffectiveRange: &fullRange,
+                                  in: storageRange)
+                found[fullRange.location] = data
+            }
+
+            // Remove overlays no longer present
+            let existingKeys = Set(tableOverlays.keys)
+            let foundKeys = Set(found.keys)
+            for key in existingKeys.subtracting(foundKeys) {
+                tableOverlays[key]?.removeFromSuperview()
+                tableOverlays.removeValue(forKey: key)
+            }
+
+            let containerOrigin = textView.textContainerOrigin
+            let containerWidth = textContainer.size.width
+
+            // Create or update overlays
+            for (location, data) in found {
+                // Use longestEffectiveRange to get the full table range
+                var effectiveRange = NSRange()
+                guard storage.attribute(.tableOverlay, at: location,
+                                        longestEffectiveRange: &effectiveRange,
+                                        in: storageRange) != nil
+                else { continue }
+
+                let glyphRange = layoutManager.glyphRange(forCharacterRange: effectiveRange, actualCharacterRange: nil)
+
+                // Collect per-row rects, skipping separator rows
+                var rowRects: [NSRect] = []
+                layoutManager.enumerateLineFragments(forGlyphRange: glyphRange) { lineRect, _, _, lineGlyphRange, _ in
+                    let lineCharRange = layoutManager.characterRange(forGlyphRange: lineGlyphRange, actualGlyphRange: nil)
+                    if lineCharRange.length > 0,
+                       storage.attribute(.tableSeparatorRow, at: lineCharRange.location, effectiveRange: nil) != nil {
+                        return  // skip separator
+                    }
+                    rowRects.append(lineRect)
+                }
+
+                guard let firstRect = rowRects.first, let lastRect = rowRects.last else { continue }
+                let minY = firstRect.minY
+                let maxY = lastRect.maxY
+                guard minY < maxY else { continue }
+
+                let overlayFrame = NSRect(
+                    x: containerOrigin.x,
+                    y: containerOrigin.y + minY,
+                    width: containerWidth,
+                    height: maxY - minY
+                )
+
+                // Convert to overlay-local coordinates (y=0 at top of overlay)
+                let localRowRects = rowRects.map { rect in
+                    NSRect(x: 0, y: rect.minY - minY, width: containerWidth, height: rect.height)
+                }
+
+                if let existing = tableOverlays[location] {
+                    existing.frame = overlayFrame
+                    existing.data = data
+                    existing.noteColor = noteColor
+                    existing.baseFontSize = fontSize
+                    existing.rowRects = localRowRects
+                    existing.needsDisplay = true
+                } else {
+                    let overlay = TableOverlayView(data: data, noteColor: noteColor, baseFontSize: fontSize)
+                    overlay.frame = overlayFrame
+                    overlay.rowRects = localRowRects
+                    textView.addSubview(overlay)
+                    tableOverlays[location] = overlay
+                }
+            }
         }
 
         @objc private func windowDidResignKey(_ notification: Notification) {
@@ -620,6 +728,11 @@ struct LivePreviewEditor: NSViewRepresentable {
                   textView.window === window else { return }
             isWindowFocused = false
             applyStyling(to: textView)
+        }
+
+        @objc func textViewFrameDidChange(_ notification: Notification) {
+            guard let textView = textView else { return }
+            updateTableOverlays(textView: textView)
         }
 
         @objc private func windowDidBecomeKey(_ notification: Notification) {
@@ -752,6 +865,7 @@ struct LivePreviewEditor: NSViewRepresentable {
             }
 
             isApplyingStyling = false
+            updateTableOverlays(textView: textView)
             textView.needsDisplay = true
         }
     }

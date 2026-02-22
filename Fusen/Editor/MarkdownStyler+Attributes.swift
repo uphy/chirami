@@ -20,6 +20,10 @@ extension NSAttributedString.Key {
     /// Marks the `!` character of an image. Value: URL string (NSString).
     /// BulletLayoutManager looks up the image from ImageCache and draws it inline.
     static let imageIcon = NSAttributedString.Key("fusen.imageIcon")
+    /// Marks a range as a rendered table overlay. Value: TableOverlayData.
+    static let tableOverlay = NSAttributedString.Key("fusen.tableOverlay")
+    /// Marks a separator row (|---|---|) for layout-level height collapse by BulletLayoutManager.
+    static let tableSeparatorRow = NSAttributedString.Key("fusen.tableSeparatorRow")
 }
 
 extension NSRange {

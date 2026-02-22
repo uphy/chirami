@@ -5,6 +5,16 @@ class BulletLayoutManager: NSLayoutManager {
 
     var baseFontSize: CGFloat = 14
 
+    override init() {
+        super.init()
+        self.delegate = self
+    }
+
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        self.delegate = self
+    }
+
     override func drawBackground(forGlyphRange glyphsToShow: NSRange, at origin: NSPoint) {
         super.drawBackground(forGlyphRange: glyphsToShow, at: origin)
 
@@ -93,7 +103,10 @@ class BulletLayoutManager: NSLayoutManager {
             guard let color = value as? NSColor else { return }
             let glyphRange = glyphRange(forCharacterRange: attrRange, actualCharacterRange: nil)
             let rect = boundingRect(forGlyphRange: glyphRange, in: textContainer)
-            let bgRect = rect.offsetBy(dx: origin.x, dy: origin.y).insetBy(dx: -2, dy: -1)
+            let paragraphStyle = textStorage.attribute(.paragraphStyle, at: attrRange.location, effectiveRange: nil) as? NSParagraphStyle
+            let lineSpacing = paragraphStyle?.lineSpacing ?? 0
+            let tightRect = NSRect(x: rect.origin.x, y: rect.origin.y, width: rect.width, height: rect.height - lineSpacing)
+            let bgRect = tightRect.offsetBy(dx: origin.x, dy: origin.y).insetBy(dx: -2, dy: -1)
             color.setFill()
             NSBezierPath(roundedRect: bgRect, xRadius: 3, yRadius: 3).fill()
         }
@@ -264,5 +277,29 @@ private extension NSImage {
         NSRect(origin: .zero, size: size).fill(using: .sourceAtop)
         image.unlockFocus()
         return image
+    }
+}
+
+// MARK: - NSLayoutManagerDelegate
+
+extension BulletLayoutManager: NSLayoutManagerDelegate {
+    func layoutManager(
+        _ layoutManager: NSLayoutManager,
+        shouldSetLineFragmentRect lineFragmentRect: UnsafeMutablePointer<NSRect>,
+        lineFragmentUsedRect: UnsafeMutablePointer<NSRect>,
+        baselineOffset: UnsafeMutablePointer<CGFloat>,
+        in textContainer: NSTextContainer,
+        forGlyphRange glyphRange: NSRange
+    ) -> Bool {
+        guard let textStorage = textStorage else { return false }
+        let charRange = characterRange(forGlyphRange: glyphRange, actualGlyphRange: nil)
+        guard charRange.length > 0,
+              textStorage.attribute(.tableSeparatorRow, at: charRange.location, effectiveRange: nil) != nil
+        else { return false }
+
+        lineFragmentRect.pointee.size.height = 0.01
+        lineFragmentUsedRect.pointee.size.height = 0.01
+        baselineOffset.pointee = 0
+        return true
     }
 }

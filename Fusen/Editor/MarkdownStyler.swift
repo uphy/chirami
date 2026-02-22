@@ -186,8 +186,8 @@ class MarkdownStyler {
         case is BlockQuote:
             applyBlockQuoteStyle(to: storage, range: range, in: text)
 
-        case is Table:
-            applyTableStyle(to: storage, range: range, in: text)
+        case let table as Table:
+            applyTableStyle(to: storage, table: table, range: range, in: text)
 
         case is ThematicBreak:
             applyThematicBreakStyle(to: storage, range: range)
