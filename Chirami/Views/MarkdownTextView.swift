@@ -396,12 +396,8 @@ class MarkdownTextView: NSTextView {
     }
 
     // swiftlint:disable force_try
-    private static let taskCheckedPattern = try! NSRegularExpression(
-        pattern: #"^(\s*)([-*])\s\[[xX]\]\s(.*)$"#
-    )
-    private static let taskUncheckedPattern = try! NSRegularExpression(
-        pattern: #"^(\s*)([-*])\s\[ \]\s(.*)$"#
-    )
+    private static let taskCheckedPattern = try! NSRegularExpression(pattern: #"^(\s*)([-*])\s\[[xX]\]\s(.*)$"#)
+    private static let taskUncheckedPattern = try! NSRegularExpression(pattern: #"^(\s*)([-*])\s\[ \]\s(.*)$"#)
     private static let listItemPattern = try! NSRegularExpression(
         pattern: #"^(\s*)([-*])\s(.*)$"#
     )

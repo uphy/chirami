@@ -1,6 +1,7 @@
 import Foundation
 
 enum PathTemplateResolver {
+    // swiftlint:disable:next force_try
     private static let placeholderRegex = try! NSRegularExpression(pattern: "\\{([^}]+)\\}")
 
     /// テンプレート文字列かどうかを判定
