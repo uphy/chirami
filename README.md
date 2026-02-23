@@ -19,13 +19,9 @@ See [Features](docs/features.md) for the full feature guide and keyboard shortcu
 
 ## Quick Start
 
-**Prerequisites:** macOS 14.0 (Sonoma) or later, [mise](https://mise.jdx.dev/)
+**Prerequisites:** macOS 14.0 (Sonoma) or later
 
-**Build & install:**
-
-```bash
-mise run build && mise run apply
-```
+**Install:** Download the latest `Chirami-*-macOS.zip` from [Releases](https://github.com/uphy/chirami/releases), unzip it, and move `Chirami.app` to `~/Applications`.
 
 **Create a minimal config** at `~/.config/chirami/config.yaml`:
 
@@ -81,7 +77,7 @@ See [Configuration](docs/configuration.md) for the full field reference.
 
 ## Development
 
-**Prerequisites:** [mise](https://mise.jdx.dev/)
+**Prerequisites:** macOS 14.0 (Sonoma) or later, [mise](https://mise.jdx.dev/)
 
 | Task | Command | Description |
 |------|---------|-------------|
@@ -92,18 +88,18 @@ See [Configuration](docs/configuration.md) for the full field reference.
 | Lint | `mise run lint` | Run SwiftLint |
 | Lint fix | `mise run lint-fix` | Auto-fix SwiftLint violations |
 
-**Xcode alternative:**
+**ソースからビルド & インストール:**
+
+```bash
+mise run build && mise run apply
+```
+
+**Xcode で開発:**
 
 ```bash
 xcodegen generate
 open Chirami.xcodeproj
 # Build and run with Cmd+R
-```
-
-**CLI build:**
-
-```bash
-swift build
 ```
 
 ## Dependencies
@@ -117,4 +113,4 @@ swift build
 
 ## License
 
-Not yet specified.
+[MIT](LICENSE)
