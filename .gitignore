@@ -9,3 +9,4 @@ Package.resolved
 *.xccheckout
 *.moved-aside
 *.pbxuser
+.kiro/settings/
