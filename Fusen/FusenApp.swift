@@ -22,6 +22,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private let windowManager = WindowManager.shared
     private let noteStore = NoteStore.shared
     private let hotkeyService = GlobalHotkeyService()
+    private let karabinerService = KarabinerService.shared
     private var cancellables = Set<AnyCancellable>()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -30,6 +31,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Register per-note hotkeys
         registerAllHotkeys()
+
+        // Start Karabiner-Elements variable sync
+        karabinerService.startObserving()
 
         // Re-register hotkeys when notes change (e.g., config reload)
         noteStore.$notes

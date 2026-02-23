@@ -6,6 +6,52 @@ import CryptoKit
 struct FusenConfig: Codable {
     var hotkey: String?
     var notes: [NoteConfig] = []
+    var karabiner: KarabinerConfig?
+}
+
+struct KarabinerConfig: Codable {
+    var variable: String
+    var onFocus: KarabinerValue
+    var onUnfocus: KarabinerValue
+    var cliPath: String?
+
+    enum CodingKeys: String, CodingKey {
+        case variable
+        case onFocus = "on_focus"
+        case onUnfocus = "on_unfocus"
+        case cliPath = "cli_path"
+    }
+}
+
+/// A value that can be either an integer or a string, matching Karabiner-Elements variable types.
+enum KarabinerValue: Codable, Equatable {
+    case int(Int)
+    case string(String)
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if let intValue = try? container.decode(Int.self) {
+            self = .int(intValue)
+        } else {
+            self = .string(try container.decode(String.self))
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        switch self {
+        case .int(let value): try container.encode(value)
+        case .string(let value): try container.encode(value)
+        }
+    }
+
+    /// JSON fragment for use in karabiner_cli --set-variables argument.
+    var jsonFragment: String {
+        switch self {
+        case .int(let value): return "\(value)"
+        case .string(let value): return "\"\(value)\""
+        }
+    }
 }
 
 struct NoteConfig: Codable {
