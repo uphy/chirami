@@ -13,11 +13,15 @@ struct NoteDefaultsTests {
         color: blue
         transparency: 0.8
         font_size: 16
+        position: cursor
+        auto_hide: true
         """
         let defaults = try YAMLDecoder().decode(NoteDefaults.self, from: yaml)
         #expect(defaults.color == "blue")
         #expect(defaults.transparency == 0.8)
         #expect(defaults.fontSize == 16)
+        #expect(defaults.position == "cursor")
+        #expect(defaults.autoHide == true)
     }
 
     @Test("部分指定（color のみ）でデコードできる")
@@ -29,6 +33,8 @@ struct NoteDefaultsTests {
         #expect(defaults.color == "green")
         #expect(defaults.transparency == nil)
         #expect(defaults.fontSize == nil)
+        #expect(defaults.position == nil)
+        #expect(defaults.autoHide == nil)
     }
 
     @Test("空オブジェクトで全フィールド nil")
@@ -38,6 +44,8 @@ struct NoteDefaultsTests {
         #expect(defaults.color == nil)
         #expect(defaults.transparency == nil)
         #expect(defaults.fontSize == nil)
+        #expect(defaults.position == nil)
+        #expect(defaults.autoHide == nil)
     }
 
     @Test("title や hotkey など未知フィールドは無視される")
@@ -64,6 +72,8 @@ struct FusenConfigDefaultsTests {
           color: blue
           transparency: 0.7
           font_size: 18
+          position: cursor
+          auto_hide: true
         notes:
           - path: ~/notes/test.md
         """
@@ -72,6 +82,8 @@ struct FusenConfigDefaultsTests {
         #expect(config.defaults?.color == "blue")
         #expect(config.defaults?.transparency == 0.7)
         #expect(config.defaults?.fontSize == 18)
+        #expect(config.defaults?.position == "cursor")
+        #expect(config.defaults?.autoHide == true)
         #expect(config.notes.count == 1)
     }
 
@@ -225,5 +237,51 @@ struct NoteConfigPeriodicNoteTests {
         let config = try YAMLDecoder().decode(NoteConfig.self, from: yaml)
         #expect(config.isPeriodicNote == true)
         #expect(config.rolloverDelay == nil)
+    }
+}
+
+// MARK: - NoteConfig resolve with defaults
+
+@Suite("NoteConfig resolve メソッド")
+struct NoteConfigResolveTests {
+
+    @Test("position: ノート指定 > defaults")
+    func resolvePositionNoteOverridesDefaults() {
+        let config = NoteConfig(path: "~/a.md", position: "cursor")
+        let defaults = NoteDefaults(position: nil)
+        #expect(config.resolvePosition(defaults: defaults) == .cursor)
+    }
+
+    @Test("position: ノート未指定時に defaults を使う")
+    func resolvePositionFallsBackToDefaults() {
+        let config = NoteConfig(path: "~/a.md")
+        let defaults = NoteDefaults(position: "cursor")
+        #expect(config.resolvePosition(defaults: defaults) == .cursor)
+    }
+
+    @Test("position: 両方未指定で .fixed")
+    func resolvePositionDefaultsToFixed() {
+        let config = NoteConfig(path: "~/a.md")
+        #expect(config.resolvePosition(defaults: nil) == .fixed)
+    }
+
+    @Test("autoHide: ノート指定 > defaults")
+    func resolveAutoHideNoteOverridesDefaults() {
+        let config = NoteConfig(path: "~/a.md", autoHide: true)
+        let defaults = NoteDefaults(autoHide: false)
+        #expect(config.resolveAutoHide(defaults: defaults) == true)
+    }
+
+    @Test("autoHide: ノート未指定時に defaults を使う")
+    func resolveAutoHideFallsBackToDefaults() {
+        let config = NoteConfig(path: "~/a.md")
+        let defaults = NoteDefaults(autoHide: true)
+        #expect(config.resolveAutoHide(defaults: defaults) == true)
+    }
+
+    @Test("autoHide: 両方未指定で false")
+    func resolveAutoHideDefaultsToFalse() {
+        let config = NoteConfig(path: "~/a.md")
+        #expect(config.resolveAutoHide(defaults: nil) == false)
     }
 }

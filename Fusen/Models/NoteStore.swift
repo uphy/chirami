@@ -49,8 +49,8 @@ class NoteStore: ObservableObject {
 
             let alwaysOnTop = appState.windowState(for: id)?.alwaysOnTop ?? true
 
-            let notePosition: NotePosition = noteConfig.position == "cursor" ? .cursor : .fixed
-            let autoHide = noteConfig.autoHide ?? false
+            let notePosition = noteConfig.resolvePosition(defaults: config.defaults)
+            let autoHide = noteConfig.resolveAutoHide(defaults: config.defaults)
 
             return Note(
                 id: id, path: url, title: title, color: color,
@@ -108,8 +108,8 @@ class NoteStore: ObservableObject {
         let transparency = config.resolveTransparency(defaults: configDefaults)
         let fontSize = config.resolveFontSize(defaults: configDefaults)
         let alwaysOnTop = appState.windowState(for: id)?.alwaysOnTop ?? true
-        let notePosition: NotePosition = config.position == "cursor" ? .cursor : .fixed
-        let autoHide = config.autoHide ?? false
+        let notePosition = config.resolvePosition(defaults: configDefaults)
+        let autoHide = config.resolveAutoHide(defaults: configDefaults)
 
         let rolloverDelay = DurationParser.parse(config.rolloverDelay)
         let templateFile: URL? = config.template.flatMap { resolvePath($0) }

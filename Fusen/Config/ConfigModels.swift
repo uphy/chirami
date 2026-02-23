@@ -7,10 +7,13 @@ struct NoteDefaults: Codable {
     var color: String?
     var transparency: Double?
     var fontSize: Int?
+    var position: String?
+    var autoHide: Bool?
 
     enum CodingKeys: String, CodingKey {
-        case color, transparency
+        case color, transparency, position
         case fontSize = "font_size"
+        case autoHide = "auto_hide"
     }
 }
 
@@ -147,6 +150,15 @@ struct NoteConfig: Codable {
 
     func resolveFontSize(defaults: NoteDefaults?) -> CGFloat {
         CGFloat(fontSize ?? defaults?.fontSize ?? 14)
+    }
+
+    func resolvePosition(defaults: NoteDefaults?) -> NotePosition {
+        let value = position ?? defaults?.position
+        return value == "cursor" ? .cursor : .fixed
+    }
+
+    func resolveAutoHide(defaults: NoteDefaults?) -> Bool {
+        autoHide ?? defaults?.autoHide ?? false
     }
 }
 
