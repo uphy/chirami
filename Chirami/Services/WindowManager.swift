@@ -13,8 +13,13 @@ class WindowManager: ObservableObject {
     private init() {}
 
     func openAllWindows() {
+        var cascadePoint = CGPoint.zero
         for note in noteStore.notes {
+            let hasSavedState = noteStore.windowState(for: note) != nil
             openWindow(for: note)
+            if !hasSavedState, let window = controllers[note.id]?.window {
+                cascadePoint = window.cascadeTopLeft(from: cascadePoint)
+            }
         }
     }
 

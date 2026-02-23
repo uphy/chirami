@@ -41,6 +41,7 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
         panel.level = note.alwaysOnTop ? .floating : .normal
         panel.alphaValue = note.transparency
         panel.backgroundColor = note.color.nsColor
+        panel.isRestorable = false
 
         // Minimal toolbar: just the close button
         panel.standardWindowButton(.miniaturizeButton)?.isHidden = true
