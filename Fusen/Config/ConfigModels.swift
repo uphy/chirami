@@ -20,12 +20,29 @@ struct FusenConfig: Codable {
     var notes: [NoteConfig] = []
     var karabiner: KarabinerConfig?
     var smartPaste: SmartPasteConfig?
+    var dragModifier: String?
 
     enum CodingKeys: String, CodingKey {
         case hotkey, defaults, notes, karabiner
         case smartPaste = "smart_paste"
+        case dragModifier = "drag_modifier"
     }
 }
+
+#if canImport(AppKit)
+import AppKit
+
+extension FusenConfig {
+    var dragModifierFlags: NSEvent.ModifierFlags {
+        switch dragModifier {
+        case "option": return .option
+        case "shift": return .shift
+        case "control": return .control
+        default: return .command
+        }
+    }
+}
+#endif
 
 struct SmartPasteConfig: Codable {
     var enabled: Bool = true

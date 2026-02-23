@@ -6,6 +6,11 @@ class MarkdownTextView: NSTextView {
     var onFontSizeChange: ((CGFloat) -> Void)?
     var customMenuItems: (() -> [NSMenuItem])?
     var currentFontSize: CGFloat = 14
+    private var isDragModifierHeld = false
+
+    private var dragModifierFlags: NSEvent.ModifierFlags {
+        AppConfig.shared.data.dragModifierFlags
+    }
 
     override func menu(for event: NSEvent) -> NSMenu? {
         let menu = super.menu(for: event) ?? NSMenu()
@@ -33,6 +38,10 @@ class MarkdownTextView: NSTextView {
     }
 
     override func mouseMoved(with event: NSEvent) {
+        if event.modifierFlags.contains(dragModifierFlags) {
+            NSCursor.openHand.set()
+            return
+        }
         let point = convert(event.locationInWindow, from: nil)
         if charIndexOfCheckbox(at: point) != nil || linkURL(at: point) != nil {
             NSCursor.pointingHand.set()
@@ -41,7 +50,42 @@ class MarkdownTextView: NSTextView {
         }
     }
 
+    override func flagsChanged(with event: NSEvent) {
+        if event.modifierFlags.contains(dragModifierFlags) {
+            if !isDragModifierHeld {
+                isDragModifierHeld = true
+                NSCursor.openHand.push()
+            }
+        } else {
+            if isDragModifierHeld {
+                isDragModifierHeld = false
+                NSCursor.pop()
+            }
+        }
+        super.flagsChanged(with: event)
+    }
+
     override func mouseDown(with event: NSEvent) {
+        // Modifier+drag: initiate window move instead of text interaction
+        if event.modifierFlags.contains(dragModifierFlags) {
+            // Reset cursor stack: pop openHand if held, push closedHand
+            if isDragModifierHeld {
+                NSCursor.pop()
+            }
+            NSCursor.closedHand.push()
+            window?.performDrag(with: event)
+            // performDrag returns after drag completes; re-evaluate modifier state
+            NSCursor.pop()
+            let modifierStillHeld = NSEvent.modifierFlags.contains(dragModifierFlags)
+            if modifierStillHeld {
+                NSCursor.openHand.push()
+                isDragModifierHeld = true
+            } else {
+                isDragModifierHeld = false
+            }
+            return
+        }
+
         let point = convert(event.locationInWindow, from: nil)
         if let idx = charIndexOfCheckbox(at: point) {
             onCheckboxClick?(idx)

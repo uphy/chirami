@@ -126,3 +126,39 @@ struct FusenConfigDefaultsTests {
         #expect(config.defaults?.fontSize == nil)
     }
 }
+
+// MARK: - FusenConfig dragModifier
+
+@Suite("FusenConfig drag_modifier フィールド")
+struct FusenConfigDragModifierTests {
+
+    @Test("drag_modifier を指定してデコードできる")
+    func decodeDragModifier() throws {
+        let yaml = """
+        drag_modifier: option
+        notes: []
+        """
+        let config = try YAMLDecoder().decode(FusenConfig.self, from: yaml)
+        #expect(config.dragModifier == "option")
+    }
+
+    @Test("drag_modifier 未指定で nil になる")
+    func decodeDragModifierNil() throws {
+        let yaml = """
+        notes: []
+        """
+        let config = try YAMLDecoder().decode(FusenConfig.self, from: yaml)
+        #expect(config.dragModifier == nil)
+    }
+
+    @Test("サポートする全修飾キーをデコードできる",
+          arguments: ["option", "command", "shift", "control"])
+    func decodeSupportedModifiers(modifier: String) throws {
+        let yaml = """
+        drag_modifier: \(modifier)
+        notes: []
+        """
+        let config = try YAMLDecoder().decode(FusenConfig.self, from: yaml)
+        #expect(config.dragModifier == modifier)
+    }
+}
