@@ -71,17 +71,16 @@ class AppConfig: YAMLStore<ChiramiConfig> {
 
     ## Basic Usage
 
-    - **Move**: Drag a note to reposition it
+    - **Move**: Drag the title bar to reposition it (hold `Cmd` to drag from anywhere)
     - **Menu bar**: Manage notes from the menu bar icon
     - **Add notes**: Edit `config.yaml` via Menu → "Edit Config"
 
-    ## Keyboard Shortcuts
+    ## Show / Hide Notes
 
-    Shortcuts are fully customizable via the `hotkey` field in `config.yaml`.
+    Click a note in the **menu bar popup** to toggle its visibility.
 
-    | Shortcut | Action |
-    |---|---|
-    | `Cmd+Shift+M` | Show/hide Quick Memo (customizable) |
+    You can also assign a keyboard shortcut to each note via the `hotkey` field in `config.yaml`.
+    In this demo, **Quick Memo** is set to `Cmd+Shift+M` — try pressing it!
 
     ## Markdown
 
