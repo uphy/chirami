@@ -77,6 +77,8 @@ struct NoteConfig: Codable {
     var transparency: Double?
     var fontSize: Int?
     var hotkey: String?
+    var position: String?
+    var autoHide: Bool?
 
     var resolvedPath: String {
         if path.hasPrefix("~/") {
@@ -91,8 +93,9 @@ struct NoteConfig: Codable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case path, title, color, transparency, hotkey
+        case path, title, color, transparency, hotkey, position
         case fontSize = "font_size"
+        case autoHide = "auto_hide"
     }
 }
 

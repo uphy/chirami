@@ -110,7 +110,7 @@ private extension NSView {
 /// Manages a single note window: position/size persistence, transparency, always-on-top.
 @MainActor
 class NoteWindowController: NSWindowController, NSWindowDelegate {
-    let note: Note
+    private(set) var note: Note
     private let noteStore = NoteStore.shared
     private var fileWatcher: FileWatcher?
     private var contentModel: NoteContentModel
@@ -185,8 +185,66 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
     }
 
     func show() {
-        showWindow(nil)
+        if note.position == .cursor {
+            showAtCursor()
+        } else {
+            showWindow(nil)
+        }
         noteStore.setVisible(true, for: note)
+    }
+
+    private func showAtCursor() {
+        guard let window = window else { return }
+
+        let cursorLocation = NSEvent.mouseLocation
+        let windowSize = window.frame.size
+
+        let screen = screenForCursor() ?? NSScreen.main
+        let visibleFrame = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1920, height: 1080)
+
+        // Place window centered on cursor position
+        // NSWindow origin is bottom-left corner
+        let origin = CGPoint(x: cursorLocation.x - windowSize.width / 2, y: cursorLocation.y - windowSize.height / 2)
+        let clamped = clampToScreen(origin: origin, windowSize: windowSize, visibleFrame: visibleFrame)
+
+        window.setFrameOrigin(clamped)
+        showWindow(nil)
+        NSApp.activate(ignoringOtherApps: true)
+        window.makeKeyAndOrderFront(nil)
+    }
+
+    private func screenForCursor() -> NSScreen? {
+        let cursorLocation = NSEvent.mouseLocation
+        for screen in NSScreen.screens {
+            if NSMouseInRect(cursorLocation, screen.frame, false) {
+                return screen
+            }
+        }
+        return NSScreen.main
+    }
+
+    private func clampToScreen(origin: CGPoint, windowSize: CGSize, visibleFrame: CGRect) -> CGPoint {
+        var x = origin.x
+        var y = origin.y
+
+        // Clamp right edge
+        if x + windowSize.width > visibleFrame.maxX {
+            x = visibleFrame.maxX - windowSize.width
+        }
+        // Clamp left edge
+        if x < visibleFrame.minX {
+            x = visibleFrame.minX
+        }
+        // Clamp bottom edge
+        if y < visibleFrame.minY {
+            y = visibleFrame.minY
+        }
+        // Clamp top edge (origin is bottom-left, so top = y + height)
+        if y + windowSize.height > visibleFrame.maxY {
+            y = visibleFrame.maxY - windowSize.height
+        }
+
+        return CGPoint(x: x, y: y)
     }
 
     func hide() {
@@ -207,9 +265,17 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
         panel.title = updated.title
         panel.level = updated.alwaysOnTop ? .floating : .normal
         contentModel.fontSize = updated.fontSize
+        note.position = updated.position
+        note.autoHide = updated.autoHide
     }
 
     // MARK: - NSWindowDelegate
+
+    func windowDidResignKey(_ notification: Notification) {
+        guard note.autoHide, isVisible else { return }
+        contentModel.save()
+        hide()
+    }
 
     func windowWillClose(_ notification: Notification) {
         guard let window = window else { return }
@@ -222,11 +288,25 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
     }
 
     func windowDidMove(_ notification: Notification) {
-        saveWindowState()
+        if note.position != .cursor {
+            saveWindowState()
+        }
     }
 
     func windowDidResize(_ notification: Notification) {
-        saveWindowState()
+        if note.position == .cursor {
+            // Save size only: read existing position from state
+            guard let window = window else { return }
+            let existingPosition = noteStore.windowState(for: note)?.cgPoint ?? window.frame.origin
+            noteStore.saveWindowState(
+                for: note,
+                position: existingPosition,
+                size: window.frame.size,
+                visible: isVisible
+            )
+        } else {
+            saveWindowState()
+        }
     }
 
     private func saveWindowState() {

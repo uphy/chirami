@@ -25,11 +25,17 @@ class WindowManager: ObservableObject {
 
         let controller = NoteWindowController(note: note)
         controllers[note.id] = controller
+
+        // Transient notes (auto_hide + cursor) start hidden
+        if note.autoHide && note.position == .cursor {
+            return
+        }
         controller.showIfNeeded()
     }
 
     func toggleAllWindows() {
-        let anyVisible = controllers.values.contains { $0.isVisible }
+        let nonAutoHide = controllers.values.filter { !$0.note.autoHide }
+        let anyVisible = nonAutoHide.contains { $0.isVisible }
         if anyVisible {
             if NSApp.isActive {
                 hideAllWindows()
@@ -44,7 +50,7 @@ class WindowManager: ObservableObject {
     func focusAllWindows() {
         NSApp.activate(ignoringOtherApps: true)
         var lastWindow: NSWindow?
-        for (_, controller) in controllers where controller.isVisible {
+        for (_, controller) in controllers where controller.isVisible && !controller.note.autoHide {
             controller.window?.orderFront(nil)
             lastWindow = controller.window
         }
@@ -52,14 +58,14 @@ class WindowManager: ObservableObject {
     }
 
     func showAllWindows() {
-        for note in noteStore.notes {
+        for note in noteStore.notes where !note.autoHide {
             openWindow(for: note)
             controllers[note.id]?.show()
         }
     }
 
     func hideAllWindows() {
-        controllers.values.forEach { $0.hide() }
+        controllers.values.filter { !$0.note.autoHide }.forEach { $0.hide() }
     }
 
     func toggleWindow(for noteId: String) {

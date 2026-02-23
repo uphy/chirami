@@ -43,7 +43,10 @@ class NoteStore: ObservableObject {
 
             let alwaysOnTop = appState.windowState(for: id)?.alwaysOnTop ?? true
 
-            return Note(id: id, path: url, title: title, color: color, transparency: transparency, fontSize: fontSize, alwaysOnTop: alwaysOnTop, hotkey: noteConfig.hotkey)
+            let notePosition: NotePosition = noteConfig.position == "cursor" ? .cursor : .fixed
+            let autoHide = noteConfig.autoHide ?? false
+
+            return Note(id: id, path: url, title: title, color: color, transparency: transparency, fontSize: fontSize, alwaysOnTop: alwaysOnTop, hotkey: noteConfig.hotkey, position: notePosition, autoHide: autoHide)
         }
     }
 
