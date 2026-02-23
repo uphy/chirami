@@ -1,34 +1,34 @@
 # Product Vision — Golden Circle
 
-## Why（なぜ存在するのか）
+## Why
 
-作業中にメモを取りたい、TODO を確認したい——そのたびにエディタを開き直し、思考が途切れる。
+You want to jot down a note or check your TODO list while working — but every time, you have to switch to an editor and lose your train of thought.
 
-Obsidian のエディタ体験は素晴らしいが、すばやく・邪魔にならない形でノートを表示することはできない。Raycast Notes はその体験に近かったが、Markdown ベースではなく Obsidian のノートと併用できない。また、キーボードのみでの操作にも限界があった。
+Obsidian offers a great editing experience, but it can't display notes quickly and unobtrusively alongside your work. Raycast Notes came close, but it isn't Markdown-based and can't share files with Obsidian. Keyboard-only operation also had its limits.
 
-**Fusen は、作業の流れを止めずにノートを扱えるようにするために存在する。**
+**Fusen exists to let you work with your notes without breaking your flow.**
 
-## How（どのように実現するか）
+## How
 
-- **グローバルホットキー** — キーボードから手を離さず瞬時にノートを呼び出す
-- **付箋型浮遊UI** — always-on-top の NSPanel で常に作業画面の前面に表示。アプリを切り替えない
-- **タイリング WM との共存** — NSPanel は aerospace などのタイリング Window Manager の管理対象外。レイアウトを乱さずに付箋だけを浮かべられる
-- **Obsidian との完全共存** — 同じ `.md` ファイルをそのまま使う。Pure Markdown のみ（メタデータなし）
-- **Live Preview** — Obsidian 風のエディタ体験。カーソルのあるブロックだけ raw Markdown、他はレンダリング済み
-- **任意パス登録** — Obsidian vault 内のファイルも、プロジェクトの `todo.md` も、どこにあっても登録できる
+- **Global Hotkeys** — Summon a note instantly without lifting your hands from the keyboard.
+- **Sticky-note floating UI** — Always-on-top NSPanel windows stay in front of your workspace. No app switching.
+- **Tiling WM coexistence** — NSPanel windows are ignored by tiling window managers like aerospace. Notes float independently without disrupting your tiled layout.
+- **Full Obsidian compatibility** — Uses the same `.md` files directly. Pure Markdown only — no metadata.
+- **Live Preview** — Obsidian-style editing. The block at the cursor shows raw Markdown; everything else is rendered.
+- **Any-path registration** — Register files from anywhere: an Obsidian vault, a project's `todo.md`, or any arbitrary path.
 
-## What（何を提供するか）
+## What
 
-macOS 向け付箋型 Markdown ノートアプリ。
+A macOS sticky-note Markdown app.
 
-Obsidian でノートを管理している開発者・エンジニアが、作業を中断せずにメモ・確認・TODO 消化をできる。グローバルホットキーで呼び出す付箋が画面に浮かび、Markdown のまま読み書きできる。Obsidian のファイルをそのまま使うため、ワークフローへの侵食はゼロ。aerospace などのタイリング WM 環境でも、付箋だけが独立して浮かぶ。
+Developers and engineers who manage notes in Obsidian can check, write, and complete TODOs without interrupting their work. Global hotkeys summon floating sticky notes that render and edit Markdown in place. Because Fusen uses the same files as Obsidian, it introduces zero friction to your existing workflow. In tiling WM environments like aerospace, notes float independently above your tiled windows.
 
-**一言で言えば:** 「作業フローを止めずに、Obsidian のノートを付箋として手元に」
+**In one sentence:** "Access your Obsidian notes as sticky notes — without breaking your flow."
 
-## スコープ
+## Scope
 
-Fusen は**表示・アクセスレイヤー**に徹する。ファイルの作成・削除・整理はスコープ外。
+Fusen is strictly a **display and access layer**. File creation, deletion, and organization are out of scope.
 
-- ノート管理（新規作成・情報整理）は Obsidian などの既存ツールが担う
-- 一時的なメモは単一の固定ファイル（例: `scratch.md`）にどんどん書き、定期的に別ツールで整理して空にする運用で十分
-- Fusen が解決するのは「そのファイルにすばやくアクセスし、作業を止めずに見る・書く」こと
+- Note management (creating new notes, organizing information) is handled by existing tools like Obsidian.
+- For scratch notes, use a single fixed file (e.g. `scratch.md`) — write freely and periodically clean it up with another tool.
+- What Fusen solves is "quickly access that file and read or write without stopping your work."

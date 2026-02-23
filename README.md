@@ -2,6 +2,14 @@
 
 macOS 付箋型 Markdown ノートアプリ。Stickies のシンプルさと Obsidian の Live Preview を、plain `.md` ファイルで実現する。
 
+## Documentation
+
+- [Getting Started](docs/getting-started.md) — Installation through first note display
+- [Configuration](docs/configuration.md) — Full config.yaml field reference
+- [Features](docs/features.md) — Feature guide and keyboard shortcuts
+- [Advanced](docs/advanced.md) — Periodic Notes, Smart Paste, Karabiner integration
+- [Product Vision](docs/product-vision.md) — Why Fusen exists
+
 ## 設計思想
 
 - **Markdown ファイルはユーザーのもの** — pure Markdown のみ（メタデータなし）。Obsidian・VS Code・任意のエディタと完全互換。
