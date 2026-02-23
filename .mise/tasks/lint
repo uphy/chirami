@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 #MISE description="SwiftLint で静的解析を実行"
+#MISE sources=["Chirami/**/*.swift"]
 set -euo pipefail
 
 # SourceKit framework path for CommandLineTools-only environments

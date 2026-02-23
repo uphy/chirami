@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 #MISE description="Release ビルド (.app バンドル生成)"
+#MISE depends=["lint-fix"]
+#MISE sources=["Chirami/**/*.swift", "Package.swift", "Chirami/Info.plist"]
 set -euo pipefail
 
 version="${APP_VERSION:-0.0.0-dev}"

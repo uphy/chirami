@@ -119,9 +119,9 @@ class AppConfig: YAMLStore<ChiramiConfig> {
 
     ## Today's Tasks
 
-    - [ ] 
-    - [ ] 
-    - [ ] 
+    - [ ]
+    - [ ]
+    - [ ]
 
     ## Notes
 
@@ -134,12 +134,12 @@ class AppConfig: YAMLStore<ChiramiConfig> {
         let taskSets = [
             ["Code review", "Update docs", "Fix bug"],
             ["Prepare meeting", "Design review", "Write tests"],
-            ["Set up environment", "Clarify spec", "Implement"],
+            ["Set up environment", "Clarify spec", "Implement"]
         ]
         let notes = [
             "Good progress today.",
             "Got stuck briefly but resolved it.",
-            "Some items carried over to tomorrow.",
+            "Some items carried over to tomorrow."
         ]
         let idx = (daysAgo - 1) % taskSets.count
         let tasks = taskSets[idx]

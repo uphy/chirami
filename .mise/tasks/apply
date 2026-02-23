@@ -11,6 +11,10 @@ fi
 
 # 実行中かチェック
 was_running=false
+is_installed=false
+if [ -d ~/Applications/Chirami.app ]; then
+  is_installed=true
+fi
 if pgrep -x Chirami >/dev/null 2>&1; then
   was_running=true
   pkill -x Chirami
@@ -22,8 +26,12 @@ rm -rf ~/Applications/Chirami.app
 cp -R "$app_path" ~/Applications/Chirami.app
 echo "Installed to ~/Applications/Chirami.app"
 
-# 起動中だったら再起動
-if [ "$was_running" = true ]; then
+# 起動中だったら再起動、未インストールだったら新規起動
+if [ "$was_running" = true ] || [ "$is_installed" = false ]; then
   open ~/Applications/Chirami.app
-  echo "Restarted Chirami"
+  if [ "$was_running" = true ]; then
+    echo "Restarted Chirami"
+  else
+    echo "Started Chirami"
+  fi
 fi

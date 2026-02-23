@@ -13,7 +13,6 @@ A macOS sticky-note Markdown app. Access your notes as floating windows — with
 - **Periodic notes** — Date-based file paths with rollover delay and templates
 - **Smart Paste** — Cmd+Shift+V converts URLs, HTML, and JSON to Markdown on paste
 - **Per-note styling** — Background color, transparency, and font size for each note
-- **Config / State separation** — `config.yaml` is dotfiles-friendly; `state.yaml` is auto-managed
 
 See [Features](docs/features.md) for the full feature guide and keyboard shortcuts.
 
@@ -36,10 +35,7 @@ See [Getting Started](docs/getting-started.md) for the full setup guide.
 
 ## Configuration
 
-Chirami uses two files:
-
-- **`~/.config/chirami/config.yaml`** — User-managed settings (dotfiles-friendly)
-- **`~/.local/state/chirami/state.yaml`** — Auto-managed runtime state (window positions, sizes, visibility)
+Config file: **`~/.config/chirami/config.yaml`**
 
 ```yaml
 defaults:
@@ -88,13 +84,13 @@ See [Configuration](docs/configuration.md) for the full field reference.
 | Lint | `mise run lint` | Run SwiftLint |
 | Lint fix | `mise run lint-fix` | Auto-fix SwiftLint violations |
 
-**ソースからビルド & インストール:**
+**Build & install from source:**
 
 ```bash
 mise run build && mise run apply
 ```
 
-**Xcode で開発:**
+**Develop with Xcode:**
 
 ```bash
 xcodegen generate

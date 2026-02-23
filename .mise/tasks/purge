@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+#MISE description="Remove app, config, and state"
+set -euo pipefail
+
+# Stop if running
+if pgrep -x Chirami >/dev/null 2>&1; then
+  pkill -x Chirami
+  sleep 0.5
+  echo "Stopped Chirami"
+fi
+
+# Remove app
+if [ -d ~/Applications/Chirami.app ]; then
+  rm -rf ~/Applications/Chirami.app
+  echo "Removed ~/Applications/Chirami.app"
+fi
+
+# Remove config directory
+if [ -d ~/.config/chirami ]; then
+  rm -rf ~/.config/chirami
+  echo "Removed ~/.config/chirami"
+fi
+
+# Remove state directory
+if [ -d ~/.local/state/chirami ]; then
+  rm -rf ~/.local/state/chirami
+  echo "Removed ~/.local/state/chirami"
+fi
+
+echo "Purge complete"
