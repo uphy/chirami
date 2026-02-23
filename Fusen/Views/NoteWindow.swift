@@ -11,6 +11,9 @@ class NotePanel: NSPanel {
 
     private var closeButtonTrackingArea: NSTrackingArea?
     private var customTitleLabel: NSTextField?
+    private var prevButton: NSButton?
+    private var nextButton: NSButton?
+    private var todayButton: NSButton?
 
     override var title: String {
         didSet { customTitleLabel?.stringValue = title }
@@ -53,6 +56,64 @@ class NotePanel: NSPanel {
         ])
 
         customTitleLabel = label
+    }
+
+    /// Set up navigation buttons (◀ ▶ ●) in the titlebar for periodic notes.
+    func setupNavigationButtons(
+        target: AnyObject,
+        prevAction: Selector,
+        nextAction: Selector,
+        todayAction: Selector
+    ) {
+        guard let closeButton = standardWindowButton(.closeButton) else { return }
+
+        // Walk up to full-width titlebar view
+        var fullWidthView: NSView = closeButton
+        while let parent = fullWidthView.superview {
+            fullWidthView = parent
+            if parent.frame.width >= frame.width - 1 { break }
+        }
+
+        let prev = makeNavButton(symbolName: "chevron.left", action: prevAction, target: target)
+        let next = makeNavButton(symbolName: "chevron.right", action: nextAction, target: target)
+        let latest = makeNavButton(symbolName: "forward.end.fill", action: todayAction, target: target)
+        latest.isHidden = true // hidden when showing latest
+
+        for button in [prev, next, latest] {
+            fullWidthView.addSubview(button)
+            button.centerYAnchor.constraint(equalTo: closeButton.centerYAnchor).isActive = true
+        }
+
+        if let label = customTitleLabel {
+            prev.trailingAnchor.constraint(equalTo: label.leadingAnchor, constant: -4).isActive = true
+            next.leadingAnchor.constraint(equalTo: label.trailingAnchor, constant: 4).isActive = true
+            latest.leadingAnchor.constraint(equalTo: next.trailingAnchor, constant: 2).isActive = true
+        }
+
+        prevButton = prev
+        nextButton = next
+        todayButton = latest
+    }
+
+    /// Update navigation button enabled/hidden states.
+    func updateNavigationState(hasPrevious: Bool, hasNext: Bool, isToday: Bool) {
+        prevButton?.isEnabled = hasPrevious
+        nextButton?.isEnabled = hasNext
+        todayButton?.isHidden = isToday
+    }
+
+    private func makeNavButton(symbolName: String, action: Selector, target: AnyObject) -> NSButton {
+        let button = NSButton(frame: .zero)
+        button.bezelStyle = .inline
+        button.isBordered = false
+        button.image = NSImage(systemSymbolName: symbolName, accessibilityDescription: nil)
+        button.imagePosition = .imageOnly
+        button.action = action
+        button.target = target
+        button.translatesAutoresizingMaskIntoConstraints = false
+        button.setContentHuggingPriority(.required, for: .horizontal)
+        button.controlSize = .small
+        return button
     }
 
     /// Hide the close button by default and show it on titlebar hover.
@@ -115,6 +176,7 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
     private var fileWatcher: FileWatcher?
     private var contentModel: NoteContentModel
     private var cancellables = Set<AnyCancellable>()
+    private var isShowingToday: Bool = true
 
     var isVisible: Bool { window?.isVisible ?? false }
 
@@ -152,6 +214,16 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
 
         super.init(window: panel)
         panel.delegate = self
+
+        if note.periodicInfo != nil {
+            panel.setupNavigationButtons(
+                target: self,
+                prevAction: #selector(navigatePreviousAction),
+                nextAction: #selector(navigateNextAction),
+                todayAction: #selector(navigateToTodayAction)
+            )
+            updateNavigationButtons()
+        }
 
         let rootView = NoteContentView(model: contentModel, noteId: note.id)
             .environmentObject(NoteStore.shared)
@@ -315,6 +387,109 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
             size: window.frame.size,
             visible: isVisible
         )
+    }
+
+    // MARK: - Periodic Note Navigation
+
+    @objc private func navigatePreviousAction() { navigatePrevious() }
+    @objc private func navigateNextAction() { navigateNext() }
+    @objc private func navigateToTodayAction() { navigateToToday() }
+
+    func navigatePrevious() {
+        guard let info = note.periodicInfo else { return }
+        let baseDir = PathTemplateResolver.extractBaseDirectory(from: info.pathTemplate)
+        guard let baseDirURL = resolveTemplatePath(baseDir) else { return }
+        let relativeTemplate = String(info.pathTemplate.dropFirst(baseDir.count))
+        let files = PeriodicFileNavigator.listMatchingFiles(template: relativeTemplate, baseDirectory: baseDirURL)
+        guard let prev = PeriodicFileNavigator.previousFile(from: note.path, in: files) else { return }
+        navigateToFile(prev)
+    }
+
+    func navigateNext() {
+        guard let info = note.periodicInfo else { return }
+        let baseDir = PathTemplateResolver.extractBaseDirectory(from: info.pathTemplate)
+        guard let baseDirURL = resolveTemplatePath(baseDir) else { return }
+        let relativeTemplate = String(info.pathTemplate.dropFirst(baseDir.count))
+        let files = PeriodicFileNavigator.listMatchingFiles(template: relativeTemplate, baseDirectory: baseDirURL)
+        guard let next = PeriodicFileNavigator.nextFile(from: note.path, in: files) else { return }
+        navigateToFile(next)
+    }
+
+    func navigateToToday() {
+        guard let info = note.periodicInfo else { return }
+        let config = NoteConfig(path: info.pathTemplate, template: info.templateFile?.path)
+        let date = noteStore.logicalDate(rolloverDelay: info.rolloverDelay)
+        guard let newNote = noteStore.resolvePeriodicNote(from: config, for: date) else { return }
+        navigateToFile(newNote.path)
+        isShowingToday = true
+        updateNavigationButtons()
+    }
+
+    func handleRollover(_ newNote: Note) {
+        guard isShowingToday else { return }
+        note.path = newNote.path
+        note.title = newNote.title
+        reloadContentForNavigation()
+    }
+
+    private func navigateToFile(_ url: URL) {
+        note.path = url
+        // Update title
+        if let info = note.periodicInfo {
+            let fileName = url.deletingPathExtension().lastPathComponent
+            if let prefix = info.titlePrefix {
+                note.title = "\(prefix) — \(fileName)"
+            } else {
+                note.title = fileName
+            }
+        }
+        isShowingToday = false
+        // Check if navigated file is actually today's file
+        if let info = note.periodicInfo {
+            let todayPath = PathTemplateResolver.resolve(info.pathTemplate, for: noteStore.logicalDate(rolloverDelay: info.rolloverDelay))
+            if let todayURL = resolveTemplatePath(todayPath), todayURL.path == url.path {
+                isShowingToday = true
+            }
+        }
+        reloadContentForNavigation()
+    }
+
+    private func reloadContentForNavigation() {
+        // Create file if needed
+        if !FileManager.default.fileExists(atPath: note.path.path) {
+            noteStore.writeContent("", to: note)
+        }
+
+        contentModel = NoteContentModel(note: note)
+        let rootView = NoteContentView(model: contentModel, noteId: note.id)
+            .environmentObject(NoteStore.shared)
+        (window as? NotePanel)?.contentView = NSHostingView(rootView: rootView)
+
+        // Update panel title
+        (window as? NotePanel)?.title = note.title
+
+        // Restart file watcher
+        setupFileWatcher()
+
+        updateNavigationButtons()
+    }
+
+    private func updateNavigationButtons() {
+        guard let panel = window as? NotePanel, let info = note.periodicInfo else { return }
+        let baseDir = PathTemplateResolver.extractBaseDirectory(from: info.pathTemplate)
+        guard let baseDirURL = resolveTemplatePath(baseDir) else { return }
+        let relativeTemplate = String(info.pathTemplate.dropFirst(baseDir.count))
+        let files = PeriodicFileNavigator.listMatchingFiles(template: relativeTemplate, baseDirectory: baseDirURL)
+        let hasPrev = PeriodicFileNavigator.previousFile(from: note.path, in: files) != nil
+        let hasNext = PeriodicFileNavigator.nextFile(from: note.path, in: files) != nil
+        panel.updateNavigationState(hasPrevious: hasPrev, hasNext: hasNext, isToday: isShowingToday)
+    }
+
+    private func resolveTemplatePath(_ path: String) -> URL? {
+        if path.hasPrefix("~/") {
+            return FileManager.realHomeDirectory.appendingPathComponent(String(path.dropFirst(2)))
+        }
+        return URL(fileURLWithPath: path)
     }
 
     // MARK: - File watching

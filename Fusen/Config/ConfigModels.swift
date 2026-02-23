@@ -108,6 +108,12 @@ struct NoteConfig: Codable {
     var hotkey: String?
     var position: String?
     var autoHide: Bool?
+    var rolloverDelay: String?
+    var template: String?
+
+    var isPeriodicNote: Bool {
+        PathTemplateResolver.isTemplate(path)
+    }
 
     var resolvedPath: String {
         if path.hasPrefix("~/") {
@@ -117,14 +123,16 @@ struct NoteConfig: Codable {
     }
 
     var noteId: String {
-        let digest = SHA256.hash(data: Data(resolvedPath.utf8))
+        let source = isPeriodicNote ? path : resolvedPath
+        let digest = SHA256.hash(data: Data(source.utf8))
         return digest.prefix(6).map { String(format: "%02x", $0) }.joined()
     }
 
     enum CodingKeys: String, CodingKey {
-        case path, title, color, transparency, hotkey, position
+        case path, title, color, transparency, hotkey, position, template
         case fontSize = "font_size"
         case autoHide = "auto_hide"
+        case rolloverDelay = "rollover_delay"
     }
 
     func resolveColor(defaults: NoteDefaults?) -> NoteColor {

@@ -8,10 +8,15 @@
 
 /* Begin PBXBuildFile section */
 		01FA042741A005B7CF2313F2 /* Note.swift in Sources */ = {isa = PBXBuildFile; fileRef = 361E3B713952B59B09B828DB /* Note.swift */; };
+		07A84FE6CDD2EECFBF5EBAA0 /* ConfigModelsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C5C9B525553A564A908EFFE /* ConfigModelsTests.swift */; };
+		093DB3806303625EACD1728B /* PathTemplateResolverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D5DEE0078FDAE4BAFF46B10 /* PathTemplateResolverTests.swift */; };
 		17CDCEABF381C80F0634049F /* BulletLayoutManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B30227545343F59E44D58FC1 /* BulletLayoutManager.swift */; };
+		1F25EEE2844C432A76004733 /* DurationParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5551B287DB38818F849E307C /* DurationParserTests.swift */; };
 		2EC44DE362F0939E0385E968 /* MarkdownTextView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB87612AAE78B2CCD1907BCD /* MarkdownTextView.swift */; };
+		38DBD82A7BE52D6A5F3CE624 /* DurationParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A916DDA09497F245519C113 /* DurationParser.swift */; };
 		3D75B948594751731F210822 /* FileWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45514F76A24CC5B51B8EB1C1 /* FileWatcher.swift */; };
 		47609F52BA06C2C31D684125 /* Highlightr in Frameworks */ = {isa = PBXBuildFile; productRef = 173FCA07A5A5CE9ECF0993DB /* Highlightr */; };
+		4C88FA780A3FA3020B62C401 /* PathTemplateResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26A16120553A5B3C2F5F34C2 /* PathTemplateResolver.swift */; };
 		52AF571E86755BDCF70AF9C3 /* NoteListPopover.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63131F96F88E6661632316D8 /* NoteListPopover.swift */; };
 		558984DE710EE9223AFD9A02 /* Yams in Frameworks */ = {isa = PBXBuildFile; productRef = 9A375686BC0665CAD2A35E99 /* Yams */; };
 		595C06753456A6F70B9CC85E /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6477EC65343AA21B8C6B9455 /* AppState.swift */; };
@@ -38,6 +43,7 @@
 		D5087C47D28496932B9CA4AA /* TableOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E9F7AB3FCA4BA229FAFBCC7 /* TableOverlayView.swift */; };
 		E2B11B1FB5DA175E67ECE60D /* KarabinerService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3FD5AA70A841318B4EF949F /* KarabinerService.swift */; };
 		E5126EB0F16D87EE9DC23C2A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A210F8D7E82D20B209C55E98 /* Assets.xcassets */; };
+		E5D0F0BE723B2A042A3C6192 /* DefaultsResolutionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB0C12CB3855B54F1876C790 /* DefaultsResolutionTests.swift */; };
 		E9233A31B3EED03350CB15B4 /* GlobalHotkeyService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A311522C466E5D7A84669BA1 /* GlobalHotkeyService.swift */; };
 		EE457638742C63EA641C84C7 /* FusenApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7004D784237018149DFF0E29 /* FusenApp.swift */; };
 		EFCB98C24F0F4DFF90B00F0A /* InlineMarkupRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 362489B9C79830DCF2CE6385 /* InlineMarkupRenderer.swift */; };
@@ -57,14 +63,18 @@
 
 /* Begin PBXFileReference section */
 		0A43CB1B572ABDEE8CF4F6D9 /* MarkdownStyler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownStyler.swift; sourceTree = "<group>"; };
+		0A916DDA09497F245519C113 /* DurationParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DurationParser.swift; sourceTree = "<group>"; };
 		0C71E217E481B258DC4B66B2 /* MarkdownStyler+RangeUtils.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MarkdownStyler+RangeUtils.swift"; sourceTree = "<group>"; };
+		1D5DEE0078FDAE4BAFF46B10 /* PathTemplateResolverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PathTemplateResolverTests.swift; sourceTree = "<group>"; };
 		1DE519888FC7EEBDB0571904 /* MarkdownStyler+BlockQuote.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MarkdownStyler+BlockQuote.swift"; sourceTree = "<group>"; };
+		26A16120553A5B3C2F5F34C2 /* PathTemplateResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PathTemplateResolver.swift; sourceTree = "<group>"; };
 		2CC0AA3B916EEB95A591FA4C /* WindowManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowManager.swift; sourceTree = "<group>"; };
 		361E3B713952B59B09B828DB /* Note.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Note.swift; sourceTree = "<group>"; };
 		362489B9C79830DCF2CE6385 /* InlineMarkupRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InlineMarkupRenderer.swift; sourceTree = "<group>"; };
 		36C4851176ADA90F34AF2712 /* MarkdownStyler+List.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MarkdownStyler+List.swift"; sourceTree = "<group>"; };
 		45514F76A24CC5B51B8EB1C1 /* FileWatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileWatcher.swift; sourceTree = "<group>"; };
 		4850A45C314DBEFE9D6443E6 /* Fusen.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Fusen.entitlements; sourceTree = "<group>"; };
+		5551B287DB38818F849E307C /* DurationParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DurationParserTests.swift; sourceTree = "<group>"; };
 		5AD8373EE9242EB738892432 /* ImageCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCache.swift; sourceTree = "<group>"; };
 		63131F96F88E6661632316D8 /* NoteListPopover.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteListPopover.swift; sourceTree = "<group>"; };
 		6477EC65343AA21B8C6B9455 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
@@ -73,6 +83,7 @@
 		7004D784237018149DFF0E29 /* FusenApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FusenApp.swift; sourceTree = "<group>"; };
 		7830158D5C242F95FE5F3E90 /* LivePreviewEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LivePreviewEditor.swift; sourceTree = "<group>"; };
 		8A26AF3FEF8F6B5485552395 /* MarkdownStyler+CodeBlock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MarkdownStyler+CodeBlock.swift"; sourceTree = "<group>"; };
+		8C5C9B525553A564A908EFFE /* ConfigModelsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfigModelsTests.swift; sourceTree = "<group>"; };
 		98AA77CB0270A3746D840353 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		9A4C787CD9BDBD67853C21CE /* MarkdownStyler+Heading.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MarkdownStyler+Heading.swift"; sourceTree = "<group>"; };
 		9B2E24DEE60E5C29D85875C7 /* YAMLStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YAMLStore.swift; sourceTree = "<group>"; };
@@ -86,6 +97,7 @@
 		CADFAE6CE8DFA5AA42EEF162 /* NoteWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteWindow.swift; sourceTree = "<group>"; };
 		D17FD928FC0445860C35C9C7 /* MarkdownStyler+Attributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MarkdownStyler+Attributes.swift"; sourceTree = "<group>"; };
 		D598AE6D48995188FA94AA7D /* MarkdownStyler+ThematicBreak.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MarkdownStyler+ThematicBreak.swift"; sourceTree = "<group>"; };
+		DB0C12CB3855B54F1876C790 /* DefaultsResolutionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DefaultsResolutionTests.swift; sourceTree = "<group>"; };
 		DB8DA77B44AD746B0DDBA6BE /* Fusen.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Fusen.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		DBF1A4D291F75D2880E87F0E /* FusenTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FusenTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		E3FD5AA70A841318B4EF949F /* KarabinerService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KarabinerService.swift; sourceTree = "<group>"; };
@@ -180,6 +192,10 @@
 		90341D75184FB6271EE9C3F6 /* FusenTests */ = {
 			isa = PBXGroup;
 			children = (
+				8C5C9B525553A564A908EFFE /* ConfigModelsTests.swift */,
+				DB0C12CB3855B54F1876C790 /* DefaultsResolutionTests.swift */,
+				5551B287DB38818F849E307C /* DurationParserTests.swift */,
+				1D5DEE0078FDAE4BAFF46B10 /* PathTemplateResolverTests.swift */,
 			);
 			path = FusenTests;
 			sourceTree = "<group>";
@@ -204,9 +220,11 @@
 		F8FB909A446B628C3BF3C0CA /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				0A916DDA09497F245519C113 /* DurationParser.swift */,
 				45514F76A24CC5B51B8EB1C1 /* FileWatcher.swift */,
 				A311522C466E5D7A84669BA1 /* GlobalHotkeyService.swift */,
 				E3FD5AA70A841318B4EF949F /* KarabinerService.swift */,
+				26A16120553A5B3C2F5F34C2 /* PathTemplateResolver.swift */,
 				AAA1C1E674C1E1DD827B6887 /* SmartPasteService.swift */,
 				2CC0AA3B916EEB95A591FA4C /* WindowManager.swift */,
 			);
@@ -256,6 +274,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 67FCFBBA9C39B194D8ECE06B /* Build configuration list for PBXNativeTarget "Fusen" */;
 			buildPhases = (
+				AB8D0B651ABC4499E314B277 /* SwiftLint */,
 				8CFA9675F644EDF132217A46 /* Sources */,
 				E71573EE59DFF72C17015A10 /* Resources */,
 				E839DC9D286B94D0B943E263 /* Frameworks */,
@@ -321,6 +340,28 @@
 		};
 /* End PBXResourcesBuildPhase section */
 
+/* Begin PBXShellScriptBuildPhase section */
+		AB8D0B651ABC4499E314B277 /* SwiftLint */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = SwiftLint;
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/bash;
+			shellScript = "if command -v swiftlint >/dev/null 2>&1; then\n  swiftlint lint --strict\nelse\n  echo \"warning: SwiftLint not installed. Run 'brew install swiftlint'.\"\nfi\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		8CFA9675F644EDF132217A46 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -330,6 +371,7 @@
 				595C06753456A6F70B9CC85E /* AppState.swift in Sources */,
 				17CDCEABF381C80F0634049F /* BulletLayoutManager.swift in Sources */,
 				FA7516A274640DE4682EF851 /* ConfigModels.swift in Sources */,
+				38DBD82A7BE52D6A5F3CE624 /* DurationParser.swift in Sources */,
 				3D75B948594751731F210822 /* FileWatcher.swift in Sources */,
 				EE457638742C63EA641C84C7 /* FusenApp.swift in Sources */,
 				E9233A31B3EED03350CB15B4 /* GlobalHotkeyService.swift in Sources */,
@@ -352,6 +394,7 @@
 				52AF571E86755BDCF70AF9C3 /* NoteListPopover.swift in Sources */,
 				D43AACD6ACB54E0BC1F22239 /* NoteStore.swift in Sources */,
 				BC24B468518D9E8AD833DA09 /* NoteWindow.swift in Sources */,
+				4C88FA780A3FA3020B62C401 /* PathTemplateResolver.swift in Sources */,
 				890061DA3D70F7A2C9191A54 /* SmartPasteService.swift in Sources */,
 				D5087C47D28496932B9CA4AA /* TableOverlayView.swift in Sources */,
 				832A18EF3099367169F6E79B /* WindowManager.swift in Sources */,
@@ -363,6 +406,10 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				07A84FE6CDD2EECFBF5EBAA0 /* ConfigModelsTests.swift in Sources */,
+				E5D0F0BE723B2A042A3C6192 /* DefaultsResolutionTests.swift in Sources */,
+				1F25EEE2844C432A76004733 /* DurationParserTests.swift in Sources */,
+				093DB3806303625EACD1728B /* PathTemplateResolverTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

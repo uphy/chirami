@@ -29,6 +29,13 @@ class NoteStore: ObservableObject {
         let config = appConfig.config
 
         notes = config.notes.compactMap { noteConfig in
+            if noteConfig.isPeriodicNote {
+                let rolloverDelay = DurationParser.parse(noteConfig.rolloverDelay)
+                let date = logicalDate(rolloverDelay: rolloverDelay)
+                return resolvePeriodicNote(from: noteConfig, for: date, defaults: config.defaults)
+            }
+
+            // Static note (existing logic)
             guard let fallbackURL = resolvePath(noteConfig.path) else { return nil }
 
             let id = noteConfig.noteId
@@ -52,6 +59,75 @@ class NoteStore: ObservableObject {
                 position: notePosition, autoHide: autoHide
             )
         }
+    }
+
+    // MARK: - Periodic Note
+
+    /// 論理日時を計算する（現在日時 − rolloverDelay）
+    func logicalDate(rolloverDelay: TimeInterval) -> Date {
+        Date().addingTimeInterval(-rolloverDelay)
+    }
+
+    /// NoteConfig から指定日付の Note を解決する
+    /// ファイルが存在しない場合は自動作成する（template 指定あり → テンプレートコピー、なし → 空ファイル）
+    func resolvePeriodicNote(from config: NoteConfig, for date: Date, defaults: NoteDefaults? = nil) -> Note? {
+        let resolvedPath = PathTemplateResolver.resolve(config.path, for: date)
+        guard let url = resolvePath(resolvedPath) else { return nil }
+
+        let id = config.noteId
+
+        // Create parent directory if needed
+        let dir = url.deletingLastPathComponent()
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+
+        // Create file if it doesn't exist
+        if !FileManager.default.fileExists(atPath: url.path) {
+            if let templatePath = config.template,
+               let templateURL = resolvePath(templatePath),
+               FileManager.default.fileExists(atPath: templateURL.path) {
+                try? FileManager.default.copyItem(at: templateURL, to: url)
+            } else {
+                if config.template != nil {
+                    print("[Fusen] Warning: template file not found: \(config.template!)")
+                }
+                try? "".write(to: url, atomically: true, encoding: .utf8)
+            }
+        }
+
+        // Title: "configTitle — resolvedFileName" or just the filename
+        let fileName = url.deletingPathExtension().lastPathComponent
+        let title: String
+        if let configTitle = config.title {
+            title = "\(configTitle) — \(fileName)"
+        } else {
+            title = fileName
+        }
+
+        let configDefaults = defaults ?? appConfig.config.defaults
+        let color = config.resolveColor(defaults: configDefaults)
+        let transparency = config.resolveTransparency(defaults: configDefaults)
+        let fontSize = config.resolveFontSize(defaults: configDefaults)
+        let alwaysOnTop = appState.windowState(for: id)?.alwaysOnTop ?? true
+        let notePosition: NotePosition = config.position == "cursor" ? .cursor : .fixed
+        let autoHide = config.autoHide ?? false
+
+        let rolloverDelay = DurationParser.parse(config.rolloverDelay)
+        let templateFile: URL? = config.template.flatMap { resolvePath($0) }
+
+        let periodicInfo = PeriodicNoteInfo(
+            pathTemplate: config.path,
+            rolloverDelay: rolloverDelay,
+            templateFile: templateFile,
+            titlePrefix: config.title
+        )
+
+        return Note(
+            id: id, path: url, title: title, color: color,
+            transparency: transparency, fontSize: fontSize,
+            alwaysOnTop: alwaysOnTop, hotkey: config.hotkey,
+            position: notePosition, autoHide: autoHide,
+            periodicInfo: periodicInfo
+        )
     }
 
     private func resolvePath(_ path: String) -> URL? {

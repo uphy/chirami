@@ -7,6 +7,13 @@ enum NotePosition: Equatable {
     case cursor
 }
 
+struct PeriodicNoteInfo: Equatable {
+    let pathTemplate: String
+    let rolloverDelay: TimeInterval
+    let templateFile: URL?
+    let titlePrefix: String?
+}
+
 struct Note: Identifiable, Equatable {
     let id: String
     var path: URL
@@ -18,12 +25,14 @@ struct Note: Identifiable, Equatable {
     var hotkey: String?
     var position: NotePosition = .fixed
     var autoHide: Bool = false
+    var periodicInfo: PeriodicNoteInfo?
 
     static func == (lhs: Note, rhs: Note) -> Bool {
         lhs.id == rhs.id && lhs.color == rhs.color && lhs.transparency == rhs.transparency
             && lhs.title == rhs.title && lhs.path == rhs.path && lhs.alwaysOnTop == rhs.alwaysOnTop
             && lhs.hotkey == rhs.hotkey && lhs.fontSize == rhs.fontSize
             && lhs.position == rhs.position && lhs.autoHide == rhs.autoHide
+            && lhs.periodicInfo == rhs.periodicInfo
     }
 }
 
