@@ -4,7 +4,7 @@
 
 **Purpose**: クリップボードの内容を Markdown 形式に自動変換してペーストする機能を提供し、ノート入力の摩擦を軽減する。
 
-**Users**: Fusen ユーザーが、ブラウザ・エディタ・ターミナルからコピーしたコンテンツを `Cmd+Shift+V` で構造を保持したまま Markdown としてノートに取り込む。
+**Users**: Chirami ユーザーが、ブラウザ・エディタ・ターミナルからコピーしたコンテンツを `Cmd+Shift+V` で構造を保持したまま Markdown としてノートに取り込む。
 
 **Impact**: 既存の `MarkdownTextView` にキーバインド分岐を追加し、新規 `SmartPasteService` で変換ロジックを処理する。`Cmd+V` の既存動作は変更しない。
 
@@ -26,7 +26,7 @@
 
 ### Existing Architecture Analysis
 
-現在の MarkdownTextView は `performKeyEquivalent(with:)` でキーボードショートカットを処理している (`MarkdownTextView.swift:185-216`)。テキスト挿入は `shouldChangeText` → `storage.replaceCharacters` → `didChangeText` パターンで Undo サポートとファイル保存を連鎖させる。設定は `AppConfig.shared` 経由で `YAMLStore<FusenConfig>` から Reactive に配信される。
+現在の MarkdownTextView は `performKeyEquivalent(with:)` でキーボードショートカットを処理している (`MarkdownTextView.swift:185-216`)。テキスト挿入は `shouldChangeText` → `storage.replaceCharacters` → `didChangeText` パターンで Undo サポートとファイル保存を連鎖させる。設定は `AppConfig.shared` 経由で `YAMLStore<ChiramiConfig>` から Reactive に配信される。
 
 ### Architecture Pattern & Boundary Map
 
@@ -223,7 +223,7 @@ struct SmartPasteConfig: Codable {
 
 デフォルト値: `enabled = true`, `fetchUrlTitle = true`
 
-`FusenConfig` に `smartPaste: SmartPasteConfig?` として追加。`nil` の場合はデフォルト値を使用。
+`ChiramiConfig` に `smartPaste: SmartPasteConfig?` として追加。`nil` の場合はデフォルト値を使用。
 
 **Implementation Notes**
 

@@ -1,10 +1,10 @@
-# SwiftLint Configuration for Fusen
+# SwiftLint Configuration for Chirami
 
 excluded:
   - .build
   - build
-  - Fusen.xcodeproj
-  - FusenTests
+  - Chirami.xcodeproj
+  - ChiramiTests
 
 # Rule customization
 line_length:

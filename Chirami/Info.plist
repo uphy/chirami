@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Fusen</string>
+	<string>Chirami</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -13,7 +13,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>Fusen</string>
+	<string>Chirami</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -25,11 +25,11 @@
 	<key>LSUIElement</key>
 	<true/>
 	<key>NSDesktopFolderUsageDescription</key>
-	<string>Fusen needs access to Desktop to read and write your note files.</string>
+	<string>Chirami needs access to Desktop to read and write your note files.</string>
 	<key>NSDocumentsFolderUsageDescription</key>
-	<string>Fusen needs access to Documents to read and write your note files.</string>
+	<string>Chirami needs access to Documents to read and write your note files.</string>
 	<key>NSDownloadsFolderUsageDescription</key>
-	<string>Fusen needs access to Downloads to read and write your note files.</string>
+	<string>Chirami needs access to Downloads to read and write your note files.</string>
 	<key>NSHumanReadableCopyright</key>
 	<string>Copyright © 2024 uphy</string>
 	<key>NSPrincipalClass</key>

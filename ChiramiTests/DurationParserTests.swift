@@ -1,5 +1,5 @@
 import Testing
-@testable import Fusen
+@testable import Chirami
 
 @Suite("DurationParser")
 struct DurationParserTests {

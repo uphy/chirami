@@ -1,9 +1,9 @@
 import Foundation
 
-class AppState: YAMLStore<FusenState> {
+class AppState: YAMLStore<ChiramiState> {
     static let shared = AppState()
 
-    var state: FusenState { data }
+    var state: ChiramiState { data }
 
     private static let defaultWindowState = WindowState(
         position: CGPoint(x: 100, y: 200),
@@ -13,8 +13,8 @@ class AppState: YAMLStore<FusenState> {
 
     private init() {
         let stateDir = FileManager.realHomeDirectory
-            .appendingPathComponent(".local/state/fusen")
-        super.init(directory: stateDir, fileName: "state.yaml", label: "State", defaultValue: FusenState())
+            .appendingPathComponent(".local/state/chirami")
+        super.init(directory: stateDir, fileName: "state.yaml", label: "State", defaultValue: ChiramiState())
     }
 
     func windowState(for noteId: String) -> WindowState? {

@@ -2,7 +2,7 @@
 import PackageDescription
 
 let package = Package(
-    name: "Fusen",
+    name: "Chirami",
     platforms: [.macOS(.v14)],
     dependencies: [
         .package(url: "https://github.com/swiftlang/swift-markdown", from: "0.3.0"),
@@ -13,28 +13,28 @@ let package = Package(
     ],
     targets: [
         .executableTarget(
-            name: "Fusen",
+            name: "Chirami",
             dependencies: [
                 .product(name: "Markdown", package: "swift-markdown"),
                 .product(name: "HotKey", package: "HotKey"),
                 .product(name: "Yams", package: "Yams"),
                 .product(name: "Highlightr", package: "Highlightr")
             ],
-            path: "Fusen",
+            path: "Chirami",
             exclude: [
                 "Info.plist",
-                "Fusen.entitlements",
+                "Chirami.entitlements",
                 "Resources"
             ]
         ),
         .testTarget(
-            name: "FusenTests",
+            name: "ChiramiTests",
             dependencies: [
-                "Fusen",
+                "Chirami",
                 .product(name: "Yams", package: "Yams"),
                 .product(name: "Testing", package: "swift-testing")
             ],
-            path: "FusenTests"
+            path: "ChiramiTests"
         )
     ]
 )

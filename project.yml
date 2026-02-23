@@ -1,4 +1,4 @@
-name: Fusen
+name: Chirami
 
 options:
   bundleIdPrefix: com.uphy
@@ -21,7 +21,7 @@ packages:
     from: "2.2.1"
 
 targets:
-  Fusen:
+  Chirami:
     type: application
     platform: macOS
     preBuildScripts:
@@ -35,26 +35,26 @@ targets:
             echo "warning: SwiftLint not installed. Run 'brew install swiftlint'."
           fi
     sources:
-      - path: Fusen
+      - path: Chirami
     info:
-      path: Fusen/Info.plist
+      path: Chirami/Info.plist
       properties:
-        CFBundleDisplayName: Fusen
-        CFBundleName: Fusen
+        CFBundleDisplayName: Chirami
+        CFBundleName: Chirami
         LSMinimumSystemVersion: "$(MACOSX_DEPLOYMENT_TARGET)"
         LSUIElement: true
         NSHumanReadableCopyright: "Copyright © 2024 uphy"
         NSPrincipalClass: NSApplication
-        NSDesktopFolderUsageDescription: "Fusen needs access to Desktop to read and write your note files."
-        NSDocumentsFolderUsageDescription: "Fusen needs access to Documents to read and write your note files."
-        NSDownloadsFolderUsageDescription: "Fusen needs access to Downloads to read and write your note files."
+        NSDesktopFolderUsageDescription: "Chirami needs access to Desktop to read and write your note files."
+        NSDocumentsFolderUsageDescription: "Chirami needs access to Documents to read and write your note files."
+        NSDownloadsFolderUsageDescription: "Chirami needs access to Downloads to read and write your note files."
     settings:
       base:
         SWIFT_VERSION: "5.9"
         MACOSX_DEPLOYMENT_TARGET: "14.0"
-        PRODUCT_BUNDLE_IDENTIFIER: com.uphy.Fusen
+        PRODUCT_BUNDLE_IDENTIFIER: com.uphy.Chirami
         ENABLE_HARDENED_RUNTIME: YES
-        CODE_SIGN_ENTITLEMENTS: Fusen/Fusen.entitlements
+        CODE_SIGN_ENTITLEMENTS: Chirami/Chirami.entitlements
     dependencies:
       - package: swift-markdown
         product: Markdown
@@ -64,13 +64,13 @@ targets:
         product: Yams
       - package: Highlightr
         product: Highlightr
-  FusenTests:
+  ChiramiTests:
     type: bundle.unit-test
     platform: macOS
     sources:
-      - path: FusenTests
+      - path: ChiramiTests
     dependencies:
-      - target: Fusen
+      - target: Chirami
       - package: Yams
         product: Yams
     settings:

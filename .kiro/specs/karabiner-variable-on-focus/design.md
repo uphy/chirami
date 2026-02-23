@@ -2,15 +2,15 @@
 
 ## Overview
 
-**Purpose**: Fusen ウィンドウのフォーカス状態に連動して Karabiner-Elements 変数を設定する機能を提供する。NSPanel ベースのフローティングウィンドウは macOS の frontmost app を変更しないため、`app_if` / `app_unless` 条件が使えない問題を解決する。
+**Purpose**: Chirami ウィンドウのフォーカス状態に連動して Karabiner-Elements 変数を設定する機能を提供する。NSPanel ベースのフローティングウィンドウは macOS の frontmost app を変更しないため、`app_if` / `app_unless` 条件が使えない問題を解決する。
 
-**Users**: Karabiner-Elements でキーバインドをカスタマイズしているユーザーが、Fusen フォーカス時に専用のキーバインドを適用するために使用する。
+**Users**: Karabiner-Elements でキーバインドをカスタマイズしているユーザーが、Chirami フォーカス時に専用のキーバインドを適用するために使用する。
 
 **Impact**: 既存のフォーカス処理やウィンドウ管理には影響しない。新規サービスの追加と設定モデルの拡張のみ。
 
 ### Goals
 
-- Fusen ウィンドウフォーカス時に `karabiner_cli --set-variables` で変数を設定する
+- Chirami ウィンドウフォーカス時に `karabiner_cli --set-variables` で変数を設定する
 - フォーカス解除時に変数を元の値に戻す
 - `config.yaml` で変数名・値をカスタマイズ可能にする
 - 設定未定義時はデフォルト無効 (既存ユーザーへの影響なし)
@@ -26,7 +26,7 @@
 ### Existing Architecture Analysis
 
 - **サービス層パターン**: `@MainActor` シングルトン (`WindowManager`, `GlobalHotkeyService`)。`AppDelegate` でインスタンスを保持
-- **設定システム**: `FusenConfig` (Codable) + `YAMLStore<T>` + `FileWatcher` による自動リロード
+- **設定システム**: `ChiramiConfig` (Codable) + `YAMLStore<T>` + `FileWatcher` による自動リロード
 - **フォーカスイベント**: `LivePreviewEditor` が `NSWindow.didBecomeKeyNotification` / `didResignKeyNotification` を NotificationCenter で監視 (スタイリング目的)
 - **外部プロセス実行**: 既存コードベースに前例なし
 
@@ -43,7 +43,7 @@ graph TB
     end
     subgraph Config
         AppConfig[AppConfig]
-        FusenConfig[FusenConfig]
+        ChiramiConfig[ChiramiConfig]
     end
     subgraph External
         KarabinerCLI[karabiner_cli]
@@ -51,7 +51,7 @@ graph TB
 
     NotePanel -->|didBecomeKey / didResignKey Notification| KarabinerService
     KarabinerService -->|read config| AppConfig
-    AppConfig --> FusenConfig
+    AppConfig --> ChiramiConfig
     KarabinerService -->|Process exec| KarabinerCLI
 ```
 
@@ -105,7 +105,7 @@ sequenceDiagram
 |-------------|---------|------------|------------|-------|
 | 1.1 | フォーカス時に変数設定 | KarabinerService | Service Interface | フォーカス→変数設定フロー |
 | 1.2 | 全ウィンドウ unfocus 時に変数解除 | KarabinerService | Service Interface | フォーカス→変数設定フロー |
-| 2.1 | 変数名の設定 | KarabinerConfig, FusenConfig | State | - |
+| 2.1 | 変数名の設定 | KarabinerConfig, ChiramiConfig | State | - |
 | 2.2 | フォーカス時の値の設定 | KarabinerConfig | State | - |
 | 2.3 | フォーカス解除時の値の設定 | KarabinerConfig | State | - |
 | 2.4 | 未設定時はデフォルト無効 | KarabinerService | Service Interface | - |
@@ -118,7 +118,7 @@ sequenceDiagram
 |-----------|--------------|--------|--------------|------------------|-----------|
 | KarabinerService | Services | フォーカス監視 + CLI 実行 | 1.1, 1.2, 2.4, 3.1, 3.2 | AppConfig (P0), karabiner_cli (P1) | Service, State |
 | KarabinerConfig | Config | Karabiner 連携設定の定義 | 2.1, 2.2, 2.3 | - | State |
-| FusenConfig (拡張) | Config | karabiner プロパティ追加 | 2.1, 2.2, 2.3, 2.4 | - | State |
+| ChiramiConfig (拡張) | Config | karabiner プロパティ追加 | 2.1, 2.2, 2.3, 2.4 | - | State |
 
 ### Services
 
@@ -126,7 +126,7 @@ sequenceDiagram
 
 | Field | Detail |
 |-------|--------|
-| Intent | Fusen ウィンドウのフォーカス状態を追跡し、Karabiner-Elements 変数を `karabiner_cli` 経由で設定する |
+| Intent | Chirami ウィンドウのフォーカス状態を追跡し、Karabiner-Elements 変数を `karabiner_cli` 経由で設定する |
 | Requirements | 1.1, 1.2, 2.4, 3.1, 3.2 |
 
 **Responsibilities & Constraints**
@@ -206,7 +206,7 @@ struct KarabinerConfig: Codable {
 - `variable`: Karabiner-Elements の `variable_if` / `variable_unless` で参照する変数名
 - `onFocus` / `onUnfocus`: 整数値 (Karabiner-Elements の変数は number が標準的)
 
-#### FusenConfig (拡張)
+#### ChiramiConfig (拡張)
 
 | Field | Detail |
 |-------|--------|
@@ -218,7 +218,7 @@ struct KarabinerConfig: Codable {
 ##### State Management
 
 ```swift
-struct FusenConfig: Codable {
+struct ChiramiConfig: Codable {
     var hotkey: String?
     var notes: [NoteConfig] = []
     var karabiner: KarabinerConfig?  // 追加
@@ -235,7 +235,7 @@ config.yaml に以下のセクションを追加:
 
 ```yaml
 karabiner:
-  variable: fusen_focused
+  variable: chirami_focused
   on_focus: 1
   on_unfocus: 0
 ```
@@ -256,7 +256,7 @@ karabiner:
 
 ### Error Categories and Responses
 
-- **System Errors**: `karabiner_cli` の実行失敗 → `print` でエラーログ出力。Fusen のコア機能に影響しない
+- **System Errors**: `karabiner_cli` の実行失敗 → `print` でエラーログ出力。Chirami のコア機能に影響しない
 - **Configuration Errors**: 不正な YAML → 既存の `YAMLStore` のエラーハンドリングに委譲
 
 ## Testing Strategy
@@ -264,7 +264,7 @@ karabiner:
 ### Unit Tests
 
 - `KarabinerConfig` の Codable エンコード/デコード
-- `FusenConfig` に `karabiner` フィールドがない場合 `nil` にデコードされること
+- `ChiramiConfig` に `karabiner` フィールドがない場合 `nil` にデコードされること
 - `focusedPanelCount` の増減ロジック (0→1 で focus、1→0 で unfocus)
 - 同じ値の再設定がスキップされること
 

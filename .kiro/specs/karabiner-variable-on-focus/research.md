@@ -24,7 +24,7 @@
 
 ### フォーカスイベント検知パターン
 
-- **Context**: Fusen ウィンドウのフォーカス状態変更を検知する方法
+- **Context**: Chirami ウィンドウのフォーカス状態変更を検知する方法
 - **Sources Consulted**: 既存コードベース (LivePreviewEditor.swift, NoteWindow.swift)
 - **Findings**:
   - `LivePreviewEditor` が `NSWindow.didBecomeKeyNotification` / `didResignKeyNotification` を NotificationCenter で監視済み
@@ -62,7 +62,7 @@
 
 - **Context**: Karabiner 連携設定をどのように構造化するか
 - **Alternatives Considered**:
-  1. `FusenConfig` のトップレベルにフラットに追加
+  1. `ChiramiConfig` のトップレベルにフラットに追加
   2. `karabiner` ネスト構造として追加
 - **Selected Approach**: ネスト構造 (`karabiner` セクション)
 - **Rationale**: 関連設定をグルーピングし、将来の拡張にも対応。YAML の可読性が高い

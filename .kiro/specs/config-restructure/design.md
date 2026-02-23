@@ -6,7 +6,7 @@
 
 **Users**: config.yaml を手動編集するユーザーが、ノートごとの設定の繰り返しを省略できる。
 
-**Impact**: `FusenConfig` に `defaults` フィールドを追加し、`NoteStore` のデフォルト値解決ロジックを3段階に拡張する。
+**Impact**: `ChiramiConfig` に `defaults` フィールドを追加し、`NoteStore` のデフォルト値解決ロジックを3段階に拡張する。
 
 ### Goals
 
@@ -27,7 +27,7 @@
 
 現在の設定解決フロー:
 
-1. `AppConfig`（`YAMLStore<FusenConfig>`）が config.yaml をロード
+1. `AppConfig`（`YAMLStore<ChiramiConfig>`）が config.yaml をロード
 2. `NoteStore.loadFromConfig()` が各 `NoteConfig` からハードコードされたデフォルト値で `Note` を生成
 3. ハードコード箇所: `color: .yellow`, `transparency: 0.9`, `fontSize: 14`
 
@@ -69,16 +69,16 @@ graph TB
 | Requirement | Summary | Components | Interfaces | Flows |
 |-------------|---------|------------|------------|-------|
 | 1.1 | defaults なしの config を従来通りロード | NoteDefaults, NoteStore | — | defaults resolution |
-| 1.2 | 未知フィールドを無視 | FusenConfig | — | — |
-| 2.1 | defaults セクションを受け付ける | FusenConfig, NoteDefaults | — | — |
+| 1.2 | 未知フィールドを無視 | ChiramiConfig | — | — |
+| 2.1 | defaults セクションを受け付ける | ChiramiConfig, NoteDefaults | — | — |
 | 2.2 | color, transparency, font_size の3フィールド | NoteDefaults | — | — |
 | 2.3 | 個別指定が defaults を上書き | NoteStore | — | defaults resolution |
 | 2.4 | 個別指定なしで defaults を適用 | NoteStore | — | defaults resolution |
 | 2.5 | 両方なしでアプリデフォルトを適用 | NoteStore | — | defaults resolution |
 | 2.6 | defaults の部分指定を許容 | NoteDefaults | — | — |
-| 3.1 | hotkey をルートレベルで維持 | FusenConfig | — | — |
-| 3.2 | karabiner をルートレベルで維持 | FusenConfig | — | — |
-| 3.3 | notes をルートレベルで維持 | FusenConfig | — | — |
+| 3.1 | hotkey をルートレベルで維持 | ChiramiConfig | — | — |
+| 3.2 | karabiner をルートレベルで維持 | ChiramiConfig | — | — |
+| 3.3 | notes をルートレベルで維持 | ChiramiConfig | — | — |
 | 4.1 | 3段階のデフォルト値解決 | NoteStore | — | defaults resolution |
 | 4.2 | title, hotkey は defaults 対象外 | NoteDefaults | — | — |
 
@@ -87,8 +87,8 @@ graph TB
 | Component | Domain | Intent | Req Coverage | Key Dependencies | Contracts |
 |-----------|--------|--------|--------------|------------------|-----------|
 | NoteDefaults | Config | 外観デフォルト値の定義 | 2.1, 2.2, 2.6, 4.2 | — | State |
-| FusenConfig | Config | defaults フィールドの追加 | 1.1, 1.2, 3.1-3.3 | NoteDefaults | State |
-| NoteStore | Models | defaults 解決ロジック | 2.3-2.5, 4.1 | FusenConfig (P0) | — |
+| ChiramiConfig | Config | defaults フィールドの追加 | 1.1, 1.2, 3.1-3.3 | NoteDefaults | State |
+| NoteStore | Models | defaults 解決ロジック | 2.3-2.5, 4.1 | ChiramiConfig (P0) | — |
 
 ### Config Layer
 
@@ -121,7 +121,7 @@ struct NoteDefaults: Codable {
 }
 ```
 
-#### FusenConfig（変更）
+#### ChiramiConfig（変更）
 
 | Field | Detail |
 |-------|--------|
@@ -138,7 +138,7 @@ struct NoteDefaults: Codable {
 ##### State Management
 
 ```swift
-struct FusenConfig: Codable {
+struct ChiramiConfig: Codable {
     var hotkey: String?
     var defaults: NoteDefaults?  // 追加
     var notes: [NoteConfig] = []
@@ -178,7 +178,7 @@ struct FusenConfig: Codable {
 
 ```mermaid
 classDiagram
-    class FusenConfig {
+    class ChiramiConfig {
         +hotkey: String?
         +defaults: NoteDefaults?
         +notes: NoteConfig[]
@@ -198,8 +198,8 @@ classDiagram
         +fontSize: Int?
         +hotkey: String?
     }
-    FusenConfig --> NoteDefaults : defaults
-    FusenConfig --> NoteConfig : notes
+    ChiramiConfig --> NoteDefaults : defaults
+    ChiramiConfig --> NoteConfig : notes
 ```
 
 ### Physical Data Model
@@ -222,7 +222,7 @@ defaults:        # Optional
 
 - `defaults:` に無効な `color` 値 → `NoteColor(rawValue:)` が `nil` を返し、アプリデフォルト `yellow` にフォールバック（既存の挙動と同じ）
 - `defaults:` の `transparency` が範囲外 → そのまま適用（既存の NoteConfig と同じ挙動。バリデーションの追加はスコープ外）
-- `defaults:` セクション自体のパースエラー → Yams がデコードエラーを出し、`YAMLStore` が既存のエラーハンドリングでデフォルト `FusenConfig()` を使用
+- `defaults:` セクション自体のパースエラー → Yams がデコードエラーを出し、`YAMLStore` が既存のエラーハンドリングでデフォルト `ChiramiConfig()` を使用
 
 ## Testing Strategy
 

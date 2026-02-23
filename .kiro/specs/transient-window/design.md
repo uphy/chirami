@@ -26,7 +26,7 @@
 
 ### Existing Architecture Analysis
 
-既存のFusenアーキテクチャは以下のレイヤー構造を持つ:
+既存のChiramiアーキテクチャは以下のレイヤー構造を持つ:
 
 - **Config層**: `AppConfig` / `AppState` → YAMLファイルの読み書き
 - **Model層**: `NoteConfig` → `Note` → `NoteStore` のデータフロー

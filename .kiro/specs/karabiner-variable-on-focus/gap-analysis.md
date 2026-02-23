@@ -5,23 +5,23 @@
 | 要件 | 既存資産 | ギャップ |
 |------|----------|----------|
 | Req 1: フォーカス時の変数設定 | `NotePanel.becomeKey()` が存在。`LivePreviewEditor` が `didBecomeKeyNotification` / `didResignKeyNotification` を監視 | `resignKey()` 未実装。フォーカスイベントを外部に伝搬する仕組みがない |
-| Req 2: config.yaml でのカスタマイズ | `FusenConfig` / `NoteConfig` の Codable 構造体。`YAMLStore` による YAML 読み書き + FileWatcher による自動リロード | Karabiner 関連の設定フィールドが未定義 |
+| Req 2: config.yaml でのカスタマイズ | `ChiramiConfig` / `NoteConfig` の Codable 構造体。`YAMLStore` による YAML 読み書き + FileWatcher による自動リロード | Karabiner 関連の設定フィールドが未定義 |
 | Req 3: karabiner_cli 連携 | なし (外部プロセス実行のコードが一切存在しない) | `Process` クラスによる CLI 実行パターンを新規導入する必要あり |
 
 ## 既存コードベースの調査結果
 
 ### フォーカスイベント処理
 
-- `NotePanel` (`Fusen/Views/NoteWindow.swift`) — `becomeKey()` をオーバーライドし、`MarkdownTextView` にフォーカスを移動。`resignKey()` は未実装
+- `NotePanel` (`Chirami/Views/NoteWindow.swift`) — `becomeKey()` をオーバーライドし、`MarkdownTextView` にフォーカスを移動。`resignKey()` は未実装
 - `NoteWindowController` — `NSWindowDelegate` を実装済み (`windowWillClose`, `windowDidMove`, `windowDidResize`)。`windowDidBecomeKey` / `windowDidResignKey` は未実装
 - `LivePreviewEditor` — `NSWindow.didBecomeKeyNotification` / `didResignKeyNotification` を NotificationCenter 経由で監視。スタイリング目的のみ
 
 ### 設定システム
 
-- `FusenConfig` (`Fusen/Config/ConfigModels.swift`) — トップレベル設定。`hotkey` と `notes` のみ
+- `ChiramiConfig` (`Chirami/Config/ConfigModels.swift`) — トップレベル設定。`hotkey` と `notes` のみ
 - `NoteConfig` — ノート単位設定。`CodingKeys` で snake_case マッピング
 - `YAMLStore<T>` — Codable + Yams + FileWatcher による汎用 YAML ストア
-- `AppConfig` (`Fusen/Config/AppConfig.swift`) — `YAMLStore<FusenConfig>` のシングルトン
+- `AppConfig` (`Chirami/Config/AppConfig.swift`) — `YAMLStore<ChiramiConfig>` のシングルトン
 
 ### サービス層パターン
 
@@ -69,7 +69,7 @@ NoteWindowController にデリゲートメソッドを追加し、通知を Wind
 ## 複雑度・リスク評価
 
 - **Effort: S** — 既存パターン (Codable, @MainActor singleton, NSWindowDelegate) をそのまま踏襲。Foundation.Process は標準 API。
-- **Risk: Low** — 使用技術はすべて既知。`karabiner_cli` の API は安定。Fusen のコア機能に影響しない独立した追加機能。
+- **Risk: Low** — 使用技術はすべて既知。`karabiner_cli` の API は安定。Chirami のコア機能に影響しない独立した追加機能。
 
 ## 設計フェーズへの推奨事項
 

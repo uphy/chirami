@@ -70,7 +70,7 @@
   1. `period` による日付計算（+1 day, +1 week 等）
   2. 既存ファイルのソートによるナビゲーション
 - **Selected Approach**: ファイルソート方式
-- **Rationale**: `period` 不要でシンプル。Fusen は表示レイヤーに徹する設計思想と整合。Obsidian Periodic Notes も同様の方式
+- **Rationale**: `period` 不要でシンプル。Chirami は表示レイヤーに徹する設計思想と整合。Obsidian Periodic Notes も同様の方式
 - **Trade-offs**: 未来のファイルへの ▶ ナビゲーション不可（許容）
 
 ### Decision: 論理日時による rollover_delay の実装

@@ -1,9 +1,9 @@
 # Configuration
 
-Fusen uses two files:
+Chirami uses two files:
 
-- **`~/.config/fusen/config.yaml`** — User-managed settings (dotfiles-friendly).
-- **`~/.local/state/fusen/state.yaml`** — Auto-managed runtime state. No manual editing needed.
+- **`~/.config/chirami/config.yaml`** — User-managed settings (dotfiles-friendly).
+- **`~/.local/state/chirami/state.yaml`** — Auto-managed runtime state. No manual editing needed.
 
 ## Full Example
 
@@ -24,7 +24,7 @@ smart_paste:
   fetch_url_title: true
 
 karabiner:
-  variable: fusen_active
+  variable: chirami_active
   on_focus: 1
   on_unfocus: 0
   cli_path: /Library/Application Support/org.pqrs/Karabiner-Elements/bin/karabiner_cli
@@ -116,13 +116,13 @@ Six preset colors are available: `yellow`, `blue`, `green`, `pink`, `purple`, `g
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `karabiner.variable` | string | — | Karabiner variable name to set on focus/unfocus. |
-| `karabiner.on_focus` | int or string | — | Value to set when a Fusen window gains focus. |
-| `karabiner.on_unfocus` | int or string | — | Value to set when a Fusen window loses focus. |
+| `karabiner.on_focus` | int or string | — | Value to set when a Chirami window gains focus. |
+| `karabiner.on_unfocus` | int or string | — | Value to set when a Chirami window loses focus. |
 | `karabiner.cli_path` | string | auto-detected | Path to `karabiner_cli` binary. |
 
 ## state.yaml
 
-`~/.local/state/fusen/state.yaml` stores runtime state (window positions, sizes, visibility, always-on-top). Fusen manages this file automatically — there is no need to edit it by hand.
+`~/.local/state/chirami/state.yaml` stores runtime state (window positions, sizes, visibility, always-on-top). Chirami manages this file automatically — there is no need to edit it by hand.
 
 ```yaml
 windows:

@@ -6,7 +6,7 @@ You want to jot down a note or check your TODO list while working — but every 
 
 Obsidian offers a great editing experience, but it can't display notes quickly and unobtrusively alongside your work. Raycast Notes came close, but it isn't Markdown-based and can't share files with Obsidian. Keyboard-only operation also had its limits.
 
-**Fusen exists to let you work with your notes without breaking your flow.**
+**Chirami exists to let you work with your notes without breaking your flow.**
 
 ## How
 
@@ -21,14 +21,14 @@ Obsidian offers a great editing experience, but it can't display notes quickly a
 
 A macOS sticky-note Markdown app.
 
-Developers and engineers who manage notes in Obsidian can check, write, and complete TODOs without interrupting their work. Global hotkeys summon floating sticky notes that render and edit Markdown in place. Because Fusen uses the same files as Obsidian, it introduces zero friction to your existing workflow. In tiling WM environments like aerospace, notes float independently above your tiled windows.
+Developers and engineers who manage notes in Obsidian can check, write, and complete TODOs without interrupting their work. Global hotkeys summon floating sticky notes that render and edit Markdown in place. Because Chirami uses the same files as Obsidian, it introduces zero friction to your existing workflow. In tiling WM environments like aerospace, notes float independently above your tiled windows.
 
 **In one sentence:** "Access your Obsidian notes as sticky notes — without breaking your flow."
 
 ## Scope
 
-Fusen is strictly a **display and access layer**. File creation, deletion, and organization are out of scope.
+Chirami is strictly a **display and access layer**. File creation, deletion, and organization are out of scope.
 
 - Note management (creating new notes, organizing information) is handled by existing tools like Obsidian.
 - For scratch notes, use a single fixed file (e.g. `scratch.md`) — write freely and periodically clean it up with another tool.
-- What Fusen solves is "quickly access that file and read or write without stopping your work."
+- What Chirami solves is "quickly access that file and read or write without stopping your work."

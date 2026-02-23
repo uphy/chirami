@@ -88,7 +88,7 @@ class NoteStore: ObservableObject {
                 try? FileManager.default.copyItem(at: templateURL, to: url)
             } else {
                 if config.template != nil {
-                    print("[Fusen] Warning: template file not found: \(config.template!)")
+                    print("[Chirami] Warning: template file not found: \(config.template!)")
                 }
                 try? "".write(to: url, atomically: true, encoding: .utf8)
             }

@@ -2,7 +2,7 @@ import SwiftUI
 import Combine
 
 @main
-struct FusenApp: App {
+struct ChiramiApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
     var body: some Scene {

@@ -19,35 +19,35 @@ This builds a Release `.app` bundle and installs it to `~/Applications`.
 **Using Xcode:**
 
 ```bash
-cd /path/to/fusen
+cd /path/to/chirami
 xcodegen generate
-open Fusen.xcodeproj
+open Chirami.xcodeproj
 ```
 
 Build and run with Cmd+R. SPM dependencies are resolved automatically on first build.
 
 ## Minimal Configuration
 
-Create `~/.config/fusen/config.yaml`:
+Create `~/.config/chirami/config.yaml`:
 
 ```yaml
 notes:
   - path: ~/Notes/todo.md
 ```
 
-That's it. Fusen will display the file as a floating sticky note.
+That's it. Chirami will display the file as a floating sticky note.
 
 ## Basic Usage
 
-1. **Launch** — Fusen appears as a menu bar icon (note icon in the macOS menu bar).
+1. **Launch** — Chirami appears as a menu bar icon (note icon in the macOS menu bar).
 2. **Show/hide notes** — Click the menu bar icon and select a note to toggle its visibility.
 3. **Edit** — Click inside the note window and start typing. Changes are saved automatically.
 4. **Add notes** — Click "Add Note..." in the menu bar popover to pick or create a Markdown file, or edit `config.yaml` directly.
-5. **Edit config** — Click "Edit Config" in the menu bar popover to open `config.yaml` in your default editor. Fusen reloads it automatically.
+5. **Edit config** — Click "Edit Config" in the menu bar popover to open `config.yaml` in your default editor. Chirami reloads it automatically.
 
 ## Using with Obsidian
 
-Fusen works with plain `.md` files — no metadata, no front matter. Point a note's `path` to any file inside your Obsidian vault:
+Chirami works with plain `.md` files — no metadata, no front matter. Point a note's `path` to any file inside your Obsidian vault:
 
 ```yaml
 notes:
@@ -56,6 +56,6 @@ notes:
     color: blue
 ```
 
-- Fusen watches the file for external changes, so edits made in Obsidian appear instantly.
-- Edits made in Fusen are written directly to the file, so Obsidian picks them up on its next refresh.
+- Chirami watches the file for external changes, so edits made in Obsidian appear instantly.
+- Edits made in Chirami are written directly to the file, so Obsidian picks them up on its next refresh.
 - No lock conflicts — both apps operate on the same file independently.

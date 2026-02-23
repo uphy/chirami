@@ -63,7 +63,7 @@
 - `NoteStore.swift` — `loadFromConfig()` で新フィールドをマッピング、`saveWindowState()` に条件分岐を追加
 - `NoteWindow.swift` — `NoteWindowController` に `windowDidResignKey` 実装、カーソル位置配置ロジック追加
 - `WindowManager.swift` — `toggleAllWindows()` に除外フィルタ、`toggleWindow()` にカーソル位置対応
-- `FusenApp.swift` — ホットキーコールバックでカーソル位置を渡す仕組みの追加
+- `ChiramiApp.swift` — ホットキーコールバックでカーソル位置を渡す仕組みの追加
 
 **Trade-offs:**
 - ✅ 既存パターンに沿った自然な拡張、新ファイル不要
@@ -86,7 +86,7 @@
 
 既存モデル・設定を拡張しつつ、ウィンドウ配置計算のみヘルパーとして切り出す:
 
-- 既存ファイル拡張: `ConfigModels.swift`, `Note.swift`, `NoteStore.swift`, `NoteWindow.swift`, `WindowManager.swift`, `FusenApp.swift`
+- 既存ファイル拡張: `ConfigModels.swift`, `Note.swift`, `NoteStore.swift`, `NoteWindow.swift`, `WindowManager.swift`, `ChiramiApp.swift`
 - カーソル位置計算・画面クランプロジックは `NoteWindowController` のprivateメソッドまたはextensionとして実装
 
 **Trade-offs:**

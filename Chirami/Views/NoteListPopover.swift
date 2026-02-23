@@ -8,7 +8,7 @@ struct NoteListView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Header
-            Text("Fusen")
+            Text("Chirami")
                 .font(.headline)
                 .padding(.horizontal, 12)
                 .padding(.top, 10)
@@ -18,7 +18,7 @@ struct NoteListView: View {
 
             // Note list
             if noteStore.notes.isEmpty {
-                Text("No notes configured.\nEdit ~/.config/fusen/config.yaml")
+                Text("No notes configured.\nEdit ~/.config/chirami/config.yaml")
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .padding(12)
@@ -65,7 +65,7 @@ struct NoteListView: View {
 
             Divider()
 
-            MenuButton(title: "Quit Fusen") {
+            MenuButton(title: "Quit Chirami") {
                 NSApplication.shared.terminate(nil)
             }
         }
@@ -89,7 +89,7 @@ struct NoteListView: View {
 
     private func openConfig() {
         let url = FileManager.realHomeDirectory
-            .appendingPathComponent(".config/fusen/config.yaml")
+            .appendingPathComponent(".config/chirami/config.yaml")
         // Create default config if missing
         if !FileManager.default.fileExists(atPath: url.path) {
             let defaultConfig = """

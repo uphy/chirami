@@ -43,7 +43,7 @@ With `rollover_delay: 2h`, at 1:30 AM the note still resolves to yesterday's dat
 
 ### Template File
 
-When a periodic note's file doesn't exist yet, Fusen creates it automatically. If `template` is specified, the template file is copied as the initial content:
+When a periodic note's file doesn't exist yet, Chirami creates it automatically. If `template` is specified, the template file is copied as the initial content:
 
 ```yaml
 notes:
@@ -86,17 +86,17 @@ smart_paste:
   fetch_url_title: true  # Set to false to skip title fetching for URLs
 ```
 
-When `fetch_url_title` is enabled, Fusen inserts `[](url)` immediately, then replaces the empty title with the fetched page title (from `og:title` or `<title>` tag) within a 5-second timeout.
+When `fetch_url_title` is enabled, Chirami inserts `[](url)` immediately, then replaces the empty title with the fetched page title (from `og:title` or `<title>` tag) within a 5-second timeout.
 
 ## Karabiner-Elements Integration
 
-Fusen can set a [Karabiner-Elements](https://karabiner-elements.pqrs.org/) variable when a note window gains or loses focus. This lets you define Karabiner key remappings that only apply while editing a Fusen note.
+Chirami can set a [Karabiner-Elements](https://karabiner-elements.pqrs.org/) variable when a note window gains or loses focus. This lets you define Karabiner key remappings that only apply while editing a Chirami note.
 
-### Fusen Config
+### Chirami Config
 
 ```yaml
 karabiner:
-  variable: fusen_active
+  variable: chirami_active
   on_focus: 1
   on_unfocus: 0
 ```
@@ -108,14 +108,14 @@ In your Karabiner rule, add a condition to match the variable:
 ```json
 {
   "type": "variable_if",
-  "name": "fusen_active",
+  "name": "chirami_active",
   "value": 1
 }
 ```
 
-This lets you, for example, remap keys for Markdown editing only while a Fusen window is focused.
+This lets you, for example, remap keys for Markdown editing only while a Chirami window is focused.
 
-The `cli_path` field is optional — Fusen auto-detects the `karabiner_cli` binary location. Set it explicitly if the binary is in a non-standard location.
+The `cli_path` field is optional — Chirami auto-detects the `karabiner_cli` binary location. Set it explicitly if the binary is in a non-standard location.
 
 ## Transient Note
 
@@ -136,7 +136,7 @@ Press the hotkey → the note pops up at your cursor → type your note → clic
 
 ### Dotfiles Management
 
-`config.yaml` lives at `~/.config/fusen/config.yaml` — a standard XDG path. Symlink or include it in your dotfiles repository. `state.yaml` is stored separately at `~/.local/state/fusen/state.yaml` and should not be version-controlled.
+`config.yaml` lives at `~/.config/chirami/config.yaml` — a standard XDG path. Symlink or include it in your dotfiles repository. `state.yaml` is stored separately at `~/.local/state/chirami/state.yaml` and should not be version-controlled.
 
 ### Obsidian Daily Notes Compatibility
 
@@ -152,4 +152,4 @@ notes:
 
 ### Tiling Window Manager Coexistence
 
-Fusen uses `NSPanel` windows, which tiling window managers like [aerospace](https://github.com/nikitabobko/AeroSpace) ignore by default. Fusen notes float independently without disrupting your tiled layout — no extra configuration needed.
+Chirami uses `NSPanel` windows, which tiling window managers like [aerospace](https://github.com/nikitabobko/AeroSpace) ignore by default. Chirami notes float independently without disrupting your tiled layout — no extra configuration needed.

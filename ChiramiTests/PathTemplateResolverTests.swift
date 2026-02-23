@@ -1,6 +1,6 @@
 import Testing
 import Foundation
-@testable import Fusen
+@testable import Chirami
 
 @Suite("PathTemplateResolver")
 struct PathTemplateResolverTests {

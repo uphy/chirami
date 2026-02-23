@@ -1,6 +1,6 @@
 import Testing
 import Yams
-@testable import Fusen
+@testable import Chirami
 
 // MARK: - NoteDefaults Codable
 
@@ -60,10 +60,10 @@ struct NoteDefaultsTests {
     }
 }
 
-// MARK: - FusenConfig with defaults
+// MARK: - ChiramiConfig with defaults
 
-@Suite("FusenConfig defaults フィールド")
-struct FusenConfigDefaultsTests {
+@Suite("ChiramiConfig defaults フィールド")
+struct ChiramiConfigDefaultsTests {
 
     @Test("defaults セクション付きの config をデコードできる")
     func decodeWithDefaults() throws {
@@ -77,7 +77,7 @@ struct FusenConfigDefaultsTests {
         notes:
           - path: ~/notes/test.md
         """
-        let config = try YAMLDecoder().decode(FusenConfig.self, from: yaml)
+        let config = try YAMLDecoder().decode(ChiramiConfig.self, from: yaml)
         #expect(config.defaults != nil)
         #expect(config.defaults?.color == "blue")
         #expect(config.defaults?.transparency == 0.7)
@@ -95,7 +95,7 @@ struct FusenConfigDefaultsTests {
           - path: ~/notes/test.md
             color: yellow
         """
-        let config = try YAMLDecoder().decode(FusenConfig.self, from: yaml)
+        let config = try YAMLDecoder().decode(ChiramiConfig.self, from: yaml)
         #expect(config.defaults == nil)
         #expect(config.hotkey == "cmd+shift+f")
         #expect(config.notes.count == 1)
@@ -110,14 +110,14 @@ struct FusenConfigDefaultsTests {
         notes:
           - path: ~/notes/a.md
         karabiner:
-          variable: fusen_active
+          variable: chirami_active
           on_focus: 1
           on_unfocus: 0
         smart_paste:
           enabled: true
           fetch_url_title: false
         """
-        let config = try YAMLDecoder().decode(FusenConfig.self, from: yaml)
+        let config = try YAMLDecoder().decode(ChiramiConfig.self, from: yaml)
         #expect(config.hotkey == "cmd+shift+f")
         #expect(config.defaults != nil)
         #expect(config.notes.count == 1)
@@ -132,17 +132,17 @@ struct FusenConfigDefaultsTests {
           color: purple
         notes: []
         """
-        let config = try YAMLDecoder().decode(FusenConfig.self, from: yaml)
+        let config = try YAMLDecoder().decode(ChiramiConfig.self, from: yaml)
         #expect(config.defaults?.color == "purple")
         #expect(config.defaults?.transparency == nil)
         #expect(config.defaults?.fontSize == nil)
     }
 }
 
-// MARK: - FusenConfig dragModifier
+// MARK: - ChiramiConfig dragModifier
 
-@Suite("FusenConfig drag_modifier フィールド")
-struct FusenConfigDragModifierTests {
+@Suite("ChiramiConfig drag_modifier フィールド")
+struct ChiramiConfigDragModifierTests {
 
     @Test("drag_modifier を指定してデコードできる")
     func decodeDragModifier() throws {
@@ -150,7 +150,7 @@ struct FusenConfigDragModifierTests {
         drag_modifier: option
         notes: []
         """
-        let config = try YAMLDecoder().decode(FusenConfig.self, from: yaml)
+        let config = try YAMLDecoder().decode(ChiramiConfig.self, from: yaml)
         #expect(config.dragModifier == "option")
     }
 
@@ -159,7 +159,7 @@ struct FusenConfigDragModifierTests {
         let yaml = """
         notes: []
         """
-        let config = try YAMLDecoder().decode(FusenConfig.self, from: yaml)
+        let config = try YAMLDecoder().decode(ChiramiConfig.self, from: yaml)
         #expect(config.dragModifier == nil)
     }
 
@@ -170,7 +170,7 @@ struct FusenConfigDragModifierTests {
         drag_modifier: \(modifier)
         notes: []
         """
-        let config = try YAMLDecoder().decode(FusenConfig.self, from: yaml)
+        let config = try YAMLDecoder().decode(ChiramiConfig.self, from: yaml)
         #expect(config.dragModifier == modifier)
     }
 }

@@ -1,7 +1,7 @@
 import Foundation
 import CryptoKit
 
-// MARK: - Config (~/.config/fusen/config.yaml)
+// MARK: - Config (~/.config/chirami/config.yaml)
 
 struct NoteDefaults: Codable {
     var color: String?
@@ -17,7 +17,7 @@ struct NoteDefaults: Codable {
     }
 }
 
-struct FusenConfig: Codable {
+struct ChiramiConfig: Codable {
     var hotkey: String?
     var defaults: NoteDefaults?
     var notes: [NoteConfig] = []
@@ -35,7 +35,7 @@ struct FusenConfig: Codable {
 #if canImport(AppKit)
 import AppKit
 
-extension FusenConfig {
+extension ChiramiConfig {
     var dragModifierFlags: NSEvent.ModifierFlags {
         switch dragModifier {
         case "option": return .option
@@ -162,9 +162,9 @@ struct NoteConfig: Codable {
     }
 }
 
-// MARK: - State (~/.local/state/fusen/state.yaml)
+// MARK: - State (~/.local/state/chirami/state.yaml)
 
-struct FusenState: Codable {
+struct ChiramiState: Codable {
     var windows: [String: WindowState] = [:]
     var bookmarks: [String: String] = [:]  // noteId -> Base64 bookmark data
 }

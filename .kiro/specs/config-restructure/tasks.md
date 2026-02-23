@@ -1,9 +1,9 @@
 # Implementation Plan
 
-- [x] 1. NoteDefaults 構造体を追加し、FusenConfig に defaults フィールドを追加する
+- [x] 1. NoteDefaults 構造体を追加し、ChiramiConfig に defaults フィールドを追加する
   - 外観設定（color, transparency, font_size）を保持する NoteDefaults 構造体を定義する。全フィールドを Optional にし、部分指定を許容する
   - title と hotkey はノート固有のフィールドであるため、NoteDefaults には含めない
-  - FusenConfig に `defaults: NoteDefaults?` フィールドを追加する。CodingKeys にも追加する
+  - ChiramiConfig に `defaults: NoteDefaults?` フィールドを追加する。CodingKeys にも追加する
   - YAML の snake_case（`font_size`）と Swift の camelCase（`fontSize`）の CodingKeys マッピングを設定する
   - 既存のルートレベルフィールド（hotkey, notes, karabiner, smartPaste）はそのまま維持する
   - _Requirements: 1.1, 1.2, 2.1, 2.2, 2.6, 3.1, 3.2, 3.3, 4.2_

@@ -10,8 +10,8 @@
 	<true/>
 	<key>com.apple.security.temporary-exception.files.home-relative-path.read-write</key>
 	<array>
-		<string>.config/fusen/</string>
-		<string>.local/state/fusen/</string>
+		<string>.config/chirami/</string>
+		<string>.local/state/chirami/</string>
 	</array>
 </dict>
 </plist>

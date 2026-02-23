@@ -4,7 +4,7 @@
 
 **Purpose**: Option キー + ドラッグによるウィンドウ移動機能を MarkdownTextView に追加し、コンテンツ領域からもウィンドウを移動可能にする。
 
-**Users**: Fusen ユーザーが付箋の位置調整時に利用する。
+**Users**: Chirami ユーザーが付箋の位置調整時に利用する。
 
 **Impact**: MarkdownTextView のマウスイベント処理に修飾キー判定を追加し、`NSWindow.performDrag(with:)` でウィンドウドラッグを開始する。
 

@@ -13,10 +13,10 @@
 
 ### Yams の Optional フィールド後方互換性
 
-- **Context**: `defaults:` セクションを `FusenConfig` に追加する際、既存 config.yaml との互換性を確認
+- **Context**: `defaults:` セクションを `ChiramiConfig` に追加する際、既存 config.yaml との互換性を確認
 - **Findings**:
   - Yams の `YAMLDecoder` は `Codable` の標準動作に従い、Optional フィールドが YAML に存在しない場合は `nil` をセットする
-  - 既存の `FusenConfig` でも `hotkey: String?` や `karabiner: KarabinerConfig?` が同じパターンで動作済み
+  - 既存の `ChiramiConfig` でも `hotkey: String?` や `karabiner: KarabinerConfig?` が同じパターンで動作済み
 - **Implications**: `defaults: NoteDefaults?` を追加しても、既存 config.yaml はそのまま読み込み可能
 
 ### デフォルト値のハードコード箇所
@@ -32,11 +32,11 @@
 
 ### smartPaste フィールドの存在
 
-- **Context**: `docs/config.md` に記載のない `smartPaste` フィールドが `FusenConfig` に存在
+- **Context**: `docs/config.md` に記載のない `smartPaste` フィールドが `ChiramiConfig` に存在
 - **Findings**:
-  - `FusenConfig` は `hotkey`, `notes`, `karabiner`, `smartPaste` の4フィールドを持つ
+  - `ChiramiConfig` は `hotkey`, `notes`, `karabiner`, `smartPaste` の4フィールドを持つ
   - `docs/config.md` の推奨構造には `smartPaste` が記載されていない
-- **Implications**: design.md では `smartPaste` を含む現状の `FusenConfig` を正確に反映する
+- **Implications**: design.md では `smartPaste` を含む現状の `ChiramiConfig` を正確に反映する
 
 ## Design Decisions
 

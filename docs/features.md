@@ -2,7 +2,7 @@
 
 ## Markdown Live Preview
 
-Fusen renders Markdown in an Obsidian-style Live Preview: the block containing the cursor shows raw Markdown, while all other blocks are rendered.
+Chirami renders Markdown in an Obsidian-style Live Preview: the block containing the cursor shows raw Markdown, while all other blocks are rendered.
 
 **Supported syntax:**
 
@@ -68,15 +68,15 @@ Per-note and global hotkeys (configured in config.yaml) toggle note visibility f
 
 ## Menu Bar
 
-Fusen lives in the macOS menu bar. Click the icon to open the popover:
+Chirami lives in the macOS menu bar. Click the icon to open the popover:
 
 - **Note list** — Each note is shown with its color indicator and title. Click to toggle visibility. A checkmark indicates the note is currently visible.
 - **Show All / Hide All** — Toggle all notes at once.
 - **Add Note...** — Pick or create a Markdown file to add as a new note.
-- **Edit Config** — Open `~/.config/fusen/config.yaml` in your default editor.
+- **Edit Config** — Open `~/.config/chirami/config.yaml` in your default editor.
 - **Launch at Login** — Toggle auto-launch on macOS startup.
-- **Quit Fusen** — Exit the application.
+- **Quit Chirami** — Exit the application.
 
 ## External Editor Sync
 
-Fusen watches note files for changes using `DispatchSource`. Edits made in Obsidian, VS Code, or any other editor are reflected immediately in the Fusen window.
+Chirami watches note files for changes using `DispatchSource`. Edits made in Obsidian, VS Code, or any other editor are reflected immediately in the Chirami window.

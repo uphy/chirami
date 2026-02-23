@@ -31,7 +31,7 @@
   - **SwiftHTMLToMarkdown**: 純粋 Swift 実装、MIT ライセンス、見出し・リンク・リスト・インライン装飾をサポート。テーブル非対応。軽量
   - **Demark**: WKWebView ベース。堅牢だがランタイム依存が重い
   - **HTMLToMarkdown (jaywcjlove)**: JavaScriptCore ベース。JS エンジン依存
-- **Implications**: Fusen は軽量ユーティリティのため、SwiftHTMLToMarkdown が最適。テーブル変換は non-goal として許容
+- **Implications**: Chirami は軽量ユーティリティのため、SwiftHTMLToMarkdown が最適。テーブル変換は non-goal として許容
 
 ### 既存キーバインドパターン
 
@@ -58,7 +58,7 @@
 | Option | Description | Strengths | Risks / Limitations | Notes |
 |--------|-------------|-----------|---------------------|-------|
 | Service + View Extension | SmartPasteService で変換、MarkdownTextView で呼び出し | 既存アーキテクチャと整合、責務が明確 | なし | **採用** |
-| Delegate パターン | 変換ロジックを Delegate 経由で注入 | テスタビリティ | Fusen の既存パターン (Closure ベース) と不整合 | 不採用 |
+| Delegate パターン | 変換ロジックを Delegate 経由で注入 | テスタビリティ | Chirami の既存パターン (Closure ベース) と不整合 | 不採用 |
 
 ## Design Decisions
 
@@ -70,7 +70,7 @@
   2. Demark — WKWebView ベース、堅牢
   3. 自前実装 — 完全制御可能だがコスト大
 - **Selected Approach**: SwiftHTMLToMarkdown
-- **Rationale**: Fusen は軽量ユーティリティであり、WKWebView や JavaScriptCore のランタイム依存は不適切。必要な変換 (見出し・リンク・リスト・インライン装飾) をカバーしており十分
+- **Rationale**: Chirami は軽量ユーティリティであり、WKWebView や JavaScriptCore のランタイム依存は不適切。必要な変換 (見出し・リンク・リスト・インライン装飾) をカバーしており十分
 - **Trade-offs**: テーブル変換非対応。必要になった場合はライブラリ変更で対応可能
 - **Follow-up**: SPM で追加し、BasicHTML クラスの API を検証
 

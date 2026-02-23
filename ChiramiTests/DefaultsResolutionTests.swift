@@ -1,5 +1,5 @@
 import Testing
-@testable import Fusen
+@testable import Chirami
 
 @Suite("デフォルト値解決 (3段階)")
 struct DefaultsResolutionTests {

@@ -4,7 +4,7 @@
 
 **Purpose**: Periodic Note 機能は、config.yaml の `path` に `{...}` 日付テンプレートを記述することで、日付ベースのノートパスを自動解決し、タイトルバーからのナビゲーションと自動ロールオーバーを提供する。
 
-**Users**: Obsidian で daily/weekly/monthly ノートを管理し、Fusen で参照・編集する開発者。
+**Users**: Obsidian で daily/weekly/monthly ノートを管理し、Chirami で参照・編集する開発者。
 
 **Impact**: 既存の静的ノート機能に影響を与えず、テンプレートを含む `path` のみが periodic note として動作する。
 
@@ -19,13 +19,13 @@
 
 - 未来のファイルへのナビゲーション（存在するファイルのみ対象）
 - テンプレートからの期間（daily/weekly/monthly）自動推論
-- ノートの削除・整理（Fusen のスコープ外。ファイルの自動作成は Req 2.2 で対応）
+- ノートの削除・整理（Chirami のスコープ外。ファイルの自動作成は Req 2.2 で対応）
 
 ## Architecture
 
 ### Existing Architecture Analysis
 
-現在の Fusen は以下のデータフローで動作する:
+現在の Chirami は以下のデータフローで動作する:
 
 1. `AppConfig` (YAMLStore) → config.yaml を監視、`$data` を publish
 2. `NoteStore` → `$data` を subscribe、`loadFromConfig()` で `[Note]` を構築

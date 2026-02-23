@@ -3,7 +3,7 @@
 - [x] 1. 設定モデルの拡張
   - `KarabinerConfig` 構造体を定義し、変数名 (`variable`)、フォーカス時の値 (`onFocus`)、フォーカス解除時の値 (`onUnfocus`) を保持する
   - `CodingKeys` で `on_focus` → `onFocus`、`on_unfocus` → `onUnfocus` の snake_case マッピングを行う
-  - `FusenConfig` にオプショナルな `karabiner` プロパティを追加する
+  - `ChiramiConfig` にオプショナルな `karabiner` プロパティを追加する
   - `karabiner` セクションが config.yaml に存在しない場合、`nil` としてデコードされることを確認する
   - _Requirements: 2.1, 2.2, 2.3, 2.4_
 
