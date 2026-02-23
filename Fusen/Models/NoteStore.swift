@@ -45,7 +45,12 @@ class NoteStore: ObservableObject {
             let notePosition: NotePosition = noteConfig.position == "cursor" ? .cursor : .fixed
             let autoHide = noteConfig.autoHide ?? false
 
-            return Note(id: id, path: url, title: title, color: color, transparency: transparency, fontSize: fontSize, alwaysOnTop: alwaysOnTop, hotkey: noteConfig.hotkey, position: notePosition, autoHide: autoHide)
+            return Note(
+                id: id, path: url, title: title, color: color,
+                transparency: transparency, fontSize: fontSize,
+                alwaysOnTop: alwaysOnTop, hotkey: noteConfig.hotkey,
+                position: notePosition, autoHide: autoHide
+            )
         }
     }
 

@@ -326,7 +326,7 @@ class TableOverlayView: NSView {
         gridPath.stroke()
 
         // Thicker header/body divider
-        if data.bodyRows.count > 0, rowRects.count > 1 {
+        if !data.bodyRows.isEmpty, rowRects.count > 1 {
             let separatorY = rowRects[1].minY
             let thickPath = NSBezierPath()
             thickPath.lineWidth = 1.5

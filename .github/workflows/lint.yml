@@ -1,0 +1,16 @@
+name: SwiftLint
+
+on:
+  pull_request:
+    paths:
+      - '**/*.swift'
+      - '.swiftlint.yml'
+
+jobs:
+  swiftlint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v2
+      - name: Run SwiftLint
+        run: mise run lint

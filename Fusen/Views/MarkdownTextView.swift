@@ -85,7 +85,7 @@ class MarkdownTextView: NSTextView {
         let lineFragRect = lm.lineFragmentRect(forGlyphAt: glyphIndex, effectiveRange: &lineGlyphRange)
         let lineCharRange = lm.characterRange(forGlyphRange: lineGlyphRange, actualGlyphRange: nil)
 
-        var foundIndex: Int? = nil
+        var foundIndex: Int?
         storage.enumerateAttribute(.taskCheckbox, in: lineCharRange, options: []) { value, range, stop in
             guard value != nil else { return }
             let level = storage.attribute(.listNestingLevel, at: range.location, effectiveRange: nil) as? Int ?? 0
@@ -110,7 +110,7 @@ class MarkdownTextView: NSTextView {
         "[": ("[", "]"),
         "{": ("{", "}"),
         "\"": ("\"", "\""),
-        "'": ("'", "'"),
+        "'": ("'", "'")
     ]
 
     override func insertText(_ string: Any, replacementRange: NSRange) {
@@ -351,6 +351,7 @@ class MarkdownTextView: NSTextView {
         }
     }
 
+    // swiftlint:disable force_try
     private static let taskCheckedPattern = try! NSRegularExpression(
         pattern: #"^(\s*)([-*])\s\[[xX]\]\s(.*)$"#
     )
@@ -363,6 +364,7 @@ class MarkdownTextView: NSTextView {
     private static let plainLinePattern = try! NSRegularExpression(
         pattern: #"^(\s*)(.+)$"#
     )
+    // swiftlint:enable force_try
 
     private func toggleTaskList() {
         guard let cl = currentLine() else { return }
@@ -460,12 +462,14 @@ class MarkdownTextView: NSTextView {
 
     // MARK: - List auto-continuation
 
+    // swiftlint:disable force_try
     private static let unorderedListPattern = try! NSRegularExpression(
         pattern: #"^(\s*)([-*])\s(\[[ xX]\]\s)?(.*)$"#
     )
     private static let orderedListPattern = try! NSRegularExpression(
         pattern: #"^(\s*)(\d+)\.\s(.*)$"#
     )
+    // swiftlint:enable force_try
 
     override func insertNewline(_ sender: Any?) {
         guard let cl = currentLine() else {

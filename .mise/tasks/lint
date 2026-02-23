@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+#MISE description="SwiftLint で静的解析を実行"
+set -euo pipefail
+
+# SourceKit framework path for CommandLineTools-only environments
+if [ -d "/Library/Developer/CommandLineTools/usr/lib" ]; then
+  export DYLD_FRAMEWORK_PATH="/Library/Developer/CommandLineTools/usr/lib"
+fi
+
+swiftlint lint --strict

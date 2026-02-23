@@ -285,7 +285,7 @@ class BulletLayoutManager: NSLayoutManager {
 
 private extension NSImage {
     func tinted(with color: NSColor) -> NSImage {
-        let image = self.copy() as! NSImage
+        let image = self.copy() as! NSImage // swiftlint:disable:this force_cast
         image.lockFocus()
         color.set()
         NSRect(origin: .zero, size: size).fill(using: .sourceAtop)

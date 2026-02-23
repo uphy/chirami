@@ -105,7 +105,7 @@ final class SmartPasteService {
     private func isURL(_ text: String) -> Bool {
         guard let url = URL(string: text),
               let scheme = url.scheme?.lowercased(),
-              (scheme == "http" || scheme == "https"),
+              scheme == "http" || scheme == "https",
               url.host != nil else {
             return false
         }
@@ -155,7 +155,7 @@ final class SmartPasteService {
         case .text:
             return node.stringValue ?? ""
         case .element:
-            return convertElement(node as! XMLElement)
+            return convertElement(node as! XMLElement) // swiftlint:disable:this force_cast
         default:
             return convertChildren(of: node)
         }
@@ -165,6 +165,7 @@ final class SmartPasteService {
         (node.children ?? []).map { convertNode($0) }.joined()
     }
 
+    // swiftlint:disable:next cyclomatic_complexity
     private func convertElement(_ el: XMLElement) -> String {
         let tag = el.name?.lowercased() ?? ""
         switch tag {
@@ -242,7 +243,7 @@ final class SmartPasteService {
 
             for sub in childEl.children ?? [] {
                 if let subEl = sub as? XMLElement,
-                   (subEl.name?.lowercased() == "ul" || subEl.name?.lowercased() == "ol") {
+                   subEl.name?.lowercased() == "ul" || subEl.name?.lowercased() == "ol" {
                     let subOrdered = subEl.name?.lowercased() == "ol"
                     let subResult = convertList(subEl, ordered: subOrdered, depth: depth + 1)
                     subListParts.append(contentsOf: subResult.components(separatedBy: "\n").filter { !$0.isEmpty })
@@ -272,7 +273,7 @@ final class SmartPasteService {
 
         // Parse each row into cells
         var table: [[String]] = []
-        var headerRowIndex: Int? = nil
+        var headerRowIndex: Int?
 
         for (rowIdx, row) in rows.enumerated() {
             var cells: [String] = []

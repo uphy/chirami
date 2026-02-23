@@ -9,7 +9,7 @@ let package = Package(
         .package(url: "https://github.com/soffes/HotKey", from: "0.2.0"),
         .package(url: "https://github.com/jpsim/Yams", from: "5.0.0"),
         .package(url: "https://github.com/raspu/Highlightr", from: "2.2.1"),
-        .package(url: "https://github.com/swiftlang/swift-testing", from: "0.12.0"),
+        .package(url: "https://github.com/swiftlang/swift-testing", from: "0.12.0")
     ],
     targets: [
         .executableTarget(
@@ -18,13 +18,13 @@ let package = Package(
                 .product(name: "Markdown", package: "swift-markdown"),
                 .product(name: "HotKey", package: "HotKey"),
                 .product(name: "Yams", package: "Yams"),
-                .product(name: "Highlightr", package: "Highlightr"),
+                .product(name: "Highlightr", package: "Highlightr")
             ],
             path: "Fusen",
             exclude: [
                 "Info.plist",
                 "Fusen.entitlements",
-                "Resources",
+                "Resources"
             ]
         ),
         .testTarget(
@@ -32,9 +32,9 @@ let package = Package(
             dependencies: [
                 "Fusen",
                 .product(name: "Yams", package: "Yams"),
-                .product(name: "Testing", package: "swift-testing"),
+                .product(name: "Testing", package: "swift-testing")
             ],
             path: "FusenTests"
-        ),
+        )
     ]
 )

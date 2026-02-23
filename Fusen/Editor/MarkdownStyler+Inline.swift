@@ -4,6 +4,7 @@ import AppKit
 
 extension MarkdownStyler {
 
+    // swiftlint:disable force_try
     static let boldPattern = try! NSRegularExpression(pattern: #"\*\*(.+?)\*\*|__(.+?)__"#)
     static let italicPattern = try! NSRegularExpression(pattern: #"(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)|(?<!_)_(?!_)(.+?)(?<!_)_(?!_)"#)
     static let strikethroughPattern = try! NSRegularExpression(pattern: #"~~(.+?)~~"#)
@@ -11,6 +12,7 @@ extension MarkdownStyler {
     // Negative lookbehind (?<!!) prevents matching image syntax ![alt](url)
     static let linkPattern = try! NSRegularExpression(pattern: #"(?<!!)\[(.+?)\]\((.+?)\)"#)
     static let imagePattern = try! NSRegularExpression(pattern: #"!\[([^\]]*)\]\(([^\)]+)\)"#)
+    // swiftlint:enable force_try
 
     // MARK: - Rendered inline styles
 
@@ -100,7 +102,7 @@ extension MarkdownStyler {
             let fullRange = NSRange(location: match.range.location + offset, length: match.range.length)
 
             // Find the first non-empty capture group (content without markers)
-            var contentAdjustedRange: NSRange? = nil
+            var contentAdjustedRange: NSRange?
             for groupIdx in 1..<match.numberOfRanges {
                 let contentRange = match.range(at: groupIdx)
                 if contentRange.location != NSNotFound {

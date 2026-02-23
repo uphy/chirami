@@ -11,7 +11,7 @@ enum InlineMarkupRenderer {
         [
             .font: NSFont.monospacedSystemFont(ofSize: fontSize - 1, weight: .regular),
             .foregroundColor: NSColor.systemOrange,
-            .inlineCodeBackground: NSColor.labelColor.withAlphaComponent(0.08),
+            .inlineCodeBackground: NSColor.labelColor.withAlphaComponent(0.08)
         ]
     }
 
@@ -22,14 +22,14 @@ enum InlineMarkupRenderer {
         if let textNode = node as? Text {
             return NSAttributedString(string: textNode.string, attributes: [
                 .font: font,
-                .foregroundColor: noteColor.textColor,
+                .foregroundColor: noteColor.textColor
             ])
         }
 
         if node is SoftBreak || node is LineBreak {
             return NSAttributedString(string: " ", attributes: [
                 .font: font,
-                .foregroundColor: noteColor.textColor,
+                .foregroundColor: noteColor.textColor
             ])
         }
 

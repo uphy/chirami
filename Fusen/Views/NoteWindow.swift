@@ -49,7 +49,7 @@ class NotePanel: NSPanel {
         NSLayoutConstraint.activate([
             label.centerXAnchor.constraint(equalTo: fullWidthView.centerXAnchor),
             label.centerYAnchor.constraint(equalTo: closeButton.centerYAnchor),
-            label.widthAnchor.constraint(lessThanOrEqualTo: fullWidthView.widthAnchor, constant: -60),
+            label.widthAnchor.constraint(lessThanOrEqualTo: fullWidthView.widthAnchor, constant: -60)
         ])
 
         customTitleLabel = label
@@ -215,10 +215,8 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
 
     private func screenForCursor() -> NSScreen? {
         let cursorLocation = NSEvent.mouseLocation
-        for screen in NSScreen.screens {
-            if NSMouseInRect(cursorLocation, screen.frame, false) {
-                return screen
-            }
+        for screen in NSScreen.screens where NSMouseInRect(cursorLocation, screen.frame, false) {
+            return screen
         }
         return NSScreen.main
     }

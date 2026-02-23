@@ -70,13 +70,11 @@ extension MarkdownStyler {
     private func dimTablePipes(in line: String, lineStart: Int, storage: NSMutableAttributedString) {
         let nsLine = line as NSString
         let pipeChar = ("|" as NSString).character(at: 0)
-        for i in 0..<nsLine.length {
-            if nsLine.character(at: i) == pipeChar {
-                storage.addAttributes(
-                    [.foregroundColor: NSColor.secondaryLabelColor],
-                    range: NSRange(location: lineStart + i, length: 1)
-                )
-            }
+        for i in 0..<nsLine.length where nsLine.character(at: i) == pipeChar {
+            storage.addAttributes(
+                [.foregroundColor: NSColor.secondaryLabelColor],
+                range: NSRange(location: lineStart + i, length: 1)
+            )
         }
     }
 }

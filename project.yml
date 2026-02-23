@@ -24,6 +24,16 @@ targets:
   Fusen:
     type: application
     platform: macOS
+    preBuildScripts:
+      - name: SwiftLint
+        basedOnDependencyAnalysis: false
+        shell: /bin/bash
+        script: |
+          if command -v swiftlint >/dev/null 2>&1; then
+            swiftlint lint --strict
+          else
+            echo "warning: SwiftLint not installed. Run 'brew install swiftlint'."
+          fi
     sources:
       - path: Fusen
     info:

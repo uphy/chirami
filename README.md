@@ -106,6 +106,8 @@ mise run generate  # xcodegen でプロジェクトファイルを生成
 mise run build     # Release ビルド（.app バンドル生成）
 mise run apply     # ~/Applications にインストール
 mise run clean     # ビルド成果物を削除
+mise run lint      # SwiftLint で静的解析を実行
+mise run lint-fix  # SwiftLint で自動修正を実行
 ```
 
 ## 依存ライブラリ

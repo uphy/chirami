@@ -55,7 +55,7 @@ extension MarkdownStyler {
             paraStyle.firstLineHeadIndent = horizontalPadding
             paraStyle.tailIndent = -horizontalPadding
             if isFirst { paraStyle.paragraphSpacingBefore = verticalPadding }
-            if isLast  { paraStyle.paragraphSpacing = verticalPadding }
+            if isLast { paraStyle.paragraphSpacing = verticalPadding }
 
             // Apply paragraph style to the line (including its trailing newline)
             let fullLineLen = isLast ? lineLen : lineLen + 1

@@ -26,10 +26,8 @@ extension MarkdownStyler {
             }
 
             result.append((item, effectiveR))
-            for subChild in item.children {
-                if isList(subChild) {
-                    collectListItems(from: subChild, in: text, into: &result)
-                }
+            for subChild in item.children where isList(subChild) {
+                collectListItems(from: subChild, in: text, into: &result)
             }
         }
     }
@@ -192,7 +190,7 @@ extension MarkdownStyler {
     }
 
     /// Editing task item with cursor in body zone: render prefix as checkbox, keep body editable.
-    private func applyListItemEditingTaskStyle(
+    private func applyListItemEditingTaskStyle( // swiftlint:disable:this function_parameter_count
         to storage: NSMutableAttributedString,
         itemRange: NSRange,
         markerAbsLocation: Int,
@@ -228,7 +226,7 @@ extension MarkdownStyler {
     }
 
     /// Fully rendered style for non-editing list items.
-    private func applyListItemRenderedStyle(
+    private func applyListItemRenderedStyle( // swiftlint:disable:this function_parameter_count
         to storage: NSMutableAttributedString,
         itemRange: NSRange,
         markerAbsLocation: Int,
