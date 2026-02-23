@@ -131,6 +131,27 @@ class NotePanel: NSPanel {
         closeButtonTrackingArea = trackingArea
     }
 
+    override func sendEvent(_ event: NSEvent) {
+        let dragFlags = AppConfig.shared.data.dragModifierFlags
+        if event.modifierFlags.contains(dragFlags) {
+            let location = event.locationInWindow
+            if location.y > contentLayoutRect.maxY {
+                if event.type == .leftMouseDown {
+                    NSCursor.closedHand.push()
+                    performDrag(with: event)
+                    NSCursor.pop()
+                    return
+                }
+                if event.type == .mouseMoved {
+                    super.sendEvent(event)
+                    NSCursor.openHand.set()
+                    return
+                }
+            }
+        }
+        super.sendEvent(event)
+    }
+
     override func mouseEntered(with event: NSEvent) {
         guard let closeButton = standardWindowButton(.closeButton) else {
             super.mouseEntered(with: event)
