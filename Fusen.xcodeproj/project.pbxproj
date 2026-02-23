@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		01FA042741A005B7CF2313F2 /* Note.swift in Sources */ = {isa = PBXBuildFile; fileRef = 361E3B713952B59B09B828DB /* Note.swift */; };
 		17CDCEABF381C80F0634049F /* BulletLayoutManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B30227545343F59E44D58FC1 /* BulletLayoutManager.swift */; };
+		2EC44DE362F0939E0385E968 /* MarkdownTextView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB87612AAE78B2CCD1907BCD /* MarkdownTextView.swift */; };
 		3D75B948594751731F210822 /* FileWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45514F76A24CC5B51B8EB1C1 /* FileWatcher.swift */; };
 		47609F52BA06C2C31D684125 /* Highlightr in Frameworks */ = {isa = PBXBuildFile; productRef = 173FCA07A5A5CE9ECF0993DB /* Highlightr */; };
 		52AF571E86755BDCF70AF9C3 /* NoteListPopover.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63131F96F88E6661632316D8 /* NoteListPopover.swift */; };
@@ -32,9 +33,13 @@
 		C50929D3BB96D346F11B4B08 /* HotKey in Frameworks */ = {isa = PBXBuildFile; productRef = CE0415AD13BD10C8FE00353C /* HotKey */; };
 		C5539A9953551834DA544A60 /* MarkdownStyler+List.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36C4851176ADA90F34AF2712 /* MarkdownStyler+List.swift */; };
 		D43AACD6ACB54E0BC1F22239 /* NoteStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F951DC7C3CACCAF005BF01C0 /* NoteStore.swift */; };
+		D5087C47D28496932B9CA4AA /* TableOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E9F7AB3FCA4BA229FAFBCC7 /* TableOverlayView.swift */; };
+		DBDED578CD1A170764444E5B /* SwiftHTMLtoMarkdown in Frameworks */ = {isa = PBXBuildFile; productRef = D54A4287A6998AD1DA76E84E /* SwiftHTMLtoMarkdown */; };
+		E2B11B1FB5DA175E67ECE60D /* KarabinerService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3FD5AA70A841318B4EF949F /* KarabinerService.swift */; };
 		E5126EB0F16D87EE9DC23C2A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A210F8D7E82D20B209C55E98 /* Assets.xcassets */; };
 		E9233A31B3EED03350CB15B4 /* GlobalHotkeyService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A311522C466E5D7A84669BA1 /* GlobalHotkeyService.swift */; };
 		EE457638742C63EA641C84C7 /* FusenApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7004D784237018149DFF0E29 /* FusenApp.swift */; };
+		EFCB98C24F0F4DFF90B00F0A /* InlineMarkupRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 362489B9C79830DCF2CE6385 /* InlineMarkupRenderer.swift */; };
 		FA7516A274640DE4682EF851 /* ConfigModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = E87FD26BBAAC012942E0F0BA /* ConfigModels.swift */; };
 		FD6848D4E6CBDC24666C7A24 /* MarkdownStyler+ThematicBreak.swift in Sources */ = {isa = PBXBuildFile; fileRef = D598AE6D48995188FA94AA7D /* MarkdownStyler+ThematicBreak.swift */; };
 /* End PBXBuildFile section */
@@ -45,6 +50,7 @@
 		1DE519888FC7EEBDB0571904 /* MarkdownStyler+BlockQuote.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MarkdownStyler+BlockQuote.swift"; sourceTree = "<group>"; };
 		2CC0AA3B916EEB95A591FA4C /* WindowManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowManager.swift; sourceTree = "<group>"; };
 		361E3B713952B59B09B828DB /* Note.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Note.swift; sourceTree = "<group>"; };
+		362489B9C79830DCF2CE6385 /* InlineMarkupRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InlineMarkupRenderer.swift; sourceTree = "<group>"; };
 		36C4851176ADA90F34AF2712 /* MarkdownStyler+List.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MarkdownStyler+List.swift"; sourceTree = "<group>"; };
 		45514F76A24CC5B51B8EB1C1 /* FileWatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileWatcher.swift; sourceTree = "<group>"; };
 		4850A45C314DBEFE9D6443E6 /* Fusen.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Fusen.entitlements; sourceTree = "<group>"; };
@@ -52,6 +58,7 @@
 		63131F96F88E6661632316D8 /* NoteListPopover.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteListPopover.swift; sourceTree = "<group>"; };
 		6477EC65343AA21B8C6B9455 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
 		6AF3BE8D4474AC5C171BA370 /* AppConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConfig.swift; sourceTree = "<group>"; };
+		6E9F7AB3FCA4BA229FAFBCC7 /* TableOverlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TableOverlayView.swift; sourceTree = "<group>"; };
 		7004D784237018149DFF0E29 /* FusenApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FusenApp.swift; sourceTree = "<group>"; };
 		7830158D5C242F95FE5F3E90 /* LivePreviewEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LivePreviewEditor.swift; sourceTree = "<group>"; };
 		8A26AF3FEF8F6B5485552395 /* MarkdownStyler+CodeBlock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MarkdownStyler+CodeBlock.swift"; sourceTree = "<group>"; };
@@ -62,11 +69,13 @@
 		A210F8D7E82D20B209C55E98 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		A311522C466E5D7A84669BA1 /* GlobalHotkeyService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlobalHotkeyService.swift; sourceTree = "<group>"; };
 		B30227545343F59E44D58FC1 /* BulletLayoutManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BulletLayoutManager.swift; sourceTree = "<group>"; };
+		BB87612AAE78B2CCD1907BCD /* MarkdownTextView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownTextView.swift; sourceTree = "<group>"; };
 		C5800A7F6929ADB0626F2FD5 /* MarkdownStyler+Inline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MarkdownStyler+Inline.swift"; sourceTree = "<group>"; };
 		CADFAE6CE8DFA5AA42EEF162 /* NoteWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteWindow.swift; sourceTree = "<group>"; };
 		D17FD928FC0445860C35C9C7 /* MarkdownStyler+Attributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MarkdownStyler+Attributes.swift"; sourceTree = "<group>"; };
 		D598AE6D48995188FA94AA7D /* MarkdownStyler+ThematicBreak.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MarkdownStyler+ThematicBreak.swift"; sourceTree = "<group>"; };
 		DB8DA77B44AD746B0DDBA6BE /* Fusen.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Fusen.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		E3FD5AA70A841318B4EF949F /* KarabinerService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KarabinerService.swift; sourceTree = "<group>"; };
 		E87FD26BBAAC012942E0F0BA /* ConfigModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfigModels.swift; sourceTree = "<group>"; };
 		F951DC7C3CACCAF005BF01C0 /* NoteStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteStore.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -80,6 +89,7 @@
 				C50929D3BB96D346F11B4B08 /* HotKey in Frameworks */,
 				BB53120A7C31A89E121ADF85 /* Yams in Frameworks */,
 				47609F52BA06C2C31D684125 /* Highlightr in Frameworks */,
+				DBDED578CD1A170764444E5B /* SwiftHTMLtoMarkdown in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -90,6 +100,7 @@
 			isa = PBXGroup;
 			children = (
 				7830158D5C242F95FE5F3E90 /* LivePreviewEditor.swift */,
+				BB87612AAE78B2CCD1907BCD /* MarkdownTextView.swift */,
 				63131F96F88E6661632316D8 /* NoteListPopover.swift */,
 				CADFAE6CE8DFA5AA42EEF162 /* NoteWindow.swift */,
 			);
@@ -118,6 +129,7 @@
 			children = (
 				B30227545343F59E44D58FC1 /* BulletLayoutManager.swift */,
 				5AD8373EE9242EB738892432 /* ImageCache.swift */,
+				362489B9C79830DCF2CE6385 /* InlineMarkupRenderer.swift */,
 				0A43CB1B572ABDEE8CF4F6D9 /* MarkdownStyler.swift */,
 				D17FD928FC0445860C35C9C7 /* MarkdownStyler+Attributes.swift */,
 				1DE519888FC7EEBDB0571904 /* MarkdownStyler+BlockQuote.swift */,
@@ -128,6 +140,7 @@
 				0C71E217E481B258DC4B66B2 /* MarkdownStyler+RangeUtils.swift */,
 				9B802661C5CC13D46EF0B7D3 /* MarkdownStyler+Table.swift */,
 				D598AE6D48995188FA94AA7D /* MarkdownStyler+ThematicBreak.swift */,
+				6E9F7AB3FCA4BA229FAFBCC7 /* TableOverlayView.swift */,
 			);
 			path = Editor;
 			sourceTree = "<group>";
@@ -164,6 +177,7 @@
 			children = (
 				45514F76A24CC5B51B8EB1C1 /* FileWatcher.swift */,
 				A311522C466E5D7A84669BA1 /* GlobalHotkeyService.swift */,
+				E3FD5AA70A841318B4EF949F /* KarabinerService.swift */,
 				2CC0AA3B916EEB95A591FA4C /* WindowManager.swift */,
 			);
 			path = Services;
@@ -206,6 +220,7 @@
 				CE0415AD13BD10C8FE00353C /* HotKey */,
 				3681D74F1C206E1CA1E7CE18 /* Yams */,
 				173FCA07A5A5CE9ECF0993DB /* Highlightr */,
+				D54A4287A6998AD1DA76E84E /* SwiftHTMLtoMarkdown */,
 			);
 			productName = Fusen;
 			productReference = DB8DA77B44AD746B0DDBA6BE /* Fusen.app */;
@@ -233,6 +248,7 @@
 			packageReferences = (
 				6147C5857B0228E59AFEC183 /* XCRemoteSwiftPackageReference "Highlightr" */,
 				627EAEE3E2F62C7B0355048E /* XCRemoteSwiftPackageReference "HotKey" */,
+				2E0A5DC7736869020E669EA0 /* XCRemoteSwiftPackageReference "SwiftHTMLToMarkdown" */,
 				C3B1BFB48CA8741CBC4E1591 /* XCRemoteSwiftPackageReference "Yams" */,
 				02EEF24A4E41DE8C7746BF01 /* XCRemoteSwiftPackageReference "swift-markdown" */,
 			);
@@ -269,6 +285,8 @@
 				EE457638742C63EA641C84C7 /* FusenApp.swift in Sources */,
 				E9233A31B3EED03350CB15B4 /* GlobalHotkeyService.swift in Sources */,
 				5BB072DE646B7601C8CCCCF0 /* ImageCache.swift in Sources */,
+				EFCB98C24F0F4DFF90B00F0A /* InlineMarkupRenderer.swift in Sources */,
+				E2B11B1FB5DA175E67ECE60D /* KarabinerService.swift in Sources */,
 				6DEC765903E708C6AC9CA4C3 /* LivePreviewEditor.swift in Sources */,
 				6368201D070448788BFCBFF8 /* MarkdownStyler+Attributes.swift in Sources */,
 				9540A1C2978D56E480653233 /* MarkdownStyler+BlockQuote.swift in Sources */,
@@ -280,10 +298,12 @@
 				BC9A28B88DB35B0D5D22F620 /* MarkdownStyler+Table.swift in Sources */,
 				FD6848D4E6CBDC24666C7A24 /* MarkdownStyler+ThematicBreak.swift in Sources */,
 				9011A8392B7AA1C6724E5A1C /* MarkdownStyler.swift in Sources */,
+				2EC44DE362F0939E0385E968 /* MarkdownTextView.swift in Sources */,
 				01FA042741A005B7CF2313F2 /* Note.swift in Sources */,
 				52AF571E86755BDCF70AF9C3 /* NoteListPopover.swift in Sources */,
 				D43AACD6ACB54E0BC1F22239 /* NoteStore.swift in Sources */,
 				BC24B468518D9E8AD833DA09 /* NoteWindow.swift in Sources */,
+				D5087C47D28496932B9CA4AA /* TableOverlayView.swift in Sources */,
 				832A18EF3099367169F6E79B /* WindowManager.swift in Sources */,
 				6D25FCC56BEB7CDAAC843219 /* YAMLStore.swift in Sources */,
 			);
@@ -481,6 +501,14 @@
 				minimumVersion = 0.3.0;
 			};
 		};
+		2E0A5DC7736869020E669EA0 /* XCRemoteSwiftPackageReference "SwiftHTMLToMarkdown" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/ActuallyTaylor/SwiftHTMLToMarkdown";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.1.1;
+			};
+		};
 		6147C5857B0228E59AFEC183 /* XCRemoteSwiftPackageReference "Highlightr" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/raspu/Highlightr";
@@ -527,6 +555,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 627EAEE3E2F62C7B0355048E /* XCRemoteSwiftPackageReference "HotKey" */;
 			productName = HotKey;
+		};
+		D54A4287A6998AD1DA76E84E /* SwiftHTMLtoMarkdown */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 2E0A5DC7736869020E669EA0 /* XCRemoteSwiftPackageReference "SwiftHTMLToMarkdown" */;
+			productName = SwiftHTMLtoMarkdown;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

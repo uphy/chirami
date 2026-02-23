@@ -7,6 +7,22 @@ struct FusenConfig: Codable {
     var hotkey: String?
     var notes: [NoteConfig] = []
     var karabiner: KarabinerConfig?
+    var smartPaste: SmartPasteConfig?
+
+    enum CodingKeys: String, CodingKey {
+        case hotkey, notes, karabiner
+        case smartPaste = "smart_paste"
+    }
+}
+
+struct SmartPasteConfig: Codable {
+    var enabled: Bool = true
+    var fetchUrlTitle: Bool = true
+
+    enum CodingKeys: String, CodingKey {
+        case enabled
+        case fetchUrlTitle = "fetch_url_title"
+    }
 }
 
 struct KarabinerConfig: Codable {
