@@ -4,7 +4,7 @@ enum DurationParser {
     // swiftlint:disable:next force_try
     private static let durationRegex = try! NSRegularExpression(pattern: "^(\\d+)(h|m)$")
 
-    /// "2h" → 7200, "30m" → 1800, nil/"0"/不正値 → 0
+    /// "2h" → 7200, "30m" → 1800, nil/"0"/invalid → 0
     static func parse(_ string: String?) -> TimeInterval {
         guard let string, !string.isEmpty else { return 0 }
         if string == "0" { return 0 }

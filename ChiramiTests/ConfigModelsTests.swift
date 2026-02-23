@@ -7,7 +7,7 @@ import Yams
 @Suite("NoteDefaults Codable")
 struct NoteDefaultsTests {
 
-    @Test("全フィールド指定でデコードできる")
+    @Test("decodes all fields")
     func decodeAllFields() throws {
         let yaml = """
         color: blue
@@ -24,7 +24,7 @@ struct NoteDefaultsTests {
         #expect(defaults.autoHide == true)
     }
 
-    @Test("部分指定（color のみ）でデコードできる")
+    @Test("decodes partial fields (color only)")
     func decodePartialFields() throws {
         let yaml = """
         color: green
@@ -37,7 +37,7 @@ struct NoteDefaultsTests {
         #expect(defaults.autoHide == nil)
     }
 
-    @Test("空オブジェクトで全フィールド nil")
+    @Test("empty object results in all fields nil")
     func decodeEmpty() throws {
         let yaml = "{}"
         let defaults = try YAMLDecoder().decode(NoteDefaults.self, from: yaml)
@@ -48,7 +48,7 @@ struct NoteDefaultsTests {
         #expect(defaults.autoHide == nil)
     }
 
-    @Test("title や hotkey など未知フィールドは無視される")
+    @Test("unknown fields like title and hotkey are ignored")
     func ignoresUnknownFields() throws {
         let yaml = """
         color: blue
@@ -62,10 +62,10 @@ struct NoteDefaultsTests {
 
 // MARK: - ChiramiConfig with defaults
 
-@Suite("ChiramiConfig defaults フィールド")
+@Suite("ChiramiConfig defaults field")
 struct ChiramiConfigDefaultsTests {
 
-    @Test("defaults セクション付きの config をデコードできる")
+    @Test("decodes config with defaults section")
     func decodeWithDefaults() throws {
         let yaml = """
         defaults:
@@ -87,7 +87,7 @@ struct ChiramiConfigDefaultsTests {
         #expect(config.notes.count == 1)
     }
 
-    @Test("defaults なしの config を従来通りデコードできる（後方互換）")
+    @Test("decodes config without defaults (backward compatible)")
     func decodeWithoutDefaults() throws {
         let yaml = """
         hotkey: cmd+shift+f
@@ -101,7 +101,7 @@ struct ChiramiConfigDefaultsTests {
         #expect(config.notes.count == 1)
     }
 
-    @Test("ルートレベルフィールドが維持される")
+    @Test("preserves root-level fields")
     func preservesRootLevelFields() throws {
         let yaml = """
         hotkey: cmd+shift+f
@@ -125,7 +125,7 @@ struct ChiramiConfigDefaultsTests {
         #expect(config.smartPaste != nil)
     }
 
-    @Test("defaults の部分指定を許容する")
+    @Test("accepts partial defaults")
     func decodePartialDefaults() throws {
         let yaml = """
         defaults:
@@ -141,10 +141,10 @@ struct ChiramiConfigDefaultsTests {
 
 // MARK: - ChiramiConfig dragModifier
 
-@Suite("ChiramiConfig drag_modifier フィールド")
+@Suite("ChiramiConfig drag_modifier field")
 struct ChiramiConfigDragModifierTests {
 
-    @Test("drag_modifier を指定してデコードできる")
+    @Test("decodes drag_modifier when specified")
     func decodeDragModifier() throws {
         let yaml = """
         drag_modifier: option
@@ -154,7 +154,7 @@ struct ChiramiConfigDragModifierTests {
         #expect(config.dragModifier == "option")
     }
 
-    @Test("drag_modifier 未指定で nil になる")
+    @Test("drag_modifier is nil when not specified")
     func decodeDragModifierNil() throws {
         let yaml = """
         notes: []
@@ -163,7 +163,7 @@ struct ChiramiConfigDragModifierTests {
         #expect(config.dragModifier == nil)
     }
 
-    @Test("サポートする全修飾キーをデコードできる",
+    @Test("decodes all supported modifier keys",
           arguments: ["option", "command", "shift", "control"])
     func decodeSupportedModifiers(modifier: String) throws {
         let yaml = """
@@ -177,10 +177,10 @@ struct ChiramiConfigDragModifierTests {
 
 // MARK: - NoteConfig periodic note
 
-@Suite("NoteConfig periodic note 対応")
+@Suite("NoteConfig periodic note support")
 struct NoteConfigPeriodicNoteTests {
 
-    @Test("periodic note の rollover_delay と template をデコードできる")
+    @Test("decodes rollover_delay and template for periodic note")
     func decodePeriodicNoteFields() throws {
         let yaml = """
         path: "~/notes/daily/{yyyy-MM-dd}.md"
@@ -194,7 +194,7 @@ struct NoteConfigPeriodicNoteTests {
         #expect(config.isPeriodicNote == true)
     }
 
-    @Test("静的ノートは isPeriodicNote が false")
+    @Test("static note has isPeriodicNote false")
     func staticNoteIsNotPeriodic() throws {
         let yaml = """
         path: ~/notes/todo.md
@@ -205,7 +205,7 @@ struct NoteConfigPeriodicNoteTests {
         #expect(config.template == nil)
     }
 
-    @Test("periodic note の noteId はテンプレート文字列から導出される")
+    @Test("periodic note noteId is derived from the template string")
     func periodicNoteIdFromTemplate() throws {
         let config1 = NoteConfig(path: "~/notes/daily/{yyyy-MM-dd}.md")
         let config2 = NoteConfig(path: "~/notes/daily/{yyyy-MM-dd}.md")
@@ -213,23 +213,23 @@ struct NoteConfigPeriodicNoteTests {
         #expect(config1.isPeriodicNote == true)
     }
 
-    @Test("静的ノートの noteId は resolvedPath から導出される（既存動作維持）")
+    @Test("static note noteId is derived from resolvedPath (preserves existing behavior)")
     func staticNoteIdFromResolvedPath() throws {
         let config = NoteConfig(path: "~/notes/todo.md")
         #expect(config.isPeriodicNote == false)
-        // noteId が空でないことを確認
+        // Verify noteId is non-empty
         #expect(!config.noteId.isEmpty)
-        #expect(config.noteId.count == 12) // SHA256 先頭6バイト = 12文字の hex
+        #expect(config.noteId.count == 12) // SHA256 first 6 bytes = 12 hex characters
     }
 
-    @Test("periodic note と静的ノートで異なる noteId が導出される")
+    @Test("periodic note and static note have different noteIds")
     func differentNoteIdForPeriodicAndStatic() {
         let periodic = NoteConfig(path: "~/notes/daily/{yyyy-MM-dd}.md")
         let static_ = NoteConfig(path: "~/notes/daily/2026-02-23.md")
         #expect(periodic.noteId != static_.noteId)
     }
 
-    @Test("rollover_delay 未指定でも periodic note として動作する")
+    @Test("works as periodic note even without rollover_delay")
     func periodicWithoutRolloverDelay() throws {
         let yaml = """
         path: "~/notes/{yyyy-MM-dd}.md"
@@ -242,44 +242,44 @@ struct NoteConfigPeriodicNoteTests {
 
 // MARK: - NoteConfig resolve with defaults
 
-@Suite("NoteConfig resolve メソッド")
+@Suite("NoteConfig resolve method")
 struct NoteConfigResolveTests {
 
-    @Test("position: ノート指定 > defaults")
+    @Test("position: note-level overrides defaults")
     func resolvePositionNoteOverridesDefaults() {
         let config = NoteConfig(path: "~/a.md", position: "cursor")
         let defaults = NoteDefaults(position: nil)
         #expect(config.resolvePosition(defaults: defaults) == .cursor)
     }
 
-    @Test("position: ノート未指定時に defaults を使う")
+    @Test("position: falls back to defaults when not set on note")
     func resolvePositionFallsBackToDefaults() {
         let config = NoteConfig(path: "~/a.md")
         let defaults = NoteDefaults(position: "cursor")
         #expect(config.resolvePosition(defaults: defaults) == .cursor)
     }
 
-    @Test("position: 両方未指定で .fixed")
+    @Test("position: defaults to .fixed when both unset")
     func resolvePositionDefaultsToFixed() {
         let config = NoteConfig(path: "~/a.md")
         #expect(config.resolvePosition(defaults: nil) == .fixed)
     }
 
-    @Test("autoHide: ノート指定 > defaults")
+    @Test("autoHide: note-level overrides defaults")
     func resolveAutoHideNoteOverridesDefaults() {
         let config = NoteConfig(path: "~/a.md", autoHide: true)
         let defaults = NoteDefaults(autoHide: false)
         #expect(config.resolveAutoHide(defaults: defaults) == true)
     }
 
-    @Test("autoHide: ノート未指定時に defaults を使う")
+    @Test("autoHide: falls back to defaults when not set on note")
     func resolveAutoHideFallsBackToDefaults() {
         let config = NoteConfig(path: "~/a.md")
         let defaults = NoteDefaults(autoHide: true)
         #expect(config.resolveAutoHide(defaults: defaults) == true)
     }
 
-    @Test("autoHide: 両方未指定で false")
+    @Test("autoHide: defaults to false when both unset")
     func resolveAutoHideDefaultsToFalse() {
         let config = NoteConfig(path: "~/a.md")
         #expect(config.resolveAutoHide(defaults: nil) == false)

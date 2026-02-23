@@ -7,7 +7,7 @@ struct PeriodicFileNavigatorTests {
 
     // MARK: - listMatchingFiles
 
-    @Test("単一階層テンプレートにマッチするファイルをソート済みで返す")
+    @Test("returns sorted files matching a single-level template")
     func listSingleLevel() throws {
         let dir = try createTempDir()
         defer { try? FileManager.default.removeItem(at: dir) }
@@ -27,12 +27,12 @@ struct PeriodicFileNavigatorTests {
         #expect(files[2].lastPathComponent == "2026-02-23.md")
     }
 
-    @Test("複数階層テンプレートにマッチするファイルを再帰的に列挙する")
+    @Test("recursively lists files matching a multi-level template")
     func listMultiLevel() throws {
         let dir = try createTempDir()
         defer { try? FileManager.default.removeItem(at: dir) }
 
-        // ~/notes/{yyyy}/{MM}/{dd}.md 相当の構造を作成
+        // Create a directory structure equivalent to ~/notes/{yyyy}/{MM}/{dd}.md
         let dir2026_02 = dir.appendingPathComponent("2026/02")
         let dir2026_01 = dir.appendingPathComponent("2026/01")
         try FileManager.default.createDirectory(at: dir2026_02, withIntermediateDirectories: true)
@@ -52,7 +52,7 @@ struct PeriodicFileNavigatorTests {
         #expect(files[2].lastPathComponent == "23.md")
     }
 
-    @Test("false positive ファイルをフィルタする")
+    @Test("filters out false positive files")
     func filterFalsePositives() throws {
         let dir = try createTempDir()
         defer { try? FileManager.default.removeItem(at: dir) }
@@ -68,7 +68,7 @@ struct PeriodicFileNavigatorTests {
         #expect(files[0].lastPathComponent == "2026-02-23.md")
     }
 
-    @Test("空のディレクトリでは空配列を返す")
+    @Test("returns empty array for empty directory")
     func listEmpty() throws {
         let dir = try createTempDir()
         defer { try? FileManager.default.removeItem(at: dir) }
@@ -81,7 +81,7 @@ struct PeriodicFileNavigatorTests {
 
     // MARK: - previousFile / nextFile
 
-    @Test("ソート済みリスト内で前のファイルを返す")
+    @Test("returns the previous file in the sorted list")
     func previousFile() {
         let files = [
             URL(fileURLWithPath: "/a/2026-02-21.md"),
@@ -94,7 +94,7 @@ struct PeriodicFileNavigatorTests {
         #expect(result?.lastPathComponent == "2026-02-21.md")
     }
 
-    @Test("先頭ファイルの前は nil を返す")
+    @Test("returns nil before the first file")
     func previousFileAtStart() {
         let files = [
             URL(fileURLWithPath: "/a/2026-02-21.md"),
@@ -106,7 +106,7 @@ struct PeriodicFileNavigatorTests {
         #expect(result == nil)
     }
 
-    @Test("ソート済みリスト内で次のファイルを返す")
+    @Test("returns the next file in the sorted list")
     func nextFile() {
         let files = [
             URL(fileURLWithPath: "/a/2026-02-21.md"),
@@ -119,7 +119,7 @@ struct PeriodicFileNavigatorTests {
         #expect(result?.lastPathComponent == "2026-02-23.md")
     }
 
-    @Test("末尾ファイルの次は nil を返す")
+    @Test("returns nil after the last file")
     func nextFileAtEnd() {
         let files = [
             URL(fileURLWithPath: "/a/2026-02-22.md"),

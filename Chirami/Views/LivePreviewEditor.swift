@@ -285,7 +285,7 @@ struct LivePreviewEditor: NSViewRepresentable {
             )
             textView.setSelectedRange(restoredRange)
 
-            // カーソル位置のスタイルに typingAttributes を同期
+            // Sync typingAttributes to the style at the cursor position
             let cursorPos = restoredRange.location
             if styled.length == 0 {
                 textView.typingAttributes = styler.baseAttributes

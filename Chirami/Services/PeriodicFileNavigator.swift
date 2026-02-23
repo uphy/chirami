@@ -1,7 +1,7 @@
 import Foundation
 
 enum PeriodicFileNavigator {
-    /// テンプレートにマッチするファイル一覧をソート済みで返す
+    /// Returns a sorted list of files that match the template.
     static func listMatchingFiles(template: String, baseDirectory: URL) -> [URL] {
         let fm = FileManager.default
         let resolvedBase = baseDirectory.resolvingSymlinksInPath()
@@ -31,12 +31,12 @@ enum PeriodicFileNavigator {
             }
         }
 
-        // 相対パスの lexicographic ソート
+        // Sort by relative path lexicographically
         matchedFiles.sort { $0.relativePath < $1.relativePath }
         return matchedFiles.map(\.url)
     }
 
-    /// ソート済みファイルリスト内で current の前のファイルを返す
+    /// Returns the file before current in the sorted list.
     static func previousFile(from current: URL, in sortedFiles: [URL]) -> URL? {
         guard let index = sortedFiles.firstIndex(where: { $0.path == current.path }),
               index > 0
@@ -44,7 +44,7 @@ enum PeriodicFileNavigator {
         return sortedFiles[index - 1]
     }
 
-    /// ソート済みファイルリスト内で current の次のファイルを返す
+    /// Returns the file after current in the sorted list.
     static func nextFile(from current: URL, in sortedFiles: [URL]) -> URL? {
         guard let index = sortedFiles.firstIndex(where: { $0.path == current.path }),
               index < sortedFiles.count - 1

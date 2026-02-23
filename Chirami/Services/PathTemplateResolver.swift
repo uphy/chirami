@@ -4,20 +4,20 @@ enum PathTemplateResolver {
     // swiftlint:disable:next force_try
     private static let placeholderRegex = try! NSRegularExpression(pattern: "\\{([^}]+)\\}")
 
-    /// テンプレート文字列かどうかを判定
+    /// Returns true if the path contains template placeholders.
     static func isTemplate(_ path: String) -> Bool {
         let range = NSRange(path.startIndex..., in: path)
         return placeholderRegex.firstMatch(in: path, range: range) != nil
     }
 
-    /// テンプレートを指定日付で解決し、展開済みパスを返す
+    /// Resolves template placeholders for the given date and returns the expanded path.
     static func resolve(_ template: String, for date: Date) -> String {
         let nsString = template as NSString
         let range = NSRange(location: 0, length: nsString.length)
         let matches = placeholderRegex.matches(in: template, range: range)
 
         var result = template
-        // 後ろから置換して位置ズレを防ぐ
+        // Replace from end to avoid index shifting
         for match in matches.reversed() {
             let fullRange = Range(match.range, in: template)!
             let formatRange = Range(match.range(at: 1), in: template)!
@@ -33,20 +33,20 @@ enum PathTemplateResolver {
         return result
     }
 
-    /// テンプレートを glob パターンに変換（{...} → *）
+    /// Converts template placeholders to glob wildcards ({...} → *).
     static func toGlobPattern(_ template: String) -> String {
         let nsString = template as NSString
         let range = NSRange(location: 0, length: nsString.length)
         return placeholderRegex.stringByReplacingMatches(in: template, range: range, withTemplate: "*")
     }
 
-    /// 相対パスがテンプレートのフォーマットにマッチするか判定
+    /// Returns true if the relative path matches the template's date format.
     static func matches(relativePath: String, template: String) -> Bool {
         let baseDir = extractBaseDirectory(from: template)
         let relativeTemplate = String(template.dropFirst(baseDir.count))
 
-        // 相対テンプレートから DateFormatter フォーマット文字列を構築
-        // {format} → そのまま、静的部分 → シングルクォートでエスケープ
+        // Build a DateFormatter format string from the relative template.
+        // {format} → kept as-is, static parts → escaped with single quotes
         var combinedFormat = ""
         var index = relativeTemplate.startIndex
         while index < relativeTemplate.endIndex {
@@ -81,11 +81,11 @@ enum PathTemplateResolver {
         guard let date = formatter.date(from: relativePath) else {
             return false
         }
-        // Round-trip 検証: パースした日付を再フォーマットして一致するか確認
+        // Round-trip validation: reformat the parsed date to confirm it matches
         return formatter.string(from: date) == relativePath
     }
 
-    /// テンプレートの静的プレフィックス（{...} より前のディレクトリ部分）を返す
+    /// Returns the static directory prefix of the template (the part before the first {...}).
     static func extractBaseDirectory(from template: String) -> String {
         guard let firstBrace = template.firstIndex(of: "{") else {
             return template

@@ -27,7 +27,7 @@ class AppConfig: YAMLStore<ChiramiConfig> {
             try quickMemoContent.write(to: sampleNotesDir.appendingPathComponent("quick-memo.md"), atomically: true, encoding: .utf8)
             try dailyTemplateContent.write(to: dailyDir.appendingPathComponent("template.md"), atomically: true, encoding: .utf8)
 
-            // 過去3日分のdailyノートを生成
+            // Generate daily notes for the past 3 days
             let formatter = DateFormatter()
             formatter.dateFormat = "yyyy-MM-dd"
             for daysAgo in 1...3 {
@@ -102,7 +102,13 @@ class AppConfig: YAMLStore<ChiramiConfig> {
     Write something...
 
     ---
-    *Press `Cmd+Shift+M` to summon. Auto-hides on focus loss.*
+    This note is configured with (`config.yaml`):
+
+    - **`hotkey: cmd+shift+m`** — summon/dismiss with a keyboard shortcut
+    - **`position: cursor`** — appears at the mouse cursor position when summoned
+    - **`auto_hide: true`** — automatically hides when focus is lost
+
+    These can be customized in `config.yaml`.
     """
 
     private static let dailyTemplateContent = """

@@ -63,13 +63,13 @@ class NoteStore: ObservableObject {
 
     // MARK: - Periodic Note
 
-    /// 論理日時を計算する（現在日時 − rolloverDelay）
+    /// Returns the logical date/time (current time minus rolloverDelay).
     func logicalDate(rolloverDelay: TimeInterval) -> Date {
         Date().addingTimeInterval(-rolloverDelay)
     }
 
-    /// NoteConfig から指定日付の Note を解決する
-    /// ファイルが存在しない場合は自動作成する（template 指定あり → テンプレートコピー、なし → 空ファイル）
+    /// Resolves a Note for the given date from NoteConfig.
+    /// Creates the file automatically if it does not exist (with template → copy template, without → empty file).
     func resolvePeriodicNote(from config: NoteConfig, for date: Date, defaults: NoteDefaults? = nil) -> Note? {
         let resolvedPath = PathTemplateResolver.resolve(config.path, for: date)
         guard let url = resolvePath(resolvedPath) else { return nil }
