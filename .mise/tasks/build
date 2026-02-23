@@ -2,6 +2,8 @@
 #MISE description="Release ビルド (.app バンドル生成)"
 set -euo pipefail
 
+version="${APP_VERSION:-0.0.0-dev}"
+
 swift build -c release
 
 # .app バンドル構成
@@ -15,7 +17,9 @@ sed \
   -e 's/$(DEVELOPMENT_LANGUAGE)/en/' \
   -e 's/$(EXECUTABLE_NAME)/Chirami/' \
   -e 's/$(PRODUCT_BUNDLE_IDENTIFIER)/com.uphy.Chirami/' \
+  -e "s/\$(MARKETING_VERSION)/$version/" \
+  -e "s/\$(CURRENT_PROJECT_VERSION)/$version/" \
   -e 's/$(MACOSX_DEPLOYMENT_TARGET)/14.0/' \
   Chirami/Info.plist > "$app_dir/Info.plist"
 
-echo "Built build/Chirami.app"
+echo "Built build/Chirami.app (version: $version)"
