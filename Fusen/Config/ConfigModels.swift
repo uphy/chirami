@@ -3,14 +3,26 @@ import CryptoKit
 
 // MARK: - Config (~/.config/fusen/config.yaml)
 
+struct NoteDefaults: Codable {
+    var color: String?
+    var transparency: Double?
+    var fontSize: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case color, transparency
+        case fontSize = "font_size"
+    }
+}
+
 struct FusenConfig: Codable {
     var hotkey: String?
+    var defaults: NoteDefaults?
     var notes: [NoteConfig] = []
     var karabiner: KarabinerConfig?
     var smartPaste: SmartPasteConfig?
 
     enum CodingKeys: String, CodingKey {
-        case hotkey, notes, karabiner
+        case hotkey, defaults, notes, karabiner
         case smartPaste = "smart_paste"
     }
 }
@@ -96,6 +108,20 @@ struct NoteConfig: Codable {
         case path, title, color, transparency, hotkey, position
         case fontSize = "font_size"
         case autoHide = "auto_hide"
+    }
+
+    func resolveColor(defaults: NoteDefaults?) -> NoteColor {
+        if let c = color, let color = NoteColor(rawValue: c) { return color }
+        if let c = defaults?.color, let color = NoteColor(rawValue: c) { return color }
+        return .yellow
+    }
+
+    func resolveTransparency(defaults: NoteDefaults?) -> Double {
+        transparency ?? defaults?.transparency ?? 0.9
+    }
+
+    func resolveFontSize(defaults: NoteDefaults?) -> CGFloat {
+        CGFloat(fontSize ?? defaults?.fontSize ?? 14)
     }
 }
 

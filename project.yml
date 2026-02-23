@@ -54,3 +54,15 @@ targets:
         product: Yams
       - package: Highlightr
         product: Highlightr
+  FusenTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: FusenTests
+    dependencies:
+      - target: Fusen
+      - package: Yams
+        product: Yams
+    settings:
+      base:
+        SWIFT_VERSION: "5.9"

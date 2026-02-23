@@ -36,10 +36,9 @@ class NoteStore: ObservableObject {
             let title = noteConfig.title
                 ?? URL(fileURLWithPath: noteConfig.resolvedPath)
                     .deletingPathExtension().lastPathComponent
-            let color = noteConfig.color.flatMap { NoteColor(rawValue: $0) } ?? .yellow
-
-            let transparency = noteConfig.transparency ?? 0.9
-            let fontSize = CGFloat(noteConfig.fontSize ?? 14)
+            let color = noteConfig.resolveColor(defaults: config.defaults)
+            let transparency = noteConfig.resolveTransparency(defaults: config.defaults)
+            let fontSize = noteConfig.resolveFontSize(defaults: config.defaults)
 
             let alwaysOnTop = appState.windowState(for: id)?.alwaysOnTop ?? true
 

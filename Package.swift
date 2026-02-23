@@ -9,6 +9,7 @@ let package = Package(
         .package(url: "https://github.com/soffes/HotKey", from: "0.2.0"),
         .package(url: "https://github.com/jpsim/Yams", from: "5.0.0"),
         .package(url: "https://github.com/raspu/Highlightr", from: "2.2.1"),
+        .package(url: "https://github.com/swiftlang/swift-testing", from: "0.12.0"),
     ],
     targets: [
         .executableTarget(
@@ -25,6 +26,15 @@ let package = Package(
                 "Fusen.entitlements",
                 "Resources",
             ]
-        )
+        ),
+        .testTarget(
+            name: "FusenTests",
+            dependencies: [
+                "Fusen",
+                .product(name: "Yams", package: "Yams"),
+                .product(name: "Testing", package: "swift-testing"),
+            ],
+            path: "FusenTests"
+        ),
     ]
 )

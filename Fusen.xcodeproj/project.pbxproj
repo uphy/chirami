@@ -13,12 +13,14 @@
 		3D75B948594751731F210822 /* FileWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45514F76A24CC5B51B8EB1C1 /* FileWatcher.swift */; };
 		47609F52BA06C2C31D684125 /* Highlightr in Frameworks */ = {isa = PBXBuildFile; productRef = 173FCA07A5A5CE9ECF0993DB /* Highlightr */; };
 		52AF571E86755BDCF70AF9C3 /* NoteListPopover.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63131F96F88E6661632316D8 /* NoteListPopover.swift */; };
+		558984DE710EE9223AFD9A02 /* Yams in Frameworks */ = {isa = PBXBuildFile; productRef = 9A375686BC0665CAD2A35E99 /* Yams */; };
 		595C06753456A6F70B9CC85E /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6477EC65343AA21B8C6B9455 /* AppState.swift */; };
 		5BB072DE646B7601C8CCCCF0 /* ImageCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AD8373EE9242EB738892432 /* ImageCache.swift */; };
 		6368201D070448788BFCBFF8 /* MarkdownStyler+Attributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = D17FD928FC0445860C35C9C7 /* MarkdownStyler+Attributes.swift */; };
 		6D25FCC56BEB7CDAAC843219 /* YAMLStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B2E24DEE60E5C29D85875C7 /* YAMLStore.swift */; };
 		6DEC765903E708C6AC9CA4C3 /* LivePreviewEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7830158D5C242F95FE5F3E90 /* LivePreviewEditor.swift */; };
 		832A18EF3099367169F6E79B /* WindowManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CC0AA3B916EEB95A591FA4C /* WindowManager.swift */; };
+		890061DA3D70F7A2C9191A54 /* SmartPasteService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAA1C1E674C1E1DD827B6887 /* SmartPasteService.swift */; };
 		8A875D90043CA058FBBC9FD2 /* MarkdownStyler+CodeBlock.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A26AF3FEF8F6B5485552395 /* MarkdownStyler+CodeBlock.swift */; };
 		9011A8392B7AA1C6724E5A1C /* MarkdownStyler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A43CB1B572ABDEE8CF4F6D9 /* MarkdownStyler.swift */; };
 		9540A1C2978D56E480653233 /* MarkdownStyler+BlockQuote.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DE519888FC7EEBDB0571904 /* MarkdownStyler+BlockQuote.swift */; };
@@ -34,7 +36,6 @@
 		C5539A9953551834DA544A60 /* MarkdownStyler+List.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36C4851176ADA90F34AF2712 /* MarkdownStyler+List.swift */; };
 		D43AACD6ACB54E0BC1F22239 /* NoteStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F951DC7C3CACCAF005BF01C0 /* NoteStore.swift */; };
 		D5087C47D28496932B9CA4AA /* TableOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E9F7AB3FCA4BA229FAFBCC7 /* TableOverlayView.swift */; };
-		DBDED578CD1A170764444E5B /* SwiftHTMLtoMarkdown in Frameworks */ = {isa = PBXBuildFile; productRef = D54A4287A6998AD1DA76E84E /* SwiftHTMLtoMarkdown */; };
 		E2B11B1FB5DA175E67ECE60D /* KarabinerService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3FD5AA70A841318B4EF949F /* KarabinerService.swift */; };
 		E5126EB0F16D87EE9DC23C2A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A210F8D7E82D20B209C55E98 /* Assets.xcassets */; };
 		E9233A31B3EED03350CB15B4 /* GlobalHotkeyService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A311522C466E5D7A84669BA1 /* GlobalHotkeyService.swift */; };
@@ -43,6 +44,16 @@
 		FA7516A274640DE4682EF851 /* ConfigModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = E87FD26BBAAC012942E0F0BA /* ConfigModels.swift */; };
 		FD6848D4E6CBDC24666C7A24 /* MarkdownStyler+ThematicBreak.swift in Sources */ = {isa = PBXBuildFile; fileRef = D598AE6D48995188FA94AA7D /* MarkdownStyler+ThematicBreak.swift */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		71E4EDDC30F19FD6DC496AD3 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 040A6125FDC9D182A732EDB4 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 9D1F800C4F466379FCAC914D;
+			remoteInfo = Fusen;
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		0A43CB1B572ABDEE8CF4F6D9 /* MarkdownStyler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownStyler.swift; sourceTree = "<group>"; };
@@ -68,6 +79,7 @@
 		9B802661C5CC13D46EF0B7D3 /* MarkdownStyler+Table.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MarkdownStyler+Table.swift"; sourceTree = "<group>"; };
 		A210F8D7E82D20B209C55E98 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		A311522C466E5D7A84669BA1 /* GlobalHotkeyService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlobalHotkeyService.swift; sourceTree = "<group>"; };
+		AAA1C1E674C1E1DD827B6887 /* SmartPasteService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmartPasteService.swift; sourceTree = "<group>"; };
 		B30227545343F59E44D58FC1 /* BulletLayoutManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BulletLayoutManager.swift; sourceTree = "<group>"; };
 		BB87612AAE78B2CCD1907BCD /* MarkdownTextView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownTextView.swift; sourceTree = "<group>"; };
 		C5800A7F6929ADB0626F2FD5 /* MarkdownStyler+Inline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MarkdownStyler+Inline.swift"; sourceTree = "<group>"; };
@@ -75,12 +87,21 @@
 		D17FD928FC0445860C35C9C7 /* MarkdownStyler+Attributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MarkdownStyler+Attributes.swift"; sourceTree = "<group>"; };
 		D598AE6D48995188FA94AA7D /* MarkdownStyler+ThematicBreak.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MarkdownStyler+ThematicBreak.swift"; sourceTree = "<group>"; };
 		DB8DA77B44AD746B0DDBA6BE /* Fusen.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Fusen.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		DBF1A4D291F75D2880E87F0E /* FusenTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FusenTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		E3FD5AA70A841318B4EF949F /* KarabinerService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KarabinerService.swift; sourceTree = "<group>"; };
 		E87FD26BBAAC012942E0F0BA /* ConfigModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfigModels.swift; sourceTree = "<group>"; };
 		F951DC7C3CACCAF005BF01C0 /* NoteStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteStore.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		1D2FA42D4308885C47C75A22 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				558984DE710EE9223AFD9A02 /* Yams in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		E839DC9D286B94D0B943E263 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -89,7 +110,6 @@
 				C50929D3BB96D346F11B4B08 /* HotKey in Frameworks */,
 				BB53120A7C31A89E121ADF85 /* Yams in Frameworks */,
 				47609F52BA06C2C31D684125 /* Highlightr in Frameworks */,
-				DBDED578CD1A170764444E5B /* SwiftHTMLtoMarkdown in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -111,6 +131,7 @@
 			isa = PBXGroup;
 			children = (
 				FE2DAE1374FA5448E47DF298 /* Fusen */,
+				90341D75184FB6271EE9C3F6 /* FusenTests */,
 				95A8870EED58A39BD82E201E /* Products */,
 			);
 			sourceTree = "<group>";
@@ -156,10 +177,18 @@
 			path = Config;
 			sourceTree = "<group>";
 		};
+		90341D75184FB6271EE9C3F6 /* FusenTests */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = FusenTests;
+			sourceTree = "<group>";
+		};
 		95A8870EED58A39BD82E201E /* Products */ = {
 			isa = PBXGroup;
 			children = (
 				DB8DA77B44AD746B0DDBA6BE /* Fusen.app */,
+				DBF1A4D291F75D2880E87F0E /* FusenTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -178,6 +207,7 @@
 				45514F76A24CC5B51B8EB1C1 /* FileWatcher.swift */,
 				A311522C466E5D7A84669BA1 /* GlobalHotkeyService.swift */,
 				E3FD5AA70A841318B4EF949F /* KarabinerService.swift */,
+				AAA1C1E674C1E1DD827B6887 /* SmartPasteService.swift */,
 				2CC0AA3B916EEB95A591FA4C /* WindowManager.swift */,
 			);
 			path = Services;
@@ -202,6 +232,26 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		725D67FF38A688ABE065A133 /* FusenTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 935366EB152020F053145E9C /* Build configuration list for PBXNativeTarget "FusenTests" */;
+			buildPhases = (
+				CA5D4E96DB8BB7C19C5F91C3 /* Sources */,
+				1D2FA42D4308885C47C75A22 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				05C0662439799FC22356707F /* PBXTargetDependency */,
+			);
+			name = FusenTests;
+			packageProductDependencies = (
+				9A375686BC0665CAD2A35E99 /* Yams */,
+			);
+			productName = FusenTests;
+			productReference = DBF1A4D291F75D2880E87F0E /* FusenTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 		9D1F800C4F466379FCAC914D /* Fusen */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 67FCFBBA9C39B194D8ECE06B /* Build configuration list for PBXNativeTarget "Fusen" */;
@@ -220,7 +270,6 @@
 				CE0415AD13BD10C8FE00353C /* HotKey */,
 				3681D74F1C206E1CA1E7CE18 /* Yams */,
 				173FCA07A5A5CE9ECF0993DB /* Highlightr */,
-				D54A4287A6998AD1DA76E84E /* SwiftHTMLtoMarkdown */,
 			);
 			productName = Fusen;
 			productReference = DB8DA77B44AD746B0DDBA6BE /* Fusen.app */;
@@ -248,7 +297,6 @@
 			packageReferences = (
 				6147C5857B0228E59AFEC183 /* XCRemoteSwiftPackageReference "Highlightr" */,
 				627EAEE3E2F62C7B0355048E /* XCRemoteSwiftPackageReference "HotKey" */,
-				2E0A5DC7736869020E669EA0 /* XCRemoteSwiftPackageReference "SwiftHTMLToMarkdown" */,
 				C3B1BFB48CA8741CBC4E1591 /* XCRemoteSwiftPackageReference "Yams" */,
 				02EEF24A4E41DE8C7746BF01 /* XCRemoteSwiftPackageReference "swift-markdown" */,
 			);
@@ -257,6 +305,7 @@
 			projectRoot = "";
 			targets = (
 				9D1F800C4F466379FCAC914D /* Fusen */,
+				725D67FF38A688ABE065A133 /* FusenTests */,
 			);
 		};
 /* End PBXProject section */
@@ -303,13 +352,29 @@
 				52AF571E86755BDCF70AF9C3 /* NoteListPopover.swift in Sources */,
 				D43AACD6ACB54E0BC1F22239 /* NoteStore.swift in Sources */,
 				BC24B468518D9E8AD833DA09 /* NoteWindow.swift in Sources */,
+				890061DA3D70F7A2C9191A54 /* SmartPasteService.swift in Sources */,
 				D5087C47D28496932B9CA4AA /* TableOverlayView.swift in Sources */,
 				832A18EF3099367169F6E79B /* WindowManager.swift in Sources */,
 				6D25FCC56BEB7CDAAC843219 /* YAMLStore.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		CA5D4E96DB8BB7C19C5F91C3 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		05C0662439799FC22356707F /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 9D1F800C4F466379FCAC914D /* Fusen */;
+			targetProxy = 71E4EDDC30F19FD6DC496AD3 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		1B652120483B23C702C28C08 /* Release */ = {
@@ -450,6 +515,23 @@
 			};
 			name = Debug;
 		};
+		5E583D9C699A42D1A7ADEEB0 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.uphy.FusenTests;
+				SDKROOT = macosx;
+				SWIFT_VERSION = 5.9;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Fusen.app/Contents/MacOS/Fusen";
+			};
+			name = Release;
+		};
 		8B557101CC8014C805277958 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -469,6 +551,23 @@
 			};
 			name = Release;
 		};
+		FAFD12E98DE22EF3CD0D2989 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.uphy.FusenTests;
+				SDKROOT = macosx;
+				SWIFT_VERSION = 5.9;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Fusen.app/Contents/MacOS/Fusen";
+			};
+			name = Debug;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -477,6 +576,15 @@
 			buildConfigurations = (
 				3B8AB27298EFF4C45A7E81C2 /* Debug */,
 				8B557101CC8014C805277958 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		935366EB152020F053145E9C /* Build configuration list for PBXNativeTarget "FusenTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				FAFD12E98DE22EF3CD0D2989 /* Debug */,
+				5E583D9C699A42D1A7ADEEB0 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
@@ -499,14 +607,6 @@
 			requirement = {
 				kind = upToNextMajorVersion;
 				minimumVersion = 0.3.0;
-			};
-		};
-		2E0A5DC7736869020E669EA0 /* XCRemoteSwiftPackageReference "SwiftHTMLToMarkdown" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/ActuallyTaylor/SwiftHTMLToMarkdown";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 1.1.1;
 			};
 		};
 		6147C5857B0228E59AFEC183 /* XCRemoteSwiftPackageReference "Highlightr" */ = {
@@ -551,15 +651,15 @@
 			package = 02EEF24A4E41DE8C7746BF01 /* XCRemoteSwiftPackageReference "swift-markdown" */;
 			productName = Markdown;
 		};
+		9A375686BC0665CAD2A35E99 /* Yams */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C3B1BFB48CA8741CBC4E1591 /* XCRemoteSwiftPackageReference "Yams" */;
+			productName = Yams;
+		};
 		CE0415AD13BD10C8FE00353C /* HotKey */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 627EAEE3E2F62C7B0355048E /* XCRemoteSwiftPackageReference "HotKey" */;
 			productName = HotKey;
-		};
-		D54A4287A6998AD1DA76E84E /* SwiftHTMLtoMarkdown */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 2E0A5DC7736869020E669EA0 /* XCRemoteSwiftPackageReference "SwiftHTMLToMarkdown" */;
-			productName = SwiftHTMLtoMarkdown;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
