@@ -33,11 +33,7 @@ extension MarkdownStyler {
                      hideMarkers: true, markerLength: 2)
 
         applyPattern(Self.inlineCodePattern, to: storage, in: text, offset: offset,
-                     attributes: [
-                         .font: NSFont.monospacedSystemFont(ofSize: baseFontSize - 1, weight: .regular),
-                         .foregroundColor: NSColor.systemOrange,
-                         .inlineCodeBackground: NSColor.labelColor.withAlphaComponent(0.08)
-                     ],
+                     attributes: InlineMarkupRenderer.inlineCodeAttributes(fontSize: baseFontSize),
                      hideMarkers: true, markerLength: 1)
 
         applyLinkPattern(to: storage, in: text, offset: offset)
@@ -57,11 +53,7 @@ extension MarkdownStyler {
                         contentAttributes: [.strikethroughStyle: NSUnderlineStyle.single.rawValue, .foregroundColor: noteColor.textColor])
 
         applyRawPattern(Self.inlineCodePattern, to: storage, in: text, offset: offset,
-                        contentAttributes: [
-                            .font: NSFont.monospacedSystemFont(ofSize: baseFontSize - 1, weight: .regular),
-                            .foregroundColor: NSColor.systemOrange,
-                            .inlineCodeBackground: NSColor.labelColor.withAlphaComponent(0.08)
-                        ])
+                        contentAttributes: InlineMarkupRenderer.inlineCodeAttributes(fontSize: baseFontSize))
 
         applyRawLinkPattern(to: storage, in: text, offset: offset)
         applyRawImagePattern(to: storage, in: text, offset: offset)

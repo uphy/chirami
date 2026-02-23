@@ -61,88 +61,116 @@ class TableOverlayData: NSObject {
 
     // MARK: - AST -> NSAttributedString
 
-    /// Recursively builds an NSAttributedString from an inline AST node.
-    private static func attributedText(of node: any Markup, font: NSFont, noteColor: NoteColor) -> NSAttributedString {
-        if let textNode = node as? Text {
-            return NSAttributedString(string: textNode.string, attributes: [
-                .font: font,
-                .foregroundColor: noteColor.textColor,
-            ])
-        }
-
-        if node is SoftBreak || node is LineBreak {
-            return NSAttributedString(string: " ", attributes: [
-                .font: font,
-                .foregroundColor: noteColor.textColor,
-            ])
-        }
-
-        if node is Strong {
-            let boldFont = NSFont.systemFont(ofSize: font.pointSize, weight: .bold)
-            let result = NSMutableAttributedString()
-            for child in node.children {
-                result.append(attributedText(of: child, font: boldFont, noteColor: noteColor))
-            }
-            return result
-        }
-
-        if node is Emphasis {
-            let italicFont = NSFontManager.shared.convert(font, toHaveTrait: .italicFontMask)
-            let result = NSMutableAttributedString()
-            for child in node.children {
-                result.append(attributedText(of: child, font: italicFont, noteColor: noteColor))
-            }
-            return result
-        }
-
-        if let code = node as? InlineCode {
-            let codeFont = NSFont.monospacedSystemFont(ofSize: font.pointSize - 1, weight: .regular)
-            return NSAttributedString(string: code.code, attributes: [
-                .font: codeFont,
-                .foregroundColor: NSColor.systemOrange,
-                .inlineCodeBackground: NSColor.labelColor.withAlphaComponent(0.08),
-            ])
-        }
-
-        if let link = node as? Link {
-            let result = NSMutableAttributedString()
-            for child in link.children {
-                result.append(attributedText(of: child, font: font, noteColor: noteColor))
-            }
-            var attrs: [NSAttributedString.Key: Any] = [.foregroundColor: noteColor.linkColor]
-            if let dest = link.destination, let url = URL(string: dest) {
-                attrs[.link] = url
-            }
-            result.addAttributes(attrs, range: NSRange(location: 0, length: result.length))
-            return result
-        }
-
-        if node is Strikethrough {
-            let result = NSMutableAttributedString()
-            for child in node.children {
-                result.append(attributedText(of: child, font: font, noteColor: noteColor))
-            }
-            result.addAttribute(
-                .strikethroughStyle, value: NSUnderlineStyle.single.rawValue,
-                range: NSRange(location: 0, length: result.length))
-            return result
-        }
-
-        // Default: recurse over children (handles Table.Cell and unknown containers)
-        let result = NSMutableAttributedString()
-        for child in node.children {
-            result.append(attributedText(of: child, font: font, noteColor: noteColor))
-        }
-        return result
-    }
-
-    /// Entry point for a Table.Cell node.
     private static func attributedText(of cell: Table.Cell, font: NSFont, noteColor: NoteColor) -> NSAttributedString {
         let result = NSMutableAttributedString()
         for child in cell.children {
-            result.append(attributedText(of: child, font: font, noteColor: noteColor))
+            result.append(InlineMarkupRenderer.attributedText(of: child, font: font, noteColor: noteColor))
         }
         return result
+    }
+}
+
+// MARK: - TableOverlayManager
+
+/// Manages creation, update, and removal of TableOverlayView instances over a text view.
+class TableOverlayManager {
+    private var overlays: [Int: TableOverlayView] = [:]
+
+    func removeAll() {
+        for overlay in overlays.values {
+            overlay.removeFromSuperview()
+        }
+        overlays.removeAll()
+    }
+
+    func update(textView: NSTextView, noteColor: NoteColor, fontSize: CGFloat) {
+        guard let storage = textView.textStorage,
+              let layoutManager = textView.layoutManager,
+              let textContainer = textView.textContainer else { return }
+
+        layoutManager.ensureLayout(for: textContainer)
+
+        let storageRange = NSRange(location: 0, length: storage.length)
+
+        // Collect tableOverlay attributes using longestEffectiveRange to avoid
+        // attribute run fragmentation caused by tableSeparatorRow splitting the range.
+        var found: [Int: TableOverlayData] = [:]
+        storage.enumerateAttribute(.tableOverlay, in: storageRange, options: []) { value, range, _ in
+            guard let data = value as? TableOverlayData else { return }
+            var fullRange = NSRange()
+            storage.attribute(.tableOverlay, at: range.location,
+                              longestEffectiveRange: &fullRange,
+                              in: storageRange)
+            found[fullRange.location] = data
+        }
+
+        // Remove overlays no longer present
+        let existingKeys = Set(overlays.keys)
+        let foundKeys = Set(found.keys)
+        for key in existingKeys.subtracting(foundKeys) {
+            overlays[key]?.removeFromSuperview()
+            overlays.removeValue(forKey: key)
+        }
+
+        let containerOrigin = textView.textContainerOrigin
+        let containerWidth = textContainer.size.width
+
+        // Create or update overlays
+        for (location, data) in found {
+            var effectiveRange = NSRange()
+            guard storage.attribute(.tableOverlay, at: location,
+                                    longestEffectiveRange: &effectiveRange,
+                                    in: storageRange) != nil
+            else { continue }
+
+            let glyphRange = layoutManager.glyphRange(forCharacterRange: effectiveRange, actualCharacterRange: nil)
+
+            // Collect per-row rects, skipping separator rows
+            var rowRects: [NSRect] = []
+            layoutManager.enumerateLineFragments(forGlyphRange: glyphRange) { lineRect, _, _, lineGlyphRange, _ in
+                let lineCharRange = layoutManager.characterRange(forGlyphRange: lineGlyphRange, actualGlyphRange: nil)
+                if lineCharRange.length > 0,
+                   storage.attribute(.tableSeparatorRow, at: lineCharRange.location, effectiveRange: nil) != nil {
+                    return  // skip separator
+                }
+                rowRects.append(lineRect)
+            }
+
+            guard let firstRect = rowRects.first, let lastRect = rowRects.last else { continue }
+            let minY = firstRect.minY
+            let maxY = lastRect.maxY
+            guard minY < maxY else { continue }
+
+            let naturalWidths = TableOverlayView.computeColumnWidths(data: data)
+            let tableWidth = naturalWidths.reduce(0, +)
+            let overlayWidth = tableWidth > 0 ? min(tableWidth, containerWidth) : containerWidth
+
+            let overlayFrame = NSRect(
+                x: containerOrigin.x,
+                y: containerOrigin.y + minY,
+                width: overlayWidth,
+                height: maxY - minY
+            )
+
+            let localRowRects = rowRects.map { rect in
+                NSRect(x: 0, y: rect.minY - minY, width: overlayWidth, height: rect.height)
+            }
+
+            if let existing = overlays[location] {
+                existing.frame = overlayFrame
+                existing.data = data
+                existing.noteColor = noteColor
+                existing.baseFontSize = fontSize
+                existing.rowRects = localRowRects
+                existing.needsDisplay = true
+            } else {
+                let overlay = TableOverlayView(data: data, noteColor: noteColor, baseFontSize: fontSize)
+                overlay.frame = overlayFrame
+                overlay.rowRects = localRowRects
+                textView.addSubview(overlay)
+                overlays[location] = overlay
+            }
+        }
     }
 }
 
@@ -204,71 +232,76 @@ class TableOverlayView: NSView {
         let colCount = max(data.columnCount, 1)
         let colWidths = computeColumnWidths()
 
-        // --- Background ---
         // Header row background (rowRects[0] is the header)
         NSColor.labelColor.withAlphaComponent(0.06).setFill()
         rowRects[0].fill()
 
-        // --- Cell text ---
-        func drawCell(attributedText: NSAttributedString, alignment: NSTextAlignment, colIndex: Int, rowIndex: Int) {
-            guard rowIndex < rowRects.count else { return }
-            let rowRect = rowRects[rowIndex]
-            let x = colWidths.prefix(colIndex).reduce(0, +)
-            let w = colIndex < colWidths.count ? colWidths[colIndex] : 0
-
-            let mutable = NSMutableAttributedString(attributedString: attributedText)
-            let paraStyle = NSMutableParagraphStyle()
-            paraStyle.alignment = alignment
-            paraStyle.lineBreakMode = .byTruncatingTail
-            let fullRange = NSRange(location: 0, length: mutable.length)
-            mutable.addAttribute(.paragraphStyle, value: paraStyle, range: fullRange)
-
-            let textSize = mutable.size()
-            let textY = rowRect.minY + (rowRect.height - textSize.height) / 2
-            let drawRect = NSRect(x: x + 8, y: textY, width: w - 16, height: textSize.height)
-
-            // Draw inline code backgrounds using a temporary layout stack
-            var hasCodeBackground = false
-            mutable.enumerateAttribute(.inlineCodeBackground, in: fullRange, options: []) { value, _, _ in
-                if value != nil { hasCodeBackground = true }
-            }
-            if hasCodeBackground {
-                let textStorage = NSTextStorage(attributedString: mutable)
-                let layoutManager = NSLayoutManager()
-                let textContainer = NSTextContainer(
-                    size: CGSize(width: drawRect.width, height: CGFloat.greatestFiniteMagnitude))
-                textContainer.lineFragmentPadding = 0
-                layoutManager.addTextContainer(textContainer)
-                textStorage.addLayoutManager(layoutManager)
-
-                mutable.enumerateAttribute(.inlineCodeBackground, in: fullRange, options: []) { value, range, _ in
-                    guard let color = value as? NSColor else { return }
-                    let glyphRange = layoutManager.glyphRange(forCharacterRange: range, actualCharacterRange: nil)
-                    let rect = layoutManager.boundingRect(forGlyphRange: glyphRange, in: textContainer)
-                    let bgRect = rect.offsetBy(dx: drawRect.minX, dy: drawRect.minY).insetBy(dx: -2, dy: -1)
-                    color.setFill()
-                    NSBezierPath(roundedRect: bgRect, xRadius: 3, yRadius: 3).fill()
-                }
-            }
-
-            mutable.draw(in: drawRect)
-        }
-
-        // Header row
+        // Cell text
         for (i, cell) in data.headerCells.enumerated() where i < colCount {
-            drawCell(attributedText: cell.attributedText, alignment: cell.alignment, colIndex: i, rowIndex: 0)
+            drawCell(attributedText: cell.attributedText, alignment: cell.alignment,
+                     colIndex: i, rowIndex: 0, colWidths: colWidths)
         }
-
-        // Body rows
         for (rowIdx, row) in data.bodyRows.enumerated() {
             for (colIdx, cell) in row.enumerated() where colIdx < colCount {
-                drawCell(
-                    attributedText: cell.attributedText, alignment: cell.alignment,
-                    colIndex: colIdx, rowIndex: rowIdx + 1)
+                drawCell(attributedText: cell.attributedText, alignment: cell.alignment,
+                         colIndex: colIdx, rowIndex: rowIdx + 1, colWidths: colWidths)
             }
         }
 
-        // --- Grid lines ---
+        drawGridLines(colCount: colCount, colWidths: colWidths)
+    }
+
+    private func drawCell(
+        attributedText: NSAttributedString,
+        alignment: NSTextAlignment,
+        colIndex: Int,
+        rowIndex: Int,
+        colWidths: [CGFloat]
+    ) {
+        guard rowIndex < rowRects.count else { return }
+        let rowRect = rowRects[rowIndex]
+        let x = colWidths.prefix(colIndex).reduce(0, +)
+        let w = colIndex < colWidths.count ? colWidths[colIndex] : 0
+
+        let mutable = NSMutableAttributedString(attributedString: attributedText)
+        let paraStyle = NSMutableParagraphStyle()
+        paraStyle.alignment = alignment
+        paraStyle.lineBreakMode = .byTruncatingTail
+        let fullRange = NSRange(location: 0, length: mutable.length)
+        mutable.addAttribute(.paragraphStyle, value: paraStyle, range: fullRange)
+
+        let textSize = mutable.size()
+        let textY = rowRect.minY + (rowRect.height - textSize.height) / 2
+        let drawRect = NSRect(x: x + 8, y: textY, width: w - 16, height: textSize.height)
+
+        // Draw inline code backgrounds using a temporary layout stack
+        var hasCodeBackground = false
+        mutable.enumerateAttribute(.inlineCodeBackground, in: fullRange, options: []) { value, _, _ in
+            if value != nil { hasCodeBackground = true }
+        }
+        if hasCodeBackground {
+            let textStorage = NSTextStorage(attributedString: mutable)
+            let layoutManager = NSLayoutManager()
+            let textContainer = NSTextContainer(
+                size: CGSize(width: drawRect.width, height: CGFloat.greatestFiniteMagnitude))
+            textContainer.lineFragmentPadding = 0
+            layoutManager.addTextContainer(textContainer)
+            textStorage.addLayoutManager(layoutManager)
+
+            mutable.enumerateAttribute(.inlineCodeBackground, in: fullRange, options: []) { value, range, _ in
+                guard let color = value as? NSColor else { return }
+                let glyphRange = layoutManager.glyphRange(forCharacterRange: range, actualCharacterRange: nil)
+                let rect = layoutManager.boundingRect(forGlyphRange: glyphRange, in: textContainer)
+                let bgRect = rect.offsetBy(dx: drawRect.minX, dy: drawRect.minY).insetBy(dx: -2, dy: -1)
+                color.setFill()
+                NSBezierPath(roundedRect: bgRect, xRadius: 3, yRadius: 3).fill()
+            }
+        }
+
+        mutable.draw(in: drawRect)
+    }
+
+    private func drawGridLines(colCount: Int, colWidths: [CGFloat]) {
         NSColor.separatorColor.setStroke()
         let gridPath = NSBezierPath()
         gridPath.lineWidth = 0.5

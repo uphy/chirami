@@ -22,13 +22,23 @@ class BulletLayoutManager: NSLayoutManager {
               let textContainer = textContainers.first else { return }
 
         let charRange = characterRange(forGlyphRange: glyphsToShow, actualGlyphRange: nil)
-        let containerWidth = textContainer.size.width
 
+        drawCodeBlockBackgrounds(in: textStorage, charRange: charRange, origin: origin,
+                                 containerWidth: textContainer.size.width)
+        drawBlockQuoteBorders(in: textStorage, charRange: charRange, origin: origin)
+        drawThematicBreaks(in: textStorage, charRange: charRange, origin: origin,
+                           containerWidth: textContainer.size.width)
+        drawInlineCodeBackgrounds(in: textStorage, charRange: charRange, origin: origin,
+                                  textContainer: textContainer)
+    }
+
+    private func drawCodeBlockBackgrounds(
+        in textStorage: NSTextStorage, charRange: NSRange, origin: NSPoint, containerWidth: CGFloat
+    ) {
         textStorage.enumerateAttribute(.codeBlockBackground, in: charRange, options: []) { value, attrRange, _ in
             guard let color = value as? NSColor else { return }
             let glyphRange = glyphRange(forCharacterRange: attrRange, actualCharacterRange: nil)
 
-            // Compute bounding rect of all line fragments in this code block
             var minY: CGFloat = .greatestFiniteMagnitude
             var maxY: CGFloat = 0
             enumerateLineFragments(forGlyphRange: glyphRange) { lineRect, _, _, _, _ in
@@ -37,17 +47,15 @@ class BulletLayoutManager: NSLayoutManager {
             }
             guard minY < maxY else { return }
 
-            let bgRect = NSRect(
-                x: origin.x,
-                y: origin.y + minY,
-                width: containerWidth,
-                height: maxY - minY
-            )
+            let bgRect = NSRect(x: origin.x, y: origin.y + minY, width: containerWidth, height: maxY - minY)
             color.setFill()
             NSBezierPath(roundedRect: bgRect, xRadius: 6, yRadius: 6).fill()
         }
+    }
 
-        // Block quote left border
+    private func drawBlockQuoteBorders(
+        in textStorage: NSTextStorage, charRange: NSRange, origin: NSPoint
+    ) {
         textStorage.enumerateAttribute(.blockQuoteBorder, in: charRange, options: []) { value, attrRange, _ in
             guard let color = value as? NSColor else { return }
 
@@ -75,22 +83,19 @@ class BulletLayoutManager: NSLayoutManager {
             if let paragraphStyle = textStorage.attribute(.paragraphStyle, at: lastCharIndex, effectiveRange: nil) as? NSParagraphStyle {
                 maxY -= paragraphStyle.lineSpacing
             }
-
             guard minY < maxY else { return }
 
             let borderWidth: CGFloat = 3
-            let borderX: CGFloat = origin.x + 4
             let borderRect = NSRect(
-                x: borderX,
-                y: origin.y + minY,
-                width: borderWidth,
-                height: maxY - minY
-            )
+                x: origin.x + 4, y: origin.y + minY, width: borderWidth, height: maxY - minY)
             color.setFill()
             NSBezierPath(roundedRect: borderRect, xRadius: borderWidth / 2, yRadius: borderWidth / 2).fill()
         }
+    }
 
-        // Thematic breaks — draw a 1px horizontal separator line
+    private func drawThematicBreaks(
+        in textStorage: NSTextStorage, charRange: NSRange, origin: NSPoint, containerWidth: CGFloat
+    ) {
         textStorage.enumerateAttribute(.thematicBreak, in: charRange, options: []) { value, attrRange, _ in
             guard value != nil else { return }
             let glyphRange = glyphRange(forCharacterRange: attrRange, actualCharacterRange: nil)
@@ -100,12 +105,14 @@ class BulletLayoutManager: NSLayoutManager {
             }
             guard lineRect != .zero else { return }
             let y = (origin.y + lineRect.midY).rounded() - 0.5
-            let lineWidth = textContainer.size.width - 16
             NSColor.separatorColor.setFill()
-            NSBezierPath(rect: NSRect(x: origin.x + 8, y: y, width: lineWidth, height: 1)).fill()
+            NSBezierPath(rect: NSRect(x: origin.x + 8, y: y, width: containerWidth - 16, height: 1)).fill()
         }
+    }
 
-        // Inline code backgrounds with rounded corners
+    private func drawInlineCodeBackgrounds(
+        in textStorage: NSTextStorage, charRange: NSRange, origin: NSPoint, textContainer: NSTextContainer
+    ) {
         textStorage.enumerateAttribute(.inlineCodeBackground, in: charRange, options: []) { value, attrRange, _ in
             guard let color = value as? NSColor else { return }
             let glyphRange = glyphRange(forCharacterRange: attrRange, actualCharacterRange: nil)
