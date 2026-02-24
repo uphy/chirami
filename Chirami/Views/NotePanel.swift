@@ -14,6 +14,8 @@ class NotePanel: NSPanel {
     private var todayButton: NSButton?
     private var pinButton: NSButton?
 
+    var onWarpKey: ((Character) -> Void)?
+
     override var title: String {
         didSet { customTitleLabel?.stringValue = title }
     }
@@ -173,6 +175,16 @@ class NotePanel: NSPanel {
             if location.y > contentLayoutRect.maxY && event.type == .mouseMoved {
                 super.sendEvent(event)
                 NSCursor.openHand.set()
+                return
+            }
+        }
+        if event.type == .keyDown {
+            let warpFlags = AppConfig.shared.data.warpModifierFlags
+            let activeFlags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+            if activeFlags == warpFlags,
+               let char = event.charactersIgnoringModifiers?.first,
+               ["h", "j", "k", "l"].contains(char) {
+                onWarpKey?(char)
                 return
             }
         }

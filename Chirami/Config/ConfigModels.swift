@@ -24,11 +24,13 @@ struct ChiramiConfig: Codable {
     var karabiner: KarabinerConfig?
     var smartPaste: SmartPasteConfig?
     var dragModifier: String?
+    var warpModifier: String?
 
     enum CodingKeys: String, CodingKey {
         case hotkey, defaults, notes, karabiner
         case smartPaste = "smart_paste"
         case dragModifier = "drag_modifier"
+        case warpModifier = "warp_modifier"
     }
 }
 
@@ -43,6 +45,22 @@ extension ChiramiConfig {
         case "control": return .control
         default: return .command
         }
+    }
+
+    var warpModifierFlags: NSEvent.ModifierFlags {
+        let parts = (warpModifier ?? "ctrl+option").lowercased().components(separatedBy: "+")
+        var flags: NSEvent.ModifierFlags = []
+        for part in parts {
+            switch part {
+            case "ctrl", "control": flags.insert(.control)
+            case "option", "opt":   flags.insert(.option)
+            case "command", "cmd":  flags.insert(.command)
+            case "shift":           flags.insert(.shift)
+            default: break
+            }
+        }
+        // Fall back to ctrl+option if no valid modifiers were parsed
+        return flags.isEmpty ? [.control, .option] : flags
     }
 }
 #endif

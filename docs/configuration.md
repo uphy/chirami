@@ -18,6 +18,7 @@ defaults:
   auto_hide: false
 
 drag_modifier: command
+warp_modifier: ctrl+option
 
 smart_paste:
   enabled: true
@@ -60,6 +61,7 @@ notes:
 | `hotkey` | string | — | Global hotkey to toggle all note windows. Format: modifier keys + key (e.g. `cmd+shift+n`). |
 | `defaults` | object | — | Default values applied to all notes. Per-note settings override these. |
 | `drag_modifier` | string | `command` | Modifier key for window dragging. Allowed: `command`, `option`, `shift`, `control`. |
+| `warp_modifier` | string | `ctrl+option` | Modifier key combination for Window Warp (HJKL grid movement). Specify modifiers joined with `+` (e.g. `ctrl+option`, `command+shift`). Allowed tokens: `ctrl`/`control`, `option`/`opt`, `command`/`cmd`, `shift`. |
 | `smart_paste` | object | — | Smart Paste configuration. See [Smart Paste](advanced.md#smart-paste). |
 | `karabiner` | object | — | Karabiner-Elements integration. See [Karabiner](advanced.md#karabiner-elements-integration). |
 | `notes` | array | `[]` | List of note configurations. |

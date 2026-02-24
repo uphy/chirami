@@ -34,6 +34,8 @@ Chirami renders Markdown in an Obsidian-style Live Preview: the block containing
 
 **Pin** — Notes with `auto_hide: true` show a pin button (📌) at the right end of the title bar. Click to temporarily suspend auto-hide for the session. While pinned, the note stays visible even when focus moves to another window. Click again to unpin and restore normal auto-hide behavior. Pin state is not persisted — it resets when the note is closed.
 
+**Window Warp** — While a note window is focused, press the warp modifier key (default: Ctrl+Option) + H/J/K/L to instantly move the window to one of 9 positions in a 3×3 grid. The grid covers the screen with an 8pt margin at each edge. Movement wraps around at the edges — pressing H at the left column jumps to the right column of the same row. The current grid position is inferred from the window's actual position, so warp works naturally after manual dragging. In multi-monitor setups, the window warps within the screen it currently occupies. Warp position is persisted across restarts. The modifier key is configurable via `warp_modifier` in `config.yaml`.
+
 ## Editor Features
 
 **Task list toggle** — Cmd+L converts the current line to/from a task list item (`- [ ]`). Click a checkbox to toggle it.
@@ -65,6 +67,10 @@ Chirami renders Markdown in an Obsidian-style Live Preview: the block containing
 | Cmd+Shift+V | Smart Paste |
 | Enter (on list item) | Continue list with next marker |
 | Enter (on empty list item) | End list |
+| Ctrl+Option+H | Warp window left |
+| Ctrl+Option+L | Warp window right |
+| Ctrl+Option+K | Warp window up |
+| Ctrl+Option+J | Warp window down |
 
 Per-note and global hotkeys (configured in config.yaml) toggle note visibility from any application.
 

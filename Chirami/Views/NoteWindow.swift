@@ -52,6 +52,9 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
 
         super.init(window: panel)
         panel.delegate = self
+        panel.onWarpKey = { [weak self] key in
+            self?.warpTo(key: key)
+        }
 
         if note.periodicInfo != nil {
             panel.setupNavigationButtons(
@@ -236,6 +239,72 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
             size: window.frame.size,
             visible: isVisible
         )
+    }
+
+    // MARK: - Keyboard Warp
+
+    /// Warp the window to the adjacent grid position in the given HJKL direction, cycling at edges.
+    func warpTo(key: Character) {
+        guard let window = window else { return }
+        let screen = screenForWindow() ?? NSScreen.main
+        guard let visibleFrame = screen?.visibleFrame else { return }
+
+        let center = CGPoint(
+            x: window.frame.midX,
+            y: window.frame.midY
+        )
+        let (col, row) = inferGridPosition(center: center, visibleFrame: visibleFrame)
+        let (newCol, newRow) = applyMove(key: key, col: col, row: row)
+        let origin = gridOrigin(col: newCol, row: newRow, windowSize: window.frame.size, visibleFrame: visibleFrame)
+        let newFrame = CGRect(origin: origin, size: window.frame.size)
+        window.setFrame(newFrame, display: true, animate: true)
+    }
+
+    /// Returns the screen whose visible area contains the window's center point.
+    private func screenForWindow() -> NSScreen? {
+        guard let window = window else { return NSScreen.main }
+        let center = CGPoint(x: window.frame.midX, y: window.frame.midY)
+        for screen in NSScreen.screens where screen.frame.contains(center) {
+            return screen
+        }
+        return NSScreen.main
+    }
+
+    /// Maps the window center to the nearest 3x3 grid cell using band detection.
+    /// col: 0=left, 1=center, 2=right / row: 0=bottom, 1=center, 2=top (NSWindow bottom-left origin)
+    private func inferGridPosition(center: CGPoint, visibleFrame: CGRect) -> (col: Int, row: Int) {
+        let col = Int(min(2, max(0, (center.x - visibleFrame.minX) / (visibleFrame.width / 3))))
+        let row = Int(min(2, max(0, (center.y - visibleFrame.minY) / (visibleFrame.height / 3))))
+        return (col, row)
+    }
+
+    /// Applies an HJKL move to grid coordinates with cyclic wrapping.
+    private func applyMove(key: Character, col: Int, row: Int) -> (col: Int, row: Int) {
+        switch key {
+        case "h": return ((col + 2) % 3, row)
+        case "l": return ((col + 1) % 3, row)
+        case "k": return (col, (row + 1) % 3)
+        case "j": return (col, (row + 2) % 3)
+        default:  return (col, row)
+        }
+    }
+
+    /// Calculates the window origin for a grid cell, with an 8pt margin from screen edges.
+    private func gridOrigin(col: Int, row: Int, windowSize: CGSize, visibleFrame: CGRect) -> CGPoint {
+        let margin: CGFloat = 8
+        let x: CGFloat
+        switch col {
+        case 0:  x = visibleFrame.minX + margin
+        case 2:  x = visibleFrame.maxX - windowSize.width - margin
+        default: x = visibleFrame.midX - windowSize.width / 2
+        }
+        let y: CGFloat
+        switch row {
+        case 0:  y = visibleFrame.minY + margin
+        case 2:  y = visibleFrame.maxY - windowSize.height - margin
+        default: y = visibleFrame.midY - windowSize.height / 2
+        }
+        return CGPoint(x: x, y: y)
     }
 
     // MARK: - Pin
