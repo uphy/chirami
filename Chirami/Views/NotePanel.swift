@@ -12,6 +12,7 @@ class NotePanel: NSPanel {
     private var prevButton: NSButton?
     private var nextButton: NSButton?
     private var todayButton: NSButton?
+    private var pinButton: NSButton?
 
     override var title: String {
         didSet { customTitleLabel?.stringValue = title }
@@ -98,6 +99,32 @@ class NotePanel: NSPanel {
         prevButton?.isEnabled = hasPrevious
         nextButton?.isEnabled = hasNext
         todayButton?.isHidden = isToday
+    }
+
+    /// Add a pin button to the right end of the titlebar (for auto_hide notes).
+    func setupPinButton(target: AnyObject, action: Selector) {
+        guard let closeButton = standardWindowButton(.closeButton) else { return }
+
+        var fullWidthView: NSView = closeButton
+        while let parent = fullWidthView.superview {
+            fullWidthView = parent
+            if parent.frame.width >= frame.width - 1 { break }
+        }
+
+        let button = makeNavButton(symbolName: "pin", action: action, target: target)
+        fullWidthView.addSubview(button)
+        NSLayoutConstraint.activate([
+            button.centerYAnchor.constraint(equalTo: closeButton.centerYAnchor),
+            button.trailingAnchor.constraint(equalTo: fullWidthView.trailingAnchor, constant: -8)
+        ])
+
+        pinButton = button
+    }
+
+    /// Update the pin button icon and color to reflect pinned state.
+    func updatePinState(isPinned: Bool) {
+        pinButton?.image = NSImage(systemSymbolName: isPinned ? "pin.fill" : "pin", accessibilityDescription: nil)
+        pinButton?.contentTintColor = isPinned ? .labelColor : .secondaryLabelColor
     }
 
     private func makeNavButton(symbolName: String, action: Selector, target: AnyObject) -> NSButton {

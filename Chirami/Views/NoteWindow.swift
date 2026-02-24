@@ -13,6 +13,7 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
     private var contentModel: NoteContentModel
     private var cancellables = Set<AnyCancellable>()
     private var isShowingToday: Bool = true
+    private var isPinned: Bool = false
 
     var isVisible: Bool { window?.isVisible ?? false }
 
@@ -60,6 +61,10 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
                 todayAction: #selector(navigateToTodayAction)
             )
             updateNavigationButtons()
+        }
+
+        if note.autoHide {
+            panel.setupPinButton(target: self, action: #selector(togglePinAction))
         }
 
         let rootView = NoteContentView(model: contentModel, noteId: note.id)
@@ -178,7 +183,7 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
     // MARK: - NSWindowDelegate
 
     func windowDidResignKey(_ notification: Notification) {
-        guard note.autoHide, isVisible else { return }
+        guard note.autoHide, !isPinned, isVisible else { return }
         contentModel.save()
         hide()
     }
@@ -223,6 +228,13 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
             size: window.frame.size,
             visible: isVisible
         )
+    }
+
+    // MARK: - Pin
+
+    @objc private func togglePinAction() {
+        isPinned.toggle()
+        (window as? NotePanel)?.updatePinState(isPinned: isPinned)
     }
 
     // MARK: - Periodic Note Navigation
