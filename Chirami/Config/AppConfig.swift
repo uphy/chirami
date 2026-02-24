@@ -111,6 +111,8 @@ class AppConfig: YAMLStore<ChiramiConfig> {
     These can be customized in `config.yaml`.
     """
 
+    private static let emptyTask = "- [ ] "
+
     private static let dailyTemplateContent = """
     ## How to Use Daily Notes
 
@@ -124,9 +126,9 @@ class AppConfig: YAMLStore<ChiramiConfig> {
 
     ## Today's Tasks
 
-    - [ ]
-    - [ ]
-    - [ ]
+    \(emptyTask)
+    \(emptyTask)
+    \(emptyTask)
 
     ## Notes
 
