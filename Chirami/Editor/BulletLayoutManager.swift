@@ -144,7 +144,14 @@ class BulletLayoutManager: NSLayoutManager {
             guard let number = value as? NSNumber else { return }
             let checked = number.boolValue
             let symbolName = checked ? "checkmark.square.fill" : "square"
-            let color = checked ? NSColor.controlAccentColor : NSColor.secondaryLabelColor
+            let uncheckedColor = NSColor(name: nil) { appearance in
+                if appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua {
+                    return NSColor(white: 0.5, alpha: 1.0)
+                } else {
+                    return NSColor(white: 0.62, alpha: 1.0)
+                }
+            }
+            let color = checked ? NSColor.controlAccentColor : uncheckedColor
             drawSFSymbol(symbolName, at: range, origin: origin, color: color, size: baseFontSize)
         }
 

@@ -161,19 +161,19 @@ class NotePanel: NSPanel {
     override func sendEvent(_ event: NSEvent) {
         let dragFlags = AppConfig.shared.data.dragModifierFlags
         if event.modifierFlags.contains(dragFlags) {
+            // Handle modifier+drag for the entire window (not just titlebar)
+            if event.type == .leftMouseDown {
+                NSCursor.closedHand.push()
+                performDrag(with: event)
+                NSCursor.pop()
+                return
+            }
+            // Titlebar hover cursor
             let location = event.locationInWindow
-            if location.y > contentLayoutRect.maxY {
-                if event.type == .leftMouseDown {
-                    NSCursor.closedHand.push()
-                    performDrag(with: event)
-                    NSCursor.pop()
-                    return
-                }
-                if event.type == .mouseMoved {
-                    super.sendEvent(event)
-                    NSCursor.openHand.set()
-                    return
-                }
+            if location.y > contentLayoutRect.maxY && event.type == .mouseMoved {
+                super.sendEvent(event)
+                NSCursor.openHand.set()
+                return
             }
         }
         super.sendEvent(event)
