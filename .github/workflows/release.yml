@@ -58,3 +58,38 @@ jobs:
         with:
           generate_release_notes: true
           files: Chirami-*.zip
+
+      - name: Compute sha256 of zip
+        id: sha256
+        run: |
+          version="${{ steps.version.outputs.value }}"
+          echo "value=$(shasum -a 256 "Chirami-${version}-macOS.zip" | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.HOMEBREW_TAP_APP_ID }}
+          private-key: ${{ secrets.HOMEBREW_TAP_PRIVATE_KEY }}
+          repositories: homebrew-tap
+
+      - name: Update homebrew-tap
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          version="${{ steps.version.outputs.value }}"
+          sha="${{ steps.sha256.outputs.value }}"
+
+          git clone "https://x-access-token:${GH_TOKEN}@github.com/uphy/homebrew-tap.git" homebrew-tap
+          cd homebrew-tap
+
+          sed -i '' \
+            -e "s/version \"[^\"]*\"/version \"${version}\"/" \
+            -e "s/sha256 \"[^\"]*\"/sha256 \"${sha}\"/" \
+            Casks/chirami.rb
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Casks/chirami.rb
+          git commit -m "chore: update chirami to v${version}"
+          git push
