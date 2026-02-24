@@ -26,7 +26,7 @@ See [Features](docs/features.md) for the full feature guide and keyboard shortcu
 brew install --cask uphy/tap/chirami
 ```
 
-> **Note:** Chirami is not code-signed with an Apple Developer certificate. On first launch, macOS Gatekeeper may block it. If that happens, go to **System Settings → Privacy & Security** and click **Open Anyway**.
+> **Note:** Chirami is not code-signed. The cask removes the quarantine attribute automatically after install.
 
 **Install manually:** Download the latest `Chirami-*-macOS.zip` from [Releases](https://github.com/uphy/chirami/releases), unzip it, and move `Chirami.app` to `~/Applications`.
 
