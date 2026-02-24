@@ -293,6 +293,61 @@ class MarkdownTextView: NSTextView {
         setSelectedRange(NSRange(location: contentStart, length: anchor - contentStart))
     }
 
+    // MARK: - Copy/Cut: include hidden prefixes
+
+    /// Returns the line-start index if all characters from line start up to `location`
+    /// are hidden (font size < 1.0). Returns nil otherwise (e.g. raw-edit mode).
+    private func lineStartIncludingHiddenPrefix(at location: Int) -> Int? {
+        guard let storage = textStorage else { return nil }
+        let nsString = storage.string as NSString
+        let lineRange = nsString.lineRange(for: NSRange(location: location, length: 0))
+        guard location > lineRange.location else { return nil }
+
+        let prefixRange = NSRange(location: lineRange.location, length: location - lineRange.location)
+        var allHidden = true
+        storage.enumerateAttribute(.font, in: prefixRange, options: []) { value, _, stop in
+            if let font = value as? NSFont, font.pointSize >= 1.0 {
+                allHidden = false
+                stop.pointee = true
+            }
+        }
+        return allHidden ? lineRange.location : nil
+    }
+
+    override func copy(_ sender: Any?) {
+        guard let storage = textStorage else { super.copy(sender); return }
+        let sel = selectedRange()
+        guard sel.length > 0 else { super.copy(sender); return }
+
+        let nsString = storage.string as NSString
+        let start = lineStartIncludingHiddenPrefix(at: sel.location) ?? sel.location
+        let expandedRange = NSRange(location: start, length: sel.length + (sel.location - start))
+        let text = nsString.substring(with: expandedRange)
+        let pb = NSPasteboard.general
+        pb.clearContents()
+        pb.setString(text, forType: .string)
+    }
+
+    override func cut(_ sender: Any?) {
+        guard let storage = textStorage else { super.cut(sender); return }
+        let sel = selectedRange()
+        guard sel.length > 0 else { super.cut(sender); return }
+
+        let nsString = storage.string as NSString
+        let start = lineStartIncludingHiddenPrefix(at: sel.location) ?? sel.location
+        let expandedRange = NSRange(location: start, length: sel.length + (sel.location - start))
+        let text = nsString.substring(with: expandedRange)
+        let pb = NSPasteboard.general
+        pb.clearContents()
+        pb.setString(text, forType: .string)
+
+        if shouldChangeText(in: sel, replacementString: "") {
+            storage.replaceCharacters(in: sel, with: "")
+            setSelectedRange(NSRange(location: sel.location, length: 0))
+            didChangeText()
+        }
+    }
+
     // MARK: - Font size adjustment
 
     private func adjustFontSize(by delta: CGFloat) {

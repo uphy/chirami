@@ -44,7 +44,6 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
         panel.backgroundColor = note.color.nsColor
         panel.isRestorable = false
 
-        // Minimal toolbar: just the close button
         panel.standardWindowButton(.miniaturizeButton)?.isHidden = true
         panel.standardWindowButton(.zoomButton)?.isHidden = true
         panel.setupCloseButtonHover()
@@ -59,9 +58,9 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
         if note.periodicInfo != nil {
             panel.setupNavigationButtons(
                 target: self,
-                prevAction: #selector(navigatePreviousAction),
-                nextAction: #selector(navigateNextAction),
-                todayAction: #selector(navigateToTodayAction)
+                prevAction: #selector(navigatePrevious),
+                nextAction: #selector(navigateNext),
+                todayAction: #selector(navigateToToday)
             )
             updateNavigationButtons()
         }
@@ -76,7 +75,6 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
 
         setupFileWatcher()
 
-        // Subscribe to note changes to keep panel background and title in sync
         let noteId = note.id
         NoteStore.shared.$notes
             .dropFirst()
@@ -119,8 +117,6 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
         let screen = screenForCursor() ?? NSScreen.main
         let visibleFrame = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1920, height: 1080)
 
-        // Place window centered on cursor position
-        // NSWindow origin is bottom-left corner
         let origin = CGPoint(x: cursorLocation.x - windowSize.width / 2, y: cursorLocation.y - windowSize.height / 2)
         let clamped = clampToScreen(origin: origin, windowSize: windowSize, visibleFrame: visibleFrame)
 
@@ -141,19 +137,15 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
         var x = origin.x
         var y = origin.y
 
-        // Clamp right edge
         if x + windowSize.width > visibleFrame.maxX {
             x = visibleFrame.maxX - windowSize.width
         }
-        // Clamp left edge
         if x < visibleFrame.minX {
             x = visibleFrame.minX
         }
-        // Clamp bottom edge
         if y < visibleFrame.minY {
             y = visibleFrame.minY
         }
-        // Clamp top edge (origin is bottom-left, so top = y + height)
         if y + windowSize.height > visibleFrame.maxY {
             y = visibleFrame.maxY - windowSize.height
         }
@@ -316,11 +308,7 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
 
     // MARK: - Periodic Note Navigation
 
-    @objc private func navigatePreviousAction() { navigatePrevious() }
-    @objc private func navigateNextAction() { navigateNext() }
-    @objc private func navigateToTodayAction() { navigateToToday() }
-
-    func navigatePrevious() {
+    @objc func navigatePrevious() {
         guard let info = note.periodicInfo else { return }
         let baseDir = PathTemplateResolver.extractBaseDirectory(from: info.pathTemplate)
         guard let baseDirURL = resolveTemplatePath(baseDir) else { return }
@@ -330,7 +318,7 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
         navigateToFile(prev)
     }
 
-    func navigateNext() {
+    @objc func navigateNext() {
         guard let info = note.periodicInfo else { return }
         let baseDir = PathTemplateResolver.extractBaseDirectory(from: info.pathTemplate)
         guard let baseDirURL = resolveTemplatePath(baseDir) else { return }
@@ -340,7 +328,7 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
         navigateToFile(next)
     }
 
-    func navigateToToday() {
+    @objc func navigateToToday() {
         guard let info = note.periodicInfo else { return }
         let config = NoteConfig(path: info.pathTemplate, template: info.templateFile?.path)
         let date = noteStore.logicalDate(rolloverDelay: info.rolloverDelay)
@@ -380,7 +368,6 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
     }
 
     private func reloadContentForNavigation() {
-        // Create file if needed
         if !FileManager.default.fileExists(atPath: note.path.path) {
             noteStore.writeContent("", to: note)
         }
