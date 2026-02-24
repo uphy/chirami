@@ -43,24 +43,10 @@ class WindowManager: ObservableObject {
         let nonAutoHide = controllers.values.filter { !$0.note.autoHide }
         let anyVisible = nonAutoHide.contains { $0.isVisible }
         if anyVisible {
-            if NSApp.isActive {
-                hideAllWindows()
-            } else {
-                focusAllWindows()
-            }
+            hideAllWindows()
         } else {
             showAllWindows()
         }
-    }
-
-    func focusAllWindows() {
-        NSApp.activate(ignoringOtherApps: true)
-        var lastWindow: NSWindow?
-        for (_, controller) in controllers where controller.isVisible && !controller.note.autoHide {
-            controller.window?.orderFront(nil)
-            lastWindow = controller.window
-        }
-        lastWindow?.makeKeyAndOrderFront(nil)
     }
 
     func showAllWindows() {

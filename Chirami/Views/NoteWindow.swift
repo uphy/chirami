@@ -118,8 +118,7 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
 
         window.setFrameOrigin(clamped)
         showWindow(nil)
-        NSApp.activate(ignoringOtherApps: true)
-        window.makeKeyAndOrderFront(nil)
+        window.orderFront(nil)
     }
 
     private func screenForCursor() -> NSScreen? {
