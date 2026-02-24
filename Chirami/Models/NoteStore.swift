@@ -191,21 +191,6 @@ class NoteStore: ObservableObject {
         }
     }
 
-    func addNote(path: URL, title: String? = nil, color: NoteColor = .yellow) {
-        let home = FileManager.realHomeDirectory.path
-        let pathStr = path.path.hasPrefix(home)
-            ? "~/" + path.path.dropFirst(home.count + 1)
-            : path.path
-
-        let noteConfig = NoteConfig(
-            path: pathStr,
-            title: title,
-            color: color.rawValue
-        )
-        appConfig.update { $0.notes.append(noteConfig) }
-        loadFromConfig()
-    }
-
     // MARK: - Security-Scoped Bookmarks
 
     func saveBookmark(for noteId: String, url: URL) {

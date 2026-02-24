@@ -38,9 +38,6 @@ struct NoteListView: View {
                 MenuButton(title: "Hide All") {
                     windowManager.hideAllWindows()
                 }
-                MenuButton(title: "Add Note…") {
-                    openFilePicker()
-                }
                 MenuButton(title: "Edit Config") {
                     openConfig()
                 }
@@ -70,21 +67,6 @@ struct NoteListView: View {
             }
         }
         .frame(minWidth: 220)
-    }
-
-    private func openFilePicker() {
-        let panel = NSOpenPanel()
-        panel.allowedContentTypes = [.plainText]
-        panel.canCreateDirectories = true
-        panel.message = "Select or create a Markdown file"
-        panel.prompt = "Add Note"
-        if panel.runModal() == .OK, let url = panel.url {
-            noteStore.addNote(path: url)
-            if let addedNote = noteStore.notes.last {
-                noteStore.saveBookmark(for: addedNote.id, url: url)
-            }
-            windowManager.reloadWindows()
-        }
     }
 
     private func openConfig() {

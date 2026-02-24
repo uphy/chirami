@@ -42,7 +42,7 @@ That's it. Chirami will display the file as a floating sticky note.
 1. **Launch** — Chirami appears as a menu bar icon (note icon in the macOS menu bar).
 2. **Show/hide notes** — Click the menu bar icon and select a note to toggle its visibility.
 3. **Edit** — Click inside the note window and start typing. Changes are saved automatically.
-4. **Add notes** — Click "Add Note..." in the menu bar popover to pick or create a Markdown file, or edit `config.yaml` directly.
+4. **Add notes** — Edit `config.yaml` directly to add notes (open it via "Edit Config" in the popover).
 5. **Edit config** — Click "Edit Config" in the menu bar popover to open `config.yaml` in your default editor. Chirami reloads it automatically.
 
 ## Using with Obsidian
