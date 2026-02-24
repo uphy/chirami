@@ -32,6 +32,8 @@ Chirami renders Markdown in an Obsidian-style Live Preview: the block containing
 
 **Transparency** — Configured per note in config.yaml (`transparency: 0.0–1.0`).
 
+**Pin** — Notes with `auto_hide: true` show a pin button (📌) at the right end of the title bar. Click to temporarily suspend auto-hide for the session. While pinned, the note stays visible even when focus moves to another window. Click again to unpin and restore normal auto-hide behavior. Pin state is not persisted — it resets when the note is closed.
+
 ## Editor Features
 
 **Task list toggle** — Cmd+L converts the current line to/from a task list item (`- [ ]`). Click a checkbox to toggle it.
