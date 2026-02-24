@@ -164,7 +164,15 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
     }
 
     func toggle() {
-        if isVisible { hide() } else { show() }
+        if isVisible {
+            if window?.isKeyWindow == true {
+                hide()
+            } else {
+                window?.makeKeyAndOrderFront(nil)
+            }
+        } else {
+            show()
+        }
     }
 
     // MARK: - Note updates
