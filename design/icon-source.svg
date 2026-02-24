@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="noteGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FFF5B8"/>
+      <stop offset="100%" stop-color="#FFE878"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Note background with top-right corner cut -->
+  <polygon points="0,0 824,0 1024,200 1024,1024 0,1024" fill="url(#noteGrad)"/>
+
+  <!-- Corner fold (underside) -->
+  <polygon points="824,0 1024,200 824,200" fill="#F5D84A"/>
+
+  <!-- # vertical bars -->
+  <rect x="347" y="120" width="90" height="530" fill="#73610D"/>
+  <rect x="587" y="120" width="90" height="530" fill="#73610D"/>
+
+  <!-- # horizontal bars -->
+  <rect x="267" y="235" width="490" height="90" fill="#73610D"/>
+  <rect x="267" y="445" width="490" height="90" fill="#73610D"/>
+
+  <!-- Text lines -->
+  <rect x="195" y="720" width="545" height="28" rx="14" fill="#B8A340"/>
+  <rect x="195" y="790" width="405" height="28" rx="14" fill="#B8A340"/>
+  <rect x="195" y="860" width="285" height="28" rx="14" fill="#B8A340"/>
+</svg>

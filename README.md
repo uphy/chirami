@@ -20,7 +20,16 @@ See [Features](docs/features.md) for the full feature guide and keyboard shortcu
 
 **Prerequisites:** macOS 14.0 (Sonoma) or later
 
-**Install:** Download the latest `Chirami-*-macOS.zip` from [Releases](https://github.com/uphy/chirami/releases), unzip it, and move `Chirami.app` to `~/Applications`.
+**Install via Homebrew:**
+
+```bash
+brew tap uphy/tap
+brew install --cask --no-quarantine chirami
+```
+
+> **Note:** `--no-quarantine` is required because Chirami is not code-signed with an Apple Developer certificate. Without it, macOS Gatekeeper will block the app on first launch.
+
+**Install manually:** Download the latest `Chirami-*-macOS.zip` from [Releases](https://github.com/uphy/chirami/releases), unzip it, and move `Chirami.app` to `~/Applications`.
 
 **Create a minimal config** at `~/.config/chirami/config.yaml`:
 
