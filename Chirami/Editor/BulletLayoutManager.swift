@@ -162,20 +162,13 @@ class BulletLayoutManager: NSLayoutManager {
     /// Computes the baseline Y offset within the line fragment rect using a reference font.
     /// Hidden marker characters use a tiny font (0.001pt), which causes
     /// `self.location(forGlyphAt:)` to return an incorrect baseline for empty list items.
-    /// Deriving the baseline from the line fragment height and reference font metrics
-    /// gives a consistent position regardless of the actual glyph fonts.
+    /// Computed directly from font metrics to avoid the last-line issue where NSLayoutManager
+    /// does not include lineSpacing in the last line's fragment rect height.
     private func baselineOffset(forGlyphAt glyphIndex: Int, fontSize: CGFloat) -> CGFloat {
-        let lineRect = lineFragmentRect(forGlyphAt: glyphIndex, effectiveRange: nil)
         let referenceFont = NSFont.systemFont(ofSize: fontSize)
-        let paragraphStyle = textStorage?.attribute(
-            .paragraphStyle,
-            at: characterIndexForGlyph(at: glyphIndex),
-            effectiveRange: nil
-        ) as? NSParagraphStyle
-        let lineSpacing = paragraphStyle?.lineSpacing ?? 0
-        // baseline = (lineHeight - lineSpacing) + descender
-        // descender is negative, so this positions the baseline correctly from the top
-        return (lineRect.height - lineSpacing) + referenceFont.descender
+        // minimumLineHeight matches applyListParagraphStyle: ceil(ascender - descender + leading)
+        // baseline = minimumLineHeight + descender
+        return ceil(referenceFont.ascender - referenceFont.descender + referenceFont.leading) + referenceFont.descender
     }
 
     private func nestingLevel(at charLocation: Int) -> Int {
