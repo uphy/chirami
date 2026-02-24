@@ -191,6 +191,11 @@ struct LivePreviewEditor: NSViewRepresentable {
             guard !isApplyingStyling else { return }
             guard let textView = notification.object as? NSTextView else { return }
             if textView.hasMarkedText() { return }
+            if let mdTextView = textView as? MarkdownTextView,
+               mdTextView.isAdjustingCursorForHiddenPrefix {
+                lastCursorLocation = textView.selectedRange().location
+                return
+            }
             let newLocation = textView.selectedRange().location
             if newLocation != lastCursorLocation {
                 lastCursorLocation = newLocation
