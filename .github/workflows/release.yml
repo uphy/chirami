@@ -51,7 +51,7 @@ jobs:
       - name: Create zip archive
         run: |
           version="${{ steps.version.outputs.value }}"
-          ditto -c -k build/Chirami.app "Chirami-${version}-macOS.zip"
+          ditto -c -k --keepParent build/Chirami.app "Chirami-${version}-macOS.zip"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
