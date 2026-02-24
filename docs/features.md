@@ -48,6 +48,8 @@ Chirami renders Markdown in an Obsidian-style Live Preview: the block containing
 - `(`, `[`, `{` (wrap with matching close bracket)
 - `"`, `'` (wrap with same quote)
 
+**Indent / Dedent** — Press Tab on a list item line to indent it (adds one level). Press Shift+Tab to dedent. With multiple lines selected, Tab and Shift+Tab indent or dedent all selected lines at once. Tab and Shift+Tab on non-list lines behave normally.
+
 **Find** — Cmd+F opens the find bar.
 
 **Font size** — Cmd+= / Cmd+- to increase or decrease the font size (range: 8–32).
@@ -65,6 +67,10 @@ Chirami renders Markdown in an Obsidian-style Live Preview: the block containing
 | Cmd+= / Cmd++ | Increase font size |
 | Cmd+- | Decrease font size |
 | Cmd+Shift+V | Smart Paste |
+| Tab (on list item) | Indent list item |
+| Shift+Tab (on list item) | Dedent list item |
+| Tab (with selection) | Indent all selected lines |
+| Shift+Tab (with selection) | Dedent all selected lines |
 | Enter (on list item) | Continue list with next marker |
 | Enter (on empty list item) | End list |
 | Ctrl+Option+H | Warp window left |
