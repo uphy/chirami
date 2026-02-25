@@ -14,6 +14,8 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
     private var cancellables = Set<AnyCancellable>()
     private var isShowingToday: Bool = true
     private var isPinned: Bool = false
+    private var isFadingOut: Bool = false
+    private var fadeOutToken: Int = 0
 
     var isVisible: Bool { window?.isVisible ?? false }
 
@@ -100,12 +102,30 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
     }
 
     func show() {
-        if note.position == .cursor {
-            showAtCursor()
+        guard let panel = window as? NotePanel else { return }
+
+        // Cancel in-flight fade-out
+        isFadingOut = false
+        fadeOutToken += 1
+
+        if !panel.isVisible {
+            panel.alphaValue = 0
+            if note.position == .cursor {
+                showAtCursor()
+            } else {
+                showWindow(nil)
+            }
         } else {
-            showWindow(nil)
+            // Mid-fade-out: window is still visible, reset alpha for fade-in
+            panel.alphaValue = 0
         }
+
         noteStore.setVisible(true, for: note)
+
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.2
+            panel.animator().alphaValue = note.transparency
+        }
     }
 
     private func showAtCursor() {
@@ -154,8 +174,25 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
     }
 
     func hide() {
-        window?.orderOut(nil)
+        guard let panel = window as? NotePanel else { return }
+
+        isFadingOut = true
+        let token = fadeOutToken
+        let targetTransparency = note.transparency
+
         noteStore.setVisible(false, for: note)
+
+        NSAnimationContext.runAnimationGroup({ context in
+            context.duration = 0.2
+            panel.animator().alphaValue = 0
+        }, completionHandler: { [weak self] in
+            Task { @MainActor [weak self] in
+                guard let self, self.isFadingOut, self.fadeOutToken == token else { return }
+                self.isFadingOut = false
+                panel.orderOut(nil)
+                panel.alphaValue = targetTransparency  // Restore for next show()
+            }
+        })
     }
 
     func toggle() {
@@ -175,12 +212,16 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
     private func applyNoteUpdate(_ updated: Note) {
         guard let panel = window as? NotePanel else { return }
         panel.backgroundColor = updated.color.nsColor
-        panel.alphaValue = updated.transparency
+        // Skip alpha update during fade-out to avoid interrupting animation
+        if !isFadingOut {
+            panel.alphaValue = updated.transparency
+        }
         panel.title = updated.title
         panel.level = updated.alwaysOnTop ? .floating : .normal
         contentModel.fontSize = updated.fontSize
         note.position = updated.position
         note.autoHide = updated.autoHide
+        note.transparency = updated.transparency  // Keep in sync for fade-in target
     }
 
     // MARK: - NSWindowDelegate
