@@ -26,6 +26,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var cancellables = Set<AnyCancellable>()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Apply appearance mode from config
+        applyAppearance()
+
         // Open all note windows
         windowManager.openAllWindows()
 
@@ -46,11 +49,23 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             .dropFirst()
             .sink { [weak self] _ in
                 Task { @MainActor in
+                    self?.applyAppearance()
                     self?.registerAllHotkeys()
                     self?.windowManager.reloadWindows()
                 }
             }
             .store(in: &cancellables)
+    }
+
+    func applyAppearance() {
+        switch AppConfig.shared.config.resolvedAppearanceMode {
+        case .auto:
+            NSApp.appearance = nil
+        case .light:
+            NSApp.appearance = NSAppearance(named: .aqua)
+        case .dark:
+            NSApp.appearance = NSAppearance(named: .darkAqua)
+        }
     }
 
     func registerAllHotkeys() {

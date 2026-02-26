@@ -8,6 +8,8 @@ Chirami uses two files:
 ## Full Example
 
 ```yaml
+appearance: auto
+
 hotkey: cmd+shift+n
 
 defaults:
@@ -60,6 +62,7 @@ notes:
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
+| `appearance` | string | `auto` | Appearance mode. `auto` (follow system), `light`, or `dark`. |
 | `hotkey` | string | — | Global hotkey to toggle all note windows. Format: modifier keys + key (e.g. `cmd+shift+n`). |
 | `defaults` | object | — | Default values applied to all notes. Per-note settings override these. |
 | `drag_modifier` | string | `command` | Modifier key for window dragging. Allowed: `command`, `option`, `shift`, `control`. |

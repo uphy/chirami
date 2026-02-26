@@ -22,7 +22,14 @@ struct NoteDefaults: Codable {
     }
 }
 
+enum AppearanceMode: String, Codable {
+    case auto
+    case light
+    case dark
+}
+
 struct ChiramiConfig: Codable {
+    var appearance: String?
     var hotkey: String?
     var defaults: NoteDefaults?
     var notes: [NoteConfig] = []
@@ -32,10 +39,17 @@ struct ChiramiConfig: Codable {
     var warpModifier: String?
 
     enum CodingKeys: String, CodingKey {
-        case hotkey, defaults, notes, karabiner
+        case appearance, hotkey, defaults, notes, karabiner
         case smartPaste = "smart_paste"
         case dragModifier = "drag_modifier"
         case warpModifier = "warp_modifier"
+    }
+
+    var resolvedAppearanceMode: AppearanceMode {
+        guard let appearance, let mode = AppearanceMode(rawValue: appearance) else {
+            return .auto
+        }
+        return mode
     }
 }
 
