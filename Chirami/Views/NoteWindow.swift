@@ -104,6 +104,11 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
     func show() {
         guard let panel = window as? NotePanel else { return }
 
+        // Switch to today's note if the date has changed while the window was hidden
+        if note.periodicInfo != nil, isShowingToday {
+            navigateToToday()
+        }
+
         // Cancel in-flight fade-out
         isFadingOut = false
         fadeOutToken += 1
