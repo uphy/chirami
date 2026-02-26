@@ -56,7 +56,7 @@ class MarkdownStyler {
                 let ordered = block is OrderedList
                 applyListStyle(to: result, block: block, range: range, in: text, ordered: ordered, cursorRange: cursorRange, cursorLocation: cursorLocation)
             } else if let cursor = cursorRange, overlaps(range, cursor) {
-                applyRawBlockStyle(for: block, to: result, range: range, in: text)
+                applyRawBlockStyle(for: block, to: result, range: range, in: text, cursorLocation: cursorLocation)
             } else {
                 applyBlockStyle(for: block, to: result, range: range, in: text)
             }
@@ -107,12 +107,12 @@ class MarkdownStyler {
 
     // MARK: - Block-level dispatch
 
-    private func applyRawBlockStyle(for block: any Markup, to storage: NSMutableAttributedString, range: NSRange, in text: String) {
+    private func applyRawBlockStyle(for block: any Markup, to storage: NSMutableAttributedString, range: NSRange, in text: String, cursorLocation: Int) {
         applyRawBlockTypeStyle(for: block, to: storage, range: range, in: text)
         // Code blocks and tables handle their own content styling — skip generic inline matching
         if block is CodeBlock || block is Table { return }
         let substring = (text as NSString).substring(with: range)
-        applyRawInlinePatterns(to: storage, in: substring, offset: range.location)
+        applyRawInlinePatterns(to: storage, in: substring, offset: range.location, cursorLocation: cursorLocation)
     }
 
     private func applyRawBlockTypeStyle(for block: any Markup, to storage: NSMutableAttributedString, range: NSRange, in text: String) {

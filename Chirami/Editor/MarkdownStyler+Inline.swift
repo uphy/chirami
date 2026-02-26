@@ -44,7 +44,7 @@ extension MarkdownStyler {
 
     // MARK: - Raw (editing) inline styles
 
-    func applyRawInlinePatterns(to storage: NSMutableAttributedString, in text: String, offset: Int) {
+    func applyRawInlinePatterns(to storage: NSMutableAttributedString, in text: String, offset: Int, cursorLocation: Int? = nil) {
         applyRawPattern(Self.boldPattern, to: storage, in: text, offset: offset,
                         contentAttributes: [.font: NSFont.systemFont(ofSize: baseFontSize, weight: .bold), .foregroundColor: noteColor.textColor])
 
@@ -57,7 +57,7 @@ extension MarkdownStyler {
         applyRawPattern(Self.inlineCodePattern, to: storage, in: text, offset: offset,
                         contentAttributes: InlineMarkupRenderer.inlineCodeAttributes(fontSize: baseFontSize))
 
-        applyRawLinkPattern(to: storage, in: text, offset: offset)
+        applyLinkPattern(to: storage, in: text, offset: offset, cursorLocation: cursorLocation)
         applyRawImagePattern(to: storage, in: text, offset: offset)
     }
 
