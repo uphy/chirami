@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "Review the changes made in this session. Determine if README.md or documentation needs updating. Only block for MAJOR changes: new user-facing features, killer features, breaking changes to public API, or removal of major functionality. Do NOT block for: bug fixes, refactoring, minor UI tweaks, internal improvements, config changes, dependency updates, test changes, or incremental enhancements to existing features. When in doubt, approve. If updates are needed, respond {\"decision\": \"block\", \"reason\": \"README update recommended: [what major feature/change to document]\"}. Otherwise respond {\"decision\": \"approve\"}."
+          }
+        ]
+      }
+    ]
+  }
+}
