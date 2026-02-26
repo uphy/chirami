@@ -10,6 +10,9 @@ extension MarkdownTextView {
     static let orderedListPattern = try! NSRegularExpression(
         pattern: #"^(\s*)(\d+)\.\s(.*)$"#
     )
+    static let thematicBreakPattern = try! NSRegularExpression(
+        pattern: #"^(---+|\*\*\*+|___+)\s*$"#
+    )
     // swiftlint:enable force_try
 
     func isListItem(_ line: String, range: NSRange) -> Bool {
@@ -206,6 +209,21 @@ extension MarkdownTextView {
         let storage = cl.storage
         let cursorLocation = cl.cursorLocation
         let lineRange = cl.lineRange
+        let trimmedLine = cl.trimmedLine
+        let fullRange = cl.fullRange
+
+        // Handle thematic break (---, ***, ___): always insert newline after the break
+        // to prevent the break from being pushed down when cursor lands on the hidden text
+        if Self.thematicBreakPattern.firstMatch(in: trimmedLine, range: fullRange) != nil {
+            let endOfLine = lineRange.location + (trimmedLine as NSString).length
+            let insertRange = NSRange(location: endOfLine, length: 0)
+            if shouldChangeText(in: insertRange, replacementString: "\n") {
+                storage.replaceCharacters(in: insertRange, with: "\n")
+                setSelectedRange(NSRange(location: endOfLine + 1, length: 0))
+                didChangeText()
+            }
+            return
+        }
 
         // If cursor is at the very beginning of the line, just insert a plain newline
         // to avoid duplicating the list marker prefix (e.g. "- [ ]")
@@ -213,9 +231,6 @@ extension MarkdownTextView {
             super.insertNewline(sender)
             return
         }
-
-        let trimmedLine = cl.trimmedLine
-        let fullRange = cl.fullRange
 
         // Try unordered / task list
         if let match = Self.unorderedListPattern.firstMatch(in: trimmedLine, range: fullRange) {

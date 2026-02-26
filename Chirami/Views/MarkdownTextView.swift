@@ -40,7 +40,7 @@ class MarkdownTextView: NSTextView {
         }
         let area = NSTrackingArea(
             rect: bounds,
-            options: [.mouseMoved, .activeInActiveApp, .inVisibleRect],
+            options: [.mouseMoved, .mouseEnteredAndExited, .activeInActiveApp, .inVisibleRect],
             owner: self,
             userInfo: nil
         )
@@ -61,12 +61,47 @@ class MarkdownTextView: NSTextView {
         return nil
     }
 
+    // MARK: - Image hover / delete helpers
+
+    /// Returns the char index of an image containing `point`, or nil.
+    private func imageContainingPoint(_ point: NSPoint) -> Int? {
+        guard let bulletLM = layoutManager as? BulletLayoutManager else { return nil }
+        for (charIndex, rect) in bulletLM.drawnImageRects where rect.contains(point) {
+            return charIndex
+        }
+        return nil
+    }
+
+    /// Returns the char index of a delete button containing `point`, or nil.
+    private func deleteButtonAtPoint(_ point: NSPoint) -> Int? {
+        guard let bulletLM = layoutManager as? BulletLayoutManager else { return nil }
+        for (charIndex, rect) in bulletLM.drawnDeleteButtonRects where rect.contains(point) {
+            return charIndex
+        }
+        return nil
+    }
+
+    /// Updates the hover state for image delete buttons.
+    private func updateImageHoverState(at point: NSPoint) {
+        guard let bulletLM = layoutManager as? BulletLayoutManager else { return }
+        let newHover = imageContainingPoint(point)
+        if bulletLM.hoveredImageCharIndex != newHover {
+            bulletLM.hoveredImageCharIndex = newHover
+            needsDisplay = true
+        }
+    }
+
     override func mouseMoved(with event: NSEvent) {
         if event.modifierFlags.contains(dragModifierFlags) {
             NSCursor.openHand.set()
             return
         }
         let point = convert(event.locationInWindow, from: nil)
+        updateImageHoverState(at: point)
+        if deleteButtonAtPoint(point) != nil {
+            NSCursor.pointingHand.set()
+            return
+        }
         if imageAtRightEdge(at: point) != nil {
             NSCursor.resizeLeftRight.set()
             return
@@ -76,6 +111,14 @@ class MarkdownTextView: NSTextView {
         } else {
             super.mouseMoved(with: event)
         }
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        if let bulletLM = layoutManager as? BulletLayoutManager, bulletLM.hoveredImageCharIndex != nil {
+            bulletLM.hoveredImageCharIndex = nil
+            needsDisplay = true
+        }
+        super.mouseExited(with: event)
     }
 
     override func flagsChanged(with event: NSEvent) {
@@ -115,7 +158,15 @@ class MarkdownTextView: NSTextView {
         }
 
         let point = convert(event.locationInWindow, from: nil)
+        if let charIndex = deleteButtonAtPoint(point) {
+            deleteImage(at: charIndex)
+            return
+        }
         if let (charIndex, rect) = imageAtRightEdge(at: point) {
+            // Clear hover state during resize
+            if let bulletLM = layoutManager as? BulletLayoutManager {
+                bulletLM.hoveredImageCharIndex = nil
+            }
             isResizingImage = true
             resizingImageCharIndex = charIndex
             resizingImageStartWidth = rect.width
@@ -193,6 +244,43 @@ class MarkdownTextView: NSTextView {
             if shouldChangeText(in: newAltRange, replacementString: newAlt) {
                 storage.replaceCharacters(in: newAltRange, with: newAlt)
                 didChangeText()
+            }
+            break
+        }
+    }
+
+    /// Deletes the image markdown at the given character index.
+    /// If the image is the only content on the line, deletes the entire line (including newline).
+    private func deleteImage(at charIndex: Int) {
+        guard let storage = textStorage else { return }
+        let fullText = storage.string as NSString
+        let pattern = MarkdownStyler.imagePattern
+        let matches = pattern.matches(in: storage.string, range: NSRange(location: 0, length: fullText.length))
+
+        for match in matches {
+            guard match.range.location == charIndex else { continue }
+
+            let lineRange = fullText.lineRange(for: match.range)
+            let lineText = fullText.substring(with: lineRange)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            let matchText = fullText.substring(with: match.range)
+
+            // If the image is the only content on the line, delete the whole line
+            let deleteRange: NSRange
+            if lineText == matchText {
+                deleteRange = lineRange
+            } else {
+                deleteRange = match.range
+            }
+
+            if shouldChangeText(in: deleteRange, replacementString: "") {
+                storage.replaceCharacters(in: deleteRange, with: "")
+                didChangeText()
+            }
+
+            // Clear hover state
+            if let bulletLM = layoutManager as? BulletLayoutManager {
+                bulletLM.hoveredImageCharIndex = nil
             }
             break
         }

@@ -3,8 +3,10 @@ import AppKit
 extension MarkdownStyler {
 
     func applyThematicBreakStyle(to storage: NSMutableAttributedString, range: NSRange) {
-        // Hide the raw syntax (---, ***, ___) and mark the range for custom drawing
-        storage.addAttributes(Self.hiddenAttributes, range: range)
+        // Make text transparent but keep the base font size so NSLayoutManager
+        // computes proper line fragment height. Using font size 0.001 (hiddenAttributes)
+        // causes the line fragment to collapse, misplacing the drawn horizontal rule.
+        storage.addAttribute(.foregroundColor, value: NSColor.clear, range: range)
         storage.addAttribute(.thematicBreak, value: true, range: range)
 
         // Set minimum line height so BulletLayoutManager has room to draw the line

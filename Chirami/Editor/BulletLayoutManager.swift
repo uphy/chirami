@@ -8,6 +8,12 @@ class BulletLayoutManager: NSLayoutManager {
     /// Rects of drawn images keyed by character index (in view coordinates).
     private(set) var drawnImageRects: [Int: NSRect] = [:]
 
+    /// Rects of drawn delete buttons keyed by character index (in view coordinates).
+    private(set) var drawnDeleteButtonRects: [Int: NSRect] = [:]
+
+    /// Character index of the currently hovered image (set by MarkdownTextView).
+    var hoveredImageCharIndex: Int?
+
     /// Temporary width overrides during drag resize, keyed by character index.
     var dragOverrideWidths: [Int: CGFloat] = [:]
 
@@ -104,14 +110,15 @@ class BulletLayoutManager: NSLayoutManager {
     ) {
         textStorage.enumerateAttribute(.thematicBreak, in: charRange, options: []) { value, attrRange, _ in
             guard value != nil else { return }
-            let glyphRange = glyphRange(forCharacterRange: attrRange, actualCharacterRange: nil)
-            var lineRect = NSRect.zero
-            enumerateLineFragments(forGlyphRange: glyphRange) { rect, _, _, _, _ in
-                lineRect = rect
-            }
+            // Use the first glyph's line fragment to determine the Y position.
+            // Previously, enumerateLineFragments iterated all fragments and kept the last,
+            // which could place the rule at the wrong position when the range includes
+            // a trailing newline (swift-markdown ranges end at the next line's start).
+            let firstGlyphIndex = glyphIndexForCharacter(at: attrRange.location)
+            let lineRect = lineFragmentRect(forGlyphAt: firstGlyphIndex, effectiveRange: nil)
             guard lineRect != .zero else { return }
             let y = (origin.y + lineRect.midY).rounded() - 0.5
-            NSColor.separatorColor.setFill()
+            NSColor.tertiaryLabelColor.setFill()
             NSBezierPath(rect: NSRect(x: origin.x + 8, y: y, width: containerWidth - 16, height: 1)).fill()
         }
     }
@@ -161,8 +168,18 @@ class BulletLayoutManager: NSLayoutManager {
             drawSFSymbol(symbolName, at: range, origin: origin, color: color, size: baseFontSize)
         }
 
-        // Clear stale image rects before redrawing
-        drawnImageRects.removeAll()
+        // Clear rects only for the current character range being redrawn
+        let rangeToRedraw = charRange
+        drawnImageRects.keys.forEach { key in
+            if key >= rangeToRedraw.location && key < rangeToRedraw.location + rangeToRedraw.length {
+                drawnImageRects.removeValue(forKey: key)
+            }
+        }
+        drawnDeleteButtonRects.keys.forEach { key in
+            if key >= rangeToRedraw.location && key < rangeToRedraw.location + rangeToRedraw.length {
+                drawnDeleteButtonRects.removeValue(forKey: key)
+            }
+        }
 
         // Draw inline images (or a placeholder icon while loading)
         textStorage.enumerateAttribute(.imageIcon, in: charRange, options: []) { value, range, _ in
@@ -283,7 +300,47 @@ class BulletLayoutManager: NSLayoutManager {
         ctx.restoreGState()
 
         // Record the drawn rect for hit-testing (view coordinates)
-        drawnImageRects[range.location] = NSRect(x: x, y: y, width: drawWidth, height: drawHeight)
+        let imageRect = NSRect(x: x, y: y, width: drawWidth, height: drawHeight)
+        drawnImageRects[range.location] = imageRect
+
+        // Draw delete button when this image is hovered
+        if hoveredImageCharIndex == range.location {
+            drawDeleteButton(in: imageRect, charIndex: range.location)
+        }
+    }
+
+    /// Draws a semi-transparent circular delete button at the top-right corner of the image rect.
+    private func drawDeleteButton(in imageRect: NSRect, charIndex: Int) {
+        guard let ctx = NSGraphicsContext.current?.cgContext else { return }
+
+        let buttonSize: CGFloat = 20
+        let padding: CGFloat = 6
+        let buttonRect = NSRect(
+            x: imageRect.maxX - buttonSize - padding,
+            y: imageRect.minY + padding,
+            width: buttonSize,
+            height: buttonSize
+        )
+
+        // Draw semi-transparent black circle background
+        ctx.saveGState()
+        ctx.setFillColor(NSColor.black.withAlphaComponent(0.6).cgColor)
+        ctx.fillEllipse(in: buttonRect)
+        ctx.restoreGState()
+
+        // Draw white xmark SF Symbol
+        let symbolSize: CGFloat = 10
+        let config = NSImage.SymbolConfiguration(pointSize: symbolSize, weight: .bold)
+        if let xmarkImage = NSImage(systemSymbolName: "xmark", accessibilityDescription: nil)?
+            .withSymbolConfiguration(config) {
+            let tinted = xmarkImage.tinted(with: .white)
+            let symbolSize = tinted.size
+            let symbolX = buttonRect.midX - symbolSize.width / 2
+            let symbolY = buttonRect.midY - symbolSize.height / 2
+            tinted.draw(in: NSRect(x: symbolX, y: symbolY, width: symbolSize.width, height: symbolSize.height))
+        }
+
+        drawnDeleteButtonRects[charIndex] = buttonRect
     }
 
     /// Draws an SF Symbol at the actual glyph position (for inline elements).

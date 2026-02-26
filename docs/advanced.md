@@ -157,6 +157,13 @@ Images are scaled to fit the window width.
 - Aspect ratio is preserved
 - Maximum height is capped at 400px
 
+### Delete
+
+Hover over an image to reveal a delete button (×) at the top-right corner. Click the button to remove the image's Markdown link from the note.
+
+- The deletion is undoable (Cmd+Z)
+- The image file itself is not deleted immediately — orphaned files are cleaned up on app startup (see [Orphaned Image Cleanup](#orphaned-image-cleanup))
+
 ### Resize
 
 Drag the right edge of an image to resize it. The cursor changes to a resize cursor (↔) when hovering near the right edge.
