@@ -179,6 +179,16 @@ extension MarkdownStyler {
         cursorLocation: Int? = nil,
         in text: String
     ) {
+        // Restore a visible tab interval for raw mode.
+        // Rendered siblings may have set defaultTabInterval=0.001 on the shared line range,
+        // making tab characters invisible. Override with the nesting step so tabs are visible.
+        let nsText = text as NSString
+        let lineRange = nsText.lineRange(for: itemRange)
+        let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.lineSpacing = 6
+        paragraphStyle.defaultTabInterval = 20
+        storage.addAttributes([.paragraphStyle: paragraphStyle], range: lineRange)
+
         // Gray only the marker (leading whitespace + marker + optional checkbox syntax)
         let markerEnd = min(contentStart, itemRange.length)
         if markerEnd > 0 {
@@ -224,6 +234,13 @@ extension MarkdownStyler {
         // Render the prefix (marker + checkbox)
         if !ordered {
             applyTaskPrefixRendered(to: storage, itemRange: itemRange, markerAbsLocation: markerAbsLocation, markerLength: markerLength, isChecked: isChecked, nestingLevel: nestingLevel)
+            let levelIndent: CGFloat = 20 + 20 * CGFloat(nestingLevel)
+            let spaceAfterCheckbox = NSRange(location: markerAbsLocation + markerLength + 3, length: 1)
+            storage.addAttributes([
+                .font: NSFont.systemFont(ofSize: baseFontSize),
+                .expansion: -1.0,
+                .kern: levelIndent
+            ], range: spaceAfterCheckbox)
         }
 
         // Body: keep baseAttributes (already applied), apply inline styles
@@ -262,6 +279,15 @@ extension MarkdownStyler {
             ], range: markerRange)
         } else if let checked = isChecked {
             applyTaskPrefixRendered(to: storage, itemRange: itemRange, markerAbsLocation: markerAbsLocation, markerLength: markerLength, isChecked: checked, nestingLevel: nestingLevel)
+            if !ordered {
+                let levelIndent: CGFloat = 20 + 20 * CGFloat(nestingLevel)
+                let spaceAfterCheckbox = NSRange(location: markerAbsLocation + markerLength + 3, length: 1)
+                storage.addAttributes([
+                    .font: NSFont.systemFont(ofSize: baseFontSize),
+                    .expansion: -1.0,
+                    .kern: levelIndent
+                ], range: spaceAfterCheckbox)
+            }
         } else {
             // Unordered bullet (no checkbox)
             let charRange = NSRange(location: markerAbsLocation, length: 1)
@@ -274,6 +300,16 @@ extension MarkdownStyler {
             if markerLength > 1 {
                 let spaceRange = NSRange(location: markerAbsLocation + 1, length: markerLength - 1)
                 storage.addAttributes(Self.hiddenAttributes, range: spaceRange)
+                // Kern on the last hidden character to visually indent visible content.
+                // Use base font + expansion=-1 so kern applies at full value
+                // (kern scales with font size on macOS 13+; 0.001pt font makes kern negligible).
+                let levelIndent: CGFloat = 14 + 20 * CGFloat(nestingLevel)
+                let lastHiddenCharRange = NSRange(location: markerAbsLocation + markerLength - 1, length: 1)
+                storage.addAttributes([
+                    .font: NSFont.systemFont(ofSize: baseFontSize),
+                    .expansion: -1.0,
+                    .kern: levelIndent
+                ], range: lastHiddenCharRange)
             }
         }
 
@@ -358,7 +394,7 @@ extension MarkdownStyler {
         let font = NSFont.systemFont(ofSize: baseFontSize)
         let paragraphStyle = NSMutableParagraphStyle()
         paragraphStyle.tabStops = []
-        paragraphStyle.defaultTabInterval = 1
+        paragraphStyle.defaultTabInterval = 0.001
         paragraphStyle.lineSpacing = 6
         paragraphStyle.minimumLineHeight = ceil(font.ascender - font.descender + font.leading)
         paragraphStyle.headIndent = levelIndent
@@ -366,7 +402,7 @@ extension MarkdownStyler {
             paragraphStyle.firstLineHeadIndent = nestingStep * CGFloat(nestingLevel)
             paragraphStyle.tabStops = [NSTextTab(textAlignment: .left, location: levelIndent)]
         } else {
-            paragraphStyle.firstLineHeadIndent = levelIndent
+            paragraphStyle.firstLineHeadIndent = 0
         }
 
         // Apply paragraph style to the full line range so leading whitespace inherits the style

@@ -217,38 +217,42 @@ class MarkdownTextView: NSTextView {
     private static let taskLinePrefixPattern = try! NSRegularExpression(
         pattern: #"^[ \t]*[-*] \[[ xX]\] "#
     )
+    /// Matches the prefix of a regular list line: optional indent + marker + space
+    private static let listPrefixPattern = try! NSRegularExpression(
+        pattern: #"^[ \t]*(?:[-*+]|\d+[.)]) "#
+    )
     // swiftlint:enable force_try
 
-    /// Returns both the line start and the content start of a task list line containing `location`.
-    /// Only returns a value when the prefix is in rendered/hidden mode (`.taskCheckbox` attribute present).
-    /// Returns nil in raw-edit mode (prefix visible as gray text) or for non-task lines.
+    /// Returns both the line start and the content start of a list line containing `location`.
+    /// For task lines, only matches when in rendered/hidden mode (`.taskCheckbox` attribute present).
+    /// For regular list lines (`- `, `* `, `1. `, etc.), always matches.
+    /// Returns nil for non-list lines.
     private func lineAndContentStart(at location: Int) -> (lineStart: Int, contentStart: Int)? {
         guard let storage = textStorage else { return nil }
         let nsString = storage.string as NSString
         let lineRange = nsString.lineRange(for: NSRange(location: location, length: 0))
+        let lineText = nsString.substring(with: lineRange)
+        let lineNS = lineText as NSString
+        let fullRange = NSRange(location: 0, length: lineNS.length)
 
-        // Detect rendered/editing-task mode: .taskCheckbox attribute is set on the hidden prefix.
-        // In raw mode the attribute is absent, so we fall back to default cursor movement.
+        // 1) Task line with rendered checkbox (existing behavior)
         var hasRenderedCheckbox = false
         storage.enumerateAttribute(.taskCheckbox, in: lineRange, options: []) { value, _, stop in
             if value != nil { hasRenderedCheckbox = true; stop.pointee = true }
         }
-        guard hasRenderedCheckbox else { return nil }
+        if hasRenderedCheckbox,
+           let match = Self.taskLinePrefixPattern.firstMatch(in: lineText, range: fullRange) {
+            return (lineStart: lineRange.location,
+                    contentStart: lineRange.location + NSMaxRange(match.range))
+        }
 
-        // Use the text structure to locate the content start reliably,
-        // avoiding dependency on font-size or color-alpha checks.
-        let lineText = nsString.substring(with: lineRange)
-        let lineNS = lineText as NSString
-        guard let match = Self.taskLinePrefixPattern.firstMatch(
-            in: lineText,
-            range: NSRange(location: 0, length: lineNS.length)
-        ) else { return nil }
+        // 2) Regular list line (prefix always visible in raw mode)
+        if let match = Self.listPrefixPattern.firstMatch(in: lineText, range: fullRange) {
+            return (lineStart: lineRange.location,
+                    contentStart: lineRange.location + NSMaxRange(match.range))
+        }
 
-        return (lineStart: lineRange.location, contentStart: lineRange.location + NSMaxRange(match.range))
-    }
-
-    private func contentStartOfLine(at location: Int) -> Int? {
-        lineAndContentStart(at: location)?.contentStart
+        return nil
     }
 
     // MARK: - Cursor movement: skip hidden line prefixes
@@ -329,8 +333,13 @@ class MarkdownTextView: NSTextView {
 
         let prefixRange = NSRange(location: lineRange.location, length: location - lineRange.location)
         var allHidden = true
-        storage.enumerateAttribute(.font, in: prefixRange, options: []) { value, _, stop in
-            if let font = value as? NSFont, font.pointSize >= 1.0 {
+        storage.enumerateAttribute(.foregroundColor, in: prefixRange, options: []) { value, _, stop in
+            guard let color = value as? NSColor else {
+                allHidden = false
+                stop.pointee = true
+                return
+            }
+            if color.alphaComponent > 0 {
                 allHidden = false
                 stop.pointee = true
             }

@@ -75,6 +75,8 @@ Chirami renders Markdown in an Obsidian-style Live Preview: the block containing
 | Shift+Tab (with selection) | Dedent all selected lines |
 | Enter (on list item) | Continue list with next marker |
 | Enter (on empty list item) | End list |
+| Ctrl+A | Move cursor to content start (press again for line start) |
+| ESC / Cmd+W | Close note |
 | Ctrl+Option+H / Ctrl+Option+← | Warp window left |
 | Ctrl+Option+L / Ctrl+Option+→ | Warp window right |
 | Ctrl+Option+K / Ctrl+Option+↑ | Warp window up |
