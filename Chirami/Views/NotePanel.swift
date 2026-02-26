@@ -180,12 +180,20 @@ class NotePanel: NSPanel {
         }
         if event.type == .keyDown {
             let warpFlags = AppConfig.shared.data.warpModifierFlags
-            let activeFlags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
-            if activeFlags == warpFlags,
-               let char = event.charactersIgnoringModifiers?.first,
-               ["h", "j", "k", "l"].contains(char) {
-                onWarpKey?(char)
-                return
+            let activeFlags = event.modifierFlags.intersection(.deviceIndependentFlagsMask).subtracting([.function, .numericPad])
+            if activeFlags == warpFlags {
+                // hjkl keys
+                if let char = event.charactersIgnoringModifiers?.first,
+                   ["h", "j", "k", "l"].contains(char) {
+                    onWarpKey?(char)
+                    return
+                }
+                // Arrow keys mapped to hjkl equivalents
+                let arrowKeyMap: [UInt16: Character] = [123: "h", 124: "l", 125: "j", 126: "k"]
+                if let mapped = arrowKeyMap[event.keyCode] {
+                    onWarpKey?(mapped)
+                    return
+                }
             }
         }
         super.sendEvent(event)

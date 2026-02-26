@@ -60,7 +60,7 @@ Periodic notes show navigation controls in the title bar:
 - **◀ / ▶** — Navigate to the previous or next existing file matching the template pattern.
 - **Today** — Jump to the current logical date (respecting `rollover_delay`).
 
-A background timer checks every 60 seconds whether the logical date has changed. If you're viewing "today" and the date rolls over, the note automatically switches to the new day's file.
+A background timer checks every 60 seconds whether the logical date has changed. If you're viewing "today" and the date rolls over, the note automatically switches to the new day's file. The same switch also happens when a hidden window is shown — if the date changed while the window was hidden, it opens to today's note.
 
 ## Smart Paste
 
