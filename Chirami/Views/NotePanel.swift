@@ -15,6 +15,7 @@ class NotePanel: NSPanel {
     private var pinButton: NSButton?
 
     var onWarpKey: ((Character) -> Void)?
+    var onHideRequest: (() -> Void)?
 
     override var title: String {
         didSet { customTitleLabel?.stringValue = title }
@@ -160,6 +161,10 @@ class NotePanel: NSPanel {
         closeButtonTrackingArea = trackingArea
     }
 
+    override func performClose(_ sender: Any?) {
+        onHideRequest?()
+    }
+
     override func sendEvent(_ event: NSEvent) {
         let dragFlags = AppConfig.shared.data.dragModifierFlags
         if event.modifierFlags.contains(dragFlags) {
@@ -179,6 +184,20 @@ class NotePanel: NSPanel {
             }
         }
         if event.type == .keyDown {
+            // Command+W (keyCode 13) hides the window
+            if event.keyCode == 13,
+               event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command {
+                onHideRequest?()
+                return
+            }
+            // ESC key (keyCode 53) with no modifiers hides the window
+            if event.keyCode == 53 {
+                let activeFlags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+                if activeFlags.isEmpty {
+                    onHideRequest?()
+                    return
+                }
+            }
             let warpFlags = AppConfig.shared.data.warpModifierFlags
             let activeFlags = event.modifierFlags.intersection(.deviceIndependentFlagsMask).subtracting([.function, .numericPad])
             if activeFlags == warpFlags {

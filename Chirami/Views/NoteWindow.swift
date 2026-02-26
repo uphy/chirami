@@ -56,6 +56,9 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
         panel.onWarpKey = { [weak self] key in
             self?.warpTo(key: key)
         }
+        panel.onHideRequest = { [weak self] in
+            self?.hide()
+        }
 
         if note.periodicInfo != nil {
             panel.setupNavigationButtons(
