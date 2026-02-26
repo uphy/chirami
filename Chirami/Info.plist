@@ -34,7 +34,5 @@
 	<string>Copyright © 2024 uphy</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
-	<key>CFBundleIconFile</key>
-	<string>AppIcon</string>
 </dict>
 </plist>

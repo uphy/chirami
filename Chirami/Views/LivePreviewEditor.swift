@@ -7,6 +7,8 @@ struct LivePreviewEditor: NSViewRepresentable {
     var backgroundColor: NSColor = .white
     var noteColor: NoteColor = .yellow
     var fontSize: CGFloat = 14
+    var noteURL: URL?
+    var attachmentsDir: URL?
     var onFontSizeChange: ((CGFloat) -> Void)?
     var customMenuItems: (() -> [NSMenuItem])?
 
@@ -49,6 +51,8 @@ struct LivePreviewEditor: NSViewRepresentable {
             coordinator?.handleFontSizeChange(newSize)
         }
         textView.customMenuItems = customMenuItems
+        textView.noteURL = noteURL
+        textView.attachmentsDir = attachmentsDir
 
         let scrollView = NSScrollView()
         scrollView.documentView = textView
@@ -74,8 +78,16 @@ struct LivePreviewEditor: NSViewRepresentable {
         guard let textView = scrollView.documentView as? MarkdownTextView else { return }
         let coordinator = context.coordinator
 
+        // Update note URL and attachments dir
+        textView.noteURL = noteURL
+        textView.attachmentsDir = attachmentsDir
+
         // Update note color if changed (e.g., via color picker)
         var needsRestyle = false
+        if coordinator.noteURL != noteURL {
+            coordinator.noteURL = noteURL
+            needsRestyle = true
+        }
         if coordinator.noteColor != noteColor {
             coordinator.noteColor = noteColor
             needsRestyle = true
@@ -110,7 +122,7 @@ struct LivePreviewEditor: NSViewRepresentable {
     }
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(text: $text, noteColor: noteColor, fontSize: fontSize, onFontSizeChange: onFontSizeChange)
+        Coordinator(text: $text, noteColor: noteColor, fontSize: fontSize, noteURL: noteURL, onFontSizeChange: onFontSizeChange)
     }
 
     // MARK: - Coordinator
@@ -128,14 +140,16 @@ struct LivePreviewEditor: NSViewRepresentable {
         var fontSize: CGFloat {
             didSet { styler = MarkdownStyler(noteColor: noteColor, baseFontSize: fontSize) }
         }
+        var noteURL: URL?
         var onFontSizeChange: ((CGFloat) -> Void)?
         private var styler: MarkdownStyler
         private var lastCursorLocation: Int = 0
 
-        init(text: Binding<String>, noteColor: NoteColor, fontSize: CGFloat, onFontSizeChange: ((CGFloat) -> Void)?) {
+        init(text: Binding<String>, noteColor: NoteColor, fontSize: CGFloat, noteURL: URL?, onFontSizeChange: ((CGFloat) -> Void)?) {
             self.text = text
             self.noteColor = noteColor
             self.fontSize = fontSize
+            self.noteURL = noteURL
             self.onFontSizeChange = onFontSizeChange
             self.styler = MarkdownStyler(noteColor: noteColor, baseFontSize: fontSize)
             super.init()
@@ -170,6 +184,7 @@ struct LivePreviewEditor: NSViewRepresentable {
         @objc func textViewFrameDidChange(_ notification: Notification) {
             guard let textView = textView else { return }
             overlayManager.update(textView: textView, noteColor: noteColor, fontSize: fontSize)
+            applyStyling(to: textView)
         }
 
         @objc private func windowDidBecomeKey(_ notification: Notification) {
@@ -253,6 +268,11 @@ struct LivePreviewEditor: NSViewRepresentable {
             guard let storage = textView.textStorage else { return }
             if let layoutManager = textView.layoutManager as? BulletLayoutManager {
                 layoutManager.baseFontSize = fontSize
+            }
+
+            // Provide note base URL for relative image path resolution
+            if let noteURL {
+                styler.noteBaseURL = noteURL.deletingLastPathComponent()
             }
 
             // Provide current container width for image scaling

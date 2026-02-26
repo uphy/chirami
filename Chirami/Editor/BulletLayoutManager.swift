@@ -158,8 +158,10 @@ class BulletLayoutManager: NSLayoutManager {
         // Draw inline images (or a placeholder icon while loading)
         textStorage.enumerateAttribute(.imageIcon, in: charRange, options: []) { value, range, _ in
             guard let urlString = value as? String else { return }
+            let widthNumber = textStorage.attribute(.imageWidth, at: range.location, effectiveRange: nil) as? NSNumber
+            let requestedWidth: CGFloat? = widthNumber.map { CGFloat($0.doubleValue) }
             if let image = ImageCache.shared.image(for: urlString) {
-                drawInlineImage(image, at: range, origin: origin)
+                drawInlineImage(image, at: range, origin: origin, requestedWidth: requestedWidth)
             } else {
                 drawSFSymbolAtGlyphPosition("photo", at: range, origin: origin, color: NSColor.secondaryLabelColor, size: baseFontSize)
             }
@@ -217,7 +219,8 @@ class BulletLayoutManager: NSLayoutManager {
 
     /// Draws a loaded image inline at the glyph position of the `!` marker character.
     /// Scales the image to fit the line fragment height while capping at the container width.
-    private func drawInlineImage(_ image: NSImage, at range: NSRange, origin: NSPoint) {
+    /// When `requestedWidth` is specified, the image is drawn at that width (clamped to available width).
+    private func drawInlineImage(_ image: NSImage, at range: NSRange, origin: NSPoint, requestedWidth: CGFloat? = nil) {
         let glyphIndex = glyphIndexForCharacter(at: range.location)
         guard textContainer(forGlyphAt: glyphIndex, effectiveRange: nil) != nil else { return }
         guard let ctx = NSGraphicsContext.current?.cgContext else { return }
@@ -230,7 +233,13 @@ class BulletLayoutManager: NSLayoutManager {
         let imageSize = image.size
         guard imageSize.width > 0, imageSize.height > 0 else { return }
 
-        let scale = min(availableWidth / imageSize.width, lineRect.height / imageSize.height)
+        let maxWidth: CGFloat
+        if let requested = requestedWidth {
+            maxWidth = min(requested, availableWidth)
+        } else {
+            maxWidth = availableWidth
+        }
+        let scale = min(maxWidth / imageSize.width, lineRect.height / imageSize.height)
         let drawWidth = (imageSize.width * scale).rounded()
         let drawHeight = (imageSize.height * scale).rounded()
 

@@ -24,6 +24,9 @@ class MarkdownStyler {
     /// Called on the main thread when an async image finishes loading. Trigger re-styling here.
     var onImageLoaded: (() -> Void)?
 
+    /// Parent directory of the note file. Used to resolve relative image paths.
+    var noteBaseURL: URL?
+
     static let hiddenAttributes: [NSAttributedString.Key: Any] = [
         .foregroundColor: NSColor.clear,
         .font: NSFont.systemFont(ofSize: 0.001)

@@ -35,6 +35,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Start Karabiner-Elements variable sync
         karabinerService.startObserving()
 
+        // Clean up orphaned attachment images in the background
+        let notesSnapshot = noteStore.notes
+        Task.detached {
+            AttachmentCleanupService.cleanupOrphanedAttachments(notes: notesSnapshot)
+        }
+
         // Re-register hotkeys when notes change (e.g., config reload)
         noteStore.$notes
             .dropFirst()

@@ -8,6 +8,8 @@ class MarkdownTextView: NSTextView {
     var currentFontSize: CGFloat = 14
     private var isDragModifierHeld = false
     var isAdjustingCursorForHiddenPrefix = false
+    var noteURL: URL?
+    var attachmentsDir: URL?
 
     private var dragModifierFlags: NSEvent.ModifierFlags {
         AppConfig.shared.data.dragModifierFlags
@@ -358,6 +360,52 @@ class MarkdownTextView: NSTextView {
         }
     }
 
+    // MARK: - Image paste
+
+    override func paste(_ sender: Any?) {
+        let pb = NSPasteboard.general
+        guard let types = pb.types else {
+            super.paste(sender)
+            return
+        }
+
+        let hasImage = types.contains(.tiff) || types.contains(.png)
+        let textContent = pb.string(forType: .string)
+        let hasText = textContent.map { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty } ?? false
+
+        NSLog("[Chirami] paste: types=\(types.map(\.rawValue)), hasImage=\(hasImage), hasText=\(hasText), noteURL=\(String(describing: noteURL)), attachmentsDir=\(String(describing: attachmentsDir))")
+
+        // If there's meaningful text content, prefer text paste (existing behavior)
+        if hasText {
+            super.paste(sender)
+            return
+        }
+
+        guard hasImage,
+              let noteURL = noteURL,
+              let attachmentsDir = attachmentsDir else {
+            super.paste(sender)
+            return
+        }
+
+        // Extract image from pasteboard
+        guard let image = NSImage(pasteboard: pb) else {
+            NSLog("[Chirami] paste: failed to create NSImage from pasteboard")
+            super.paste(sender)
+            return
+        }
+
+        let service = ImagePasteService()
+        switch service.save(image: image, to: attachmentsDir, noteURL: noteURL) {
+        case .success(let result):
+            NSLog("[Chirami] paste: image saved to \(result.fileURL.path)")
+            insertSmartPasteText(result.markdownText)
+        case .failure(let error):
+            NSLog("[Chirami] paste: image save failed: \(error)")
+            super.paste(sender)
+        }
+    }
+
     // MARK: - Keyboard shortcuts
 
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
@@ -375,6 +423,9 @@ class MarkdownTextView: NSTextView {
 
         if flags == .command, let chars = event.charactersIgnoringModifiers {
             switch chars {
+            case "v":
+                paste(nil)
+                return true
             case "l":
                 toggleTaskList()
                 return true

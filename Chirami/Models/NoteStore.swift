@@ -52,11 +52,17 @@ class NoteStore: ObservableObject {
             let notePosition = noteConfig.resolvePosition(defaults: config.defaults)
             let autoHide = noteConfig.resolveAutoHide(defaults: config.defaults)
 
+            let attachmentsDir = noteConfig.resolveAttachmentsDir(
+                noteURL: url, defaults: config.defaults,
+                isPeriodicNote: false, pathTemplate: nil
+            )
+
             return Note(
                 id: id, path: url, title: title, color: color,
                 transparency: transparency, fontSize: fontSize,
                 alwaysOnTop: alwaysOnTop, hotkey: noteConfig.hotkey,
-                position: notePosition, autoHide: autoHide
+                position: notePosition, autoHide: autoHide,
+                attachmentsDir: attachmentsDir
             )
         }
     }
@@ -121,12 +127,18 @@ class NoteStore: ObservableObject {
             titlePrefix: config.title
         )
 
+        let attachmentsDir = config.resolveAttachmentsDir(
+            noteURL: url, defaults: configDefaults,
+            isPeriodicNote: true, pathTemplate: config.path
+        )
+
         return Note(
             id: id, path: url, title: title, color: color,
             transparency: transparency, fontSize: fontSize,
             alwaysOnTop: alwaysOnTop, hotkey: config.hotkey,
             position: notePosition, autoHide: autoHide,
-            periodicInfo: periodicInfo
+            periodicInfo: periodicInfo,
+            attachmentsDir: attachmentsDir
         )
     }
 

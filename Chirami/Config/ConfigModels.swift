@@ -3,15 +3,20 @@ import CryptoKit
 
 // MARK: - Config (~/.config/chirami/config.yaml)
 
+struct AttachmentConfig: Codable {
+    var dir: String?
+}
+
 struct NoteDefaults: Codable {
     var color: String?
     var transparency: Double?
     var fontSize: Int?
     var position: String?
     var autoHide: Bool?
+    var attachment: AttachmentConfig?
 
     enum CodingKeys: String, CodingKey {
-        case color, transparency, position
+        case color, transparency, position, attachment
         case fontSize = "font_size"
         case autoHide = "auto_hide"
     }
@@ -131,6 +136,7 @@ struct NoteConfig: Codable {
     var autoHide: Bool?
     var rolloverDelay: String?
     var template: String?
+    var attachment: AttachmentConfig?
 
     var isPeriodicNote: Bool {
         PathTemplateResolver.isTemplate(path)
@@ -150,7 +156,7 @@ struct NoteConfig: Codable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case path, title, color, transparency, hotkey, position, template
+        case path, title, color, transparency, hotkey, position, template, attachment
         case fontSize = "font_size"
         case autoHide = "auto_hide"
         case rolloverDelay = "rollover_delay"
@@ -177,6 +183,39 @@ struct NoteConfig: Codable {
 
     func resolveAutoHide(defaults: NoteDefaults?) -> Bool {
         autoHide ?? defaults?.autoHide ?? false
+    }
+
+    func resolveAttachmentsDir(noteURL: URL, defaults: NoteDefaults?, isPeriodicNote: Bool, pathTemplate: String?) -> URL {
+        let dir = attachment?.dir ?? defaults?.attachment?.dir
+        guard let dir else {
+            if isPeriodicNote, let pathTemplate {
+                // Periodic note: template parent directory + "attachments/"
+                let baseDir = PathTemplateResolver.extractBaseDirectory(from: pathTemplate)
+                let baseDirResolved: URL
+                if baseDir.hasPrefix("~/") {
+                    baseDirResolved = URL(fileURLWithPath: (baseDir as NSString).expandingTildeInPath)
+                } else if baseDir.hasPrefix("/") {
+                    baseDirResolved = URL(fileURLWithPath: baseDir)
+                } else {
+                    baseDirResolved = noteURL.deletingLastPathComponent()
+                }
+                return baseDirResolved.appendingPathComponent("attachments")
+            }
+            // Static note: <note-stem>.attachments/
+            let stem = noteURL.deletingPathExtension().lastPathComponent
+            return noteURL.deletingLastPathComponent()
+                .appendingPathComponent("\(stem).attachments")
+        }
+        if dir.hasPrefix("~/") {
+            let expanded = (dir as NSString).expandingTildeInPath
+            return URL(fileURLWithPath: expanded)
+        }
+        if dir.hasPrefix("/") {
+            return URL(fileURLWithPath: dir)
+        }
+        // Relative path: resolve from note's parent directory
+        return noteURL.deletingLastPathComponent()
+            .appendingPathComponent(dir)
     }
 }
 

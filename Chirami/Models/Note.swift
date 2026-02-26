@@ -26,6 +26,7 @@ struct Note: Identifiable, Equatable {
     var position: NotePosition = .fixed
     var autoHide: Bool = false
     var periodicInfo: PeriodicNoteInfo?
+    var attachmentsDir: URL?
 
     static func == (lhs: Note, rhs: Note) -> Bool {
         lhs.id == rhs.id && lhs.color == rhs.color && lhs.transparency == rhs.transparency
@@ -33,6 +34,7 @@ struct Note: Identifiable, Equatable {
             && lhs.hotkey == rhs.hotkey && lhs.fontSize == rhs.fontSize
             && lhs.position == rhs.position && lhs.autoHide == rhs.autoHide
             && lhs.periodicInfo == rhs.periodicInfo
+            && lhs.attachmentsDir == rhs.attachmentsDir
     }
 }
 

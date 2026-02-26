@@ -20,6 +20,8 @@ extension NSAttributedString.Key {
     /// Marks the `!` character of an image. Value: URL string (NSString).
     /// BulletLayoutManager looks up the image from ImageCache and draws it inline.
     static let imageIcon = NSAttributedString.Key("chirami.imageIcon")
+    /// Requested display width for an image (CGFloat). Parsed from `![alt|width](url)` syntax.
+    static let imageWidth = NSAttributedString.Key("chirami.imageWidth")
     /// Marks a range as a rendered table overlay. Value: TableOverlayData.
     static let tableOverlay = NSAttributedString.Key("chirami.tableOverlay")
     /// Marks a separator row (|---|---|) for layout-level height collapse by BulletLayoutManager.
