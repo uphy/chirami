@@ -64,7 +64,7 @@ A background timer checks every 60 seconds whether the logical date has changed.
 
 ## Smart Paste
 
-Cmd+Shift+V triggers Smart Paste, which converts clipboard content to Markdown before inserting.
+Cmd+V triggers Smart Paste, which converts clipboard content to Markdown before inserting. Use Cmd+Shift+V for plain text paste.
 
 ### Conversion Rules
 
@@ -82,7 +82,7 @@ Content types are detected in this priority order: HTML → URL → JSON → Cod
 
 ```yaml
 smart_paste:
-  enabled: true         # Set to false to disable (Cmd+Shift+V falls through to normal paste)
+  enabled: true         # Set to false to disable (Cmd+V falls through to normal paste)
   fetch_url_title: true  # Set to false to skip title fetching for URLs
 ```
 

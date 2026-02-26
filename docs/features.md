@@ -68,7 +68,8 @@ Chirami renders Markdown in an Obsidian-style Live Preview: the block containing
 | Cmd+F | Open find bar |
 | Cmd+= / Cmd++ | Increase font size |
 | Cmd+- | Decrease font size |
-| Cmd+Shift+V | Smart Paste |
+| Cmd+V | Smart Paste |
+| Cmd+Shift+V | Plain text paste |
 | Tab (on list item) | Indent list item |
 | Shift+Tab (on list item) | Dedent list item |
 | Tab (with selection) | Indent all selected lines |

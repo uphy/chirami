@@ -638,20 +638,21 @@ class MarkdownTextView: NSTextView {
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
         let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
 
-        // Cmd+Shift+V: Smart Paste
+        // Cmd+Shift+V: Plain text paste
         if flags == [.command, .shift], event.charactersIgnoringModifiers?.lowercased() == "v" {
-            let config = AppConfig.shared.data.smartPaste
-            if config?.enabled != false {
-                performSmartPaste()
-                return true
-            }
-            // disabled → fall through to default paste
+            paste(nil)
+            return true
         }
 
         if flags == .command, let chars = event.charactersIgnoringModifiers {
             switch chars {
             case "v":
-                paste(nil)
+                let config = AppConfig.shared.data.smartPaste
+                if config?.enabled != false {
+                    performSmartPaste()
+                } else {
+                    paste(nil)
+                }
                 return true
             case "l":
                 toggleTaskList()
