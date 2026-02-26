@@ -132,6 +132,82 @@ notes:
 
 Press the hotkey → the note pops up at your cursor → type your note → click elsewhere and it vanishes.
 
+## Images
+
+### Image Paste
+
+Paste an image from the clipboard (Cmd+V) to save it as a PNG file and insert a Markdown image link.
+
+```
+![](attachments/image-a1b2c3d4.png)
+```
+
+**Details:**
+
+- If the clipboard contains both text and an image, text takes priority (normal paste)
+- File names are generated from the SHA256 hash of the image content (`image-<hash>.png`)
+- Pasting the same image multiple times reuses the existing file (no duplicates)
+- The link is inserted as a relative path from the note file
+
+### Display
+
+Images are scaled to fit the window width.
+
+- By default, images stretch to the full window width (minus left/right margins)
+- Aspect ratio is preserved
+- Maximum height is capped at 400px
+
+### Width Specification
+
+Use `![alt|width](url)` syntax to specify the display width in pixels.
+
+```markdown
+![screenshot|300](image.png)
+```
+
+- A number after `|` sets the display width in pixels
+- If the specified width exceeds the window width, the image is scaled down to fit
+- Without a width specification, the image fits to the window width
+
+### Attachment Directory
+
+Configure the image storage directory with `attachment.dir`.
+
+```yaml
+defaults:
+  attachment:
+    dir: ~/Pictures/chirami/
+
+notes:
+  - path: ~/Notes/todo.md
+    attachment:
+      dir: attachments/
+```
+
+**Resolution order:**
+
+1. Per-note `attachment.dir` if set
+2. `defaults.attachment.dir` if set
+3. Static notes: `<note-stem>.attachments/` (same directory as the note)
+4. Periodic notes: template path's parent directory + `attachments/`
+
+**Path formats:**
+
+| Path | Resolves to |
+|------|-------------|
+| `~/Pictures/chirami/` | Expanded from home directory |
+| `/absolute/path/` | Used as-is |
+| `attachments/` | Relative to the note's parent directory |
+
+### Orphaned Image Cleanup
+
+On app startup, Chirami automatically deletes image files that are no longer referenced by any note.
+
+- Runs in the background without affecting startup speed
+- Only targets files matching the `image-*.png` pattern
+- Scans the Markdown content of all notes to identify referenced images
+- For periodic notes, checks image references across all files matching the template pattern
+
 ## Tips
 
 ### Dotfiles Management

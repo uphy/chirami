@@ -16,6 +16,8 @@ defaults:
   font_size: 14
   position: fixed
   auto_hide: false
+  attachment:
+    dir: ~/Pictures/chirami/
 
 drag_modifier: command
 warp_modifier: ctrl+option
@@ -77,6 +79,7 @@ Fields in `defaults` are applied to every note unless the note overrides them.
 | `font_size` | integer | `14` | Font size in points. |
 | `position` | string | `fixed` | Window positioning mode. `fixed` or `cursor`. |
 | `auto_hide` | boolean | `false` | Hide the window automatically when it loses focus. |
+| `attachment.dir` | string | — | Default attachment directory for images. See [Images](advanced.md#images). |
 
 ## Note Settings
 
@@ -94,6 +97,7 @@ Each entry in `notes` configures one sticky note window.
 | `auto_hide` | boolean | from defaults | no | Hide window when it loses focus. |
 | `rollover_delay` | string | — | no | Delay before date rollover for periodic notes (e.g. `2h`, `30m`). |
 | `template` | string | — | no | Template file path for periodic notes. Copied when creating a new day's file. |
+| `attachment.dir` | string | — | no | Attachment directory for images. Overrides `defaults.attachment.dir`. See [Images](advanced.md#images). |
 
 ### Hotkey Format
 

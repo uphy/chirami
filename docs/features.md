@@ -12,7 +12,7 @@ Chirami renders Markdown in an Obsidian-style Live Preview: the block containing
 - ~~Strikethrough~~ (`~~text~~`)
 - Inline code (`` `code` ``)
 - Links (`[text](url)`) — clickable
-- Images (`![alt](url)`) — rendered inline
+- Images (`![alt](url)`) — rendered inline, fits to window width. See [Images](advanced.md#images).
 - Unordered lists (`-`, `*`)
 - Ordered lists (`1.`, `2.`)
 - Task lists (`- [ ]`, `- [x]`) — clickable checkboxes
@@ -49,6 +49,8 @@ Chirami renders Markdown in an Obsidian-style Live Preview: the block containing
 - `"`, `'` (wrap with same quote)
 
 **Indent / Dedent** — Press Tab on a list item line to indent it (adds one level). Press Shift+Tab to dedent. With multiple lines selected, Tab and Shift+Tab indent or dedent all selected lines at once. Tab and Shift+Tab on non-list lines behave normally.
+
+**Image Paste** — Paste an image from the clipboard (Cmd+V) to save it as a PNG file and insert a Markdown image link. See [Images](advanced.md#images).
 
 **Find** — Cmd+F opens the find bar.
 
