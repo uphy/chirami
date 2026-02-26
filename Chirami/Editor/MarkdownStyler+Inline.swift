@@ -21,7 +21,7 @@ extension MarkdownStyler {
         applyInlinePatterns(to: storage, in: substring, offset: range.location)
     }
 
-    func applyInlinePatterns(to storage: NSMutableAttributedString, in text: String, offset: Int) {
+    func applyInlinePatterns(to storage: NSMutableAttributedString, in text: String, offset: Int, cursorLocation: Int? = nil) {
         applyPattern(Self.boldPattern, to: storage, in: text, offset: offset,
                      attributes: [.font: NSFont.systemFont(ofSize: baseFontSize, weight: .bold)],
                      hideMarkers: true, markerLength: 2)
@@ -38,7 +38,7 @@ extension MarkdownStyler {
                      attributes: InlineMarkupRenderer.inlineCodeAttributes(fontSize: baseFontSize),
                      hideMarkers: true, markerLength: 1)
 
-        applyLinkPattern(to: storage, in: text, offset: offset)
+        applyLinkPattern(to: storage, in: text, offset: offset, cursorLocation: cursorLocation)
         applyImagePattern(to: storage, in: text, offset: offset)
     }
 
@@ -134,35 +134,46 @@ extension MarkdownStyler {
         }
     }
 
-    private func applyLinkPattern(to storage: NSMutableAttributedString, in text: String, offset: Int) {
+    private func applyLinkPattern(to storage: NSMutableAttributedString, in text: String, offset: Int, cursorLocation: Int? = nil) {
         let regex = Self.linkPattern
         let nsText = text as NSString
         let matches = regex.matches(in: text, range: NSRange(location: 0, length: nsText.length))
         for match in matches {
             let fullRange = NSRange(location: match.range.location + offset, length: match.range.length)
-            let urlRange = match.range(at: 2)
-            if urlRange.location != NSNotFound {
-                let urlStr = nsText.substring(with: urlRange)
-                if let url = URL(string: urlStr) {
-                    storage.addAttributes([
-                        .link: url,
-                        .foregroundColor: noteColor.linkColor
-                    ], range: fullRange)
+            let cursorInLink = cursorLocation.map { NSLocationInRange($0, fullRange) } ?? false
+
+            if cursorInLink {
+                // Raw styling: gray the entire match, then highlight text portion with link color
+                storage.addAttributes([.foregroundColor: NSColor.secondaryLabelColor], range: fullRange)
+                let textRange = match.range(at: 1)
+                if textRange.location != NSNotFound {
+                    let adjustedRange = NSRange(location: textRange.location + offset, length: textRange.length)
+                    storage.addAttributes([.foregroundColor: noteColor.linkColor], range: adjustedRange)
                 }
-            }
+            } else {
+                // Rendered styling: apply link and hide syntax
+                let urlRange = match.range(at: 2)
+                if urlRange.location != NSNotFound {
+                    let urlStr = nsText.substring(with: urlRange)
+                    if let url = URL(string: urlStr) {
+                        storage.addAttributes([
+                            .link: url,
+                            .foregroundColor: noteColor.linkColor
+                        ], range: fullRange)
+                    }
+                }
 
-            // Hide the markdown syntax for the link wrapper: [, ](url)
-            // Show only the link text
-            let textRange = match.range(at: 1)
-            if textRange.location != NSNotFound {
-                let openBracket = NSRange(location: fullRange.location, length: 1)
-                storage.addAttributes(Self.hiddenAttributes, range: openBracket)
+                let textRange = match.range(at: 1)
+                if textRange.location != NSNotFound {
+                    let openBracket = NSRange(location: fullRange.location, length: 1)
+                    storage.addAttributes(Self.hiddenAttributes, range: openBracket)
 
-                let afterText = NSRange(
-                    location: fullRange.location + 1 + textRange.length,
-                    length: fullRange.length - 1 - textRange.length
-                )
-                storage.addAttributes(Self.hiddenAttributes, range: afterText)
+                    let afterText = NSRange(
+                        location: fullRange.location + 1 + textRange.length,
+                        length: fullRange.length - 1 - textRange.length
+                    )
+                    storage.addAttributes(Self.hiddenAttributes, range: afterText)
+                }
             }
         }
     }

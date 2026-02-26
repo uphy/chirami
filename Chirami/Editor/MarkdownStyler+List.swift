@@ -133,13 +133,16 @@ extension MarkdownStyler {
 
             if editing && (isChecked == nil || cursorLocation < itemRange.location + contentStart) {
                 applyListItemRawStyle(
-                    to: storage, itemRange: itemRange, contentStart: contentStart, in: text
+                    to: storage, itemRange: itemRange, contentStart: contentStart,
+                    cursorLocation: isChecked != nil ? cursorLocation : nil,
+                    in: text
                 )
             } else if editing {
                 applyListItemEditingTaskStyle(
                     to: storage, itemRange: itemRange, markerAbsLocation: markerAbsLocation,
                     markerLength: markerLength, isChecked: isChecked!, contentStart: contentStart,
-                    ordered: ordered, nestingLevel: nestingLevel, in: text
+                    ordered: ordered, nestingLevel: nestingLevel, cursorLocation: cursorLocation,
+                    in: text
                 )
             } else {
                 applyListItemRenderedStyle(
@@ -173,6 +176,7 @@ extension MarkdownStyler {
         to storage: NSMutableAttributedString,
         itemRange: NSRange,
         contentStart: Int,
+        cursorLocation: Int? = nil,
         in text: String
     ) {
         // Gray only the marker (leading whitespace + marker + optional checkbox syntax)
@@ -185,7 +189,11 @@ extension MarkdownStyler {
         if itemRange.length > contentStart {
             let contentRange = NSRange(location: itemRange.location + contentStart, length: itemRange.length - contentStart)
             let contentText = (text as NSString).substring(with: contentRange)
-            applyRawInlinePatterns(to: storage, in: contentText, offset: contentRange.location)
+            if let cursorLocation = cursorLocation {
+                applyInlinePatterns(to: storage, in: contentText, offset: contentRange.location, cursorLocation: cursorLocation)
+            } else {
+                applyRawInlinePatterns(to: storage, in: contentText, offset: contentRange.location)
+            }
         }
     }
 
@@ -199,6 +207,7 @@ extension MarkdownStyler {
         contentStart: Int,
         ordered: Bool,
         nestingLevel: Int,
+        cursorLocation: Int,
         in text: String
     ) {
         let leadingWSLength = markerAbsLocation - itemRange.location
@@ -221,7 +230,7 @@ extension MarkdownStyler {
         if itemRange.length > contentStart {
             let contentRange = NSRange(location: itemRange.location + contentStart, length: itemRange.length - contentStart)
             let contentText = (text as NSString).substring(with: contentRange)
-            applyInlinePatterns(to: storage, in: contentText, offset: contentRange.location)
+            applyInlinePatterns(to: storage, in: contentText, offset: contentRange.location, cursorLocation: cursorLocation)
         }
     }
 
