@@ -12,6 +12,9 @@ A macOS sticky-note Markdown app. Access your notes as floating windows — with
 - **Pure `.md` files** — No metadata, no front matter. Full Obsidian / VS Code compatibility
 - **Periodic notes** — Date-based file paths with rollover delay and templates
 - **Smart Paste** — Cmd+Shift+V converts URLs, HTML, and JSON to Markdown on paste
+- **Image Paste & Resize** — Cmd+V to paste images as PNG; drag the right edge to resize
+- **Window Warp** — Modifier+H/J/K/L to snap windows to a 3×3 grid
+- **External Editor Sync** — Live file watching; edits in Obsidian or VS Code reflect instantly
 - **Per-note styling** — Background color, transparency, and font size for each note
 
 See [Features](docs/features.md) for the full feature guide and keyboard shortcuts.
@@ -76,7 +79,7 @@ See [Configuration](docs/configuration.md) for the full field reference.
 - [Getting Started](docs/getting-started.md) — Installation through first note display
 - [Configuration](docs/configuration.md) — Full config.yaml field reference
 - [Features](docs/features.md) — Feature guide and keyboard shortcuts
-- [Advanced](docs/advanced.md) — Periodic Notes, Smart Paste, Karabiner integration
+- [Advanced](docs/advanced.md) — Periodic Notes, Smart Paste, Images, Transient Note, Karabiner integration
 - [Product Vision](docs/product-vision.md) — Why Chirami exists
 
 ## Development
