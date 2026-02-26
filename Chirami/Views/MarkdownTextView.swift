@@ -428,6 +428,17 @@ class MarkdownTextView: NSTextView {
         let lineRange = nsString.lineRange(for: NSRange(location: location, length: 0))
         guard location > lineRange.location else { return nil }
 
+        // Check if the character AT location is visible (= selection starts after hidden prefix)
+        if location < nsString.length {
+            let charAttrs = storage.attributes(at: location, effectiveRange: nil)
+            if let color = charAttrs[.foregroundColor] as? NSColor, color.alphaComponent > 0 {
+                return nil  // Selection starts at visible content, don't expand
+            }
+            if charAttrs[.foregroundColor] == nil {
+                return nil
+            }
+        }
+
         let prefixRange = NSRange(location: lineRange.location, length: location - lineRange.location)
         var allHidden = true
         storage.enumerateAttribute(.foregroundColor, in: prefixRange, options: []) { value, _, stop in
