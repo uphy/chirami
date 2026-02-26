@@ -219,10 +219,10 @@ class MarkdownTextView: NSTextView {
     )
     // swiftlint:enable force_try
 
-    /// Returns the index of the first content character on a task list line containing `location`.
+    /// Returns both the line start and the content start of a task list line containing `location`.
     /// Only returns a value when the prefix is in rendered/hidden mode (`.taskCheckbox` attribute present).
     /// Returns nil in raw-edit mode (prefix visible as gray text) or for non-task lines.
-    private func contentStartOfLine(at location: Int) -> Int? {
+    private func lineAndContentStart(at location: Int) -> (lineStart: Int, contentStart: Int)? {
         guard let storage = textStorage else { return nil }
         let nsString = storage.string as NSString
         let lineRange = nsString.lineRange(for: NSRange(location: location, length: 0))
@@ -244,55 +244,77 @@ class MarkdownTextView: NSTextView {
             range: NSRange(location: 0, length: lineNS.length)
         ) else { return nil }
 
-        return lineRange.location + NSMaxRange(match.range)
+        return (lineStart: lineRange.location, contentStart: lineRange.location + NSMaxRange(match.range))
+    }
+
+    private func contentStartOfLine(at location: Int) -> Int? {
+        lineAndContentStart(at: location)?.contentStart
     }
 
     // MARK: - Cursor movement: skip hidden line prefixes
 
     override func moveToBeginningOfParagraph(_ sender: Any?) {
-        guard let contentStart = contentStartOfLine(at: selectedRange().location) else {
+        guard let result = lineAndContentStart(at: selectedRange().location) else {
             super.moveToBeginningOfParagraph(sender)
             return
         }
-        guard selectedRange().location != contentStart else { return }
-        isAdjustingCursorForHiddenPrefix = true
-        defer { isAdjustingCursorForHiddenPrefix = false }
-        setSelectedRange(NSRange(location: contentStart, length: 0))
+        if selectedRange().location == result.contentStart {
+            // Toggle to lineStart; let applyStyling switch to raw mode
+            setSelectedRange(NSRange(location: result.lineStart, length: 0))
+        } else {
+            isAdjustingCursorForHiddenPrefix = true
+            defer { isAdjustingCursorForHiddenPrefix = false }
+            setSelectedRange(NSRange(location: result.contentStart, length: 0))
+        }
     }
 
     override func moveToBeginningOfLine(_ sender: Any?) {
-        guard let contentStart = contentStartOfLine(at: selectedRange().location) else {
+        guard let result = lineAndContentStart(at: selectedRange().location) else {
             super.moveToBeginningOfLine(sender)
             return
         }
-        guard selectedRange().location != contentStart else { return }
-        isAdjustingCursorForHiddenPrefix = true
-        defer { isAdjustingCursorForHiddenPrefix = false }
-        setSelectedRange(NSRange(location: contentStart, length: 0))
+        if selectedRange().location == result.contentStart {
+            // Toggle to lineStart; let applyStyling switch to raw mode
+            setSelectedRange(NSRange(location: result.lineStart, length: 0))
+        } else {
+            isAdjustingCursorForHiddenPrefix = true
+            defer { isAdjustingCursorForHiddenPrefix = false }
+            setSelectedRange(NSRange(location: result.contentStart, length: 0))
+        }
     }
 
     override func moveToBeginningOfParagraphAndModifySelection(_ sender: Any?) {
-        guard let contentStart = contentStartOfLine(at: selectedRange().location) else {
+        guard let result = lineAndContentStart(at: selectedRange().location) else {
             super.moveToBeginningOfParagraphAndModifySelection(sender)
             return
         }
         let sel = selectedRange()
         let anchor = sel.location + sel.length
-        isAdjustingCursorForHiddenPrefix = true
-        defer { isAdjustingCursorForHiddenPrefix = false }
-        setSelectedRange(NSRange(location: contentStart, length: anchor - contentStart))
+        if sel.location == result.contentStart {
+            // Toggle to lineStart; let applyStyling switch to raw mode
+            setSelectedRange(NSRange(location: result.lineStart, length: anchor - result.lineStart))
+        } else {
+            isAdjustingCursorForHiddenPrefix = true
+            defer { isAdjustingCursorForHiddenPrefix = false }
+            setSelectedRange(NSRange(location: result.contentStart, length: anchor - result.contentStart))
+        }
     }
 
     override func moveToBeginningOfLineAndModifySelection(_ sender: Any?) {
-        guard let contentStart = contentStartOfLine(at: selectedRange().location) else {
+        guard let result = lineAndContentStart(at: selectedRange().location) else {
             super.moveToBeginningOfLineAndModifySelection(sender)
             return
         }
         let sel = selectedRange()
         let anchor = sel.location + sel.length
-        isAdjustingCursorForHiddenPrefix = true
-        defer { isAdjustingCursorForHiddenPrefix = false }
-        setSelectedRange(NSRange(location: contentStart, length: anchor - contentStart))
+        if sel.location == result.contentStart {
+            // Toggle to lineStart; let applyStyling switch to raw mode
+            setSelectedRange(NSRange(location: result.lineStart, length: anchor - result.lineStart))
+        } else {
+            isAdjustingCursorForHiddenPrefix = true
+            defer { isAdjustingCursorForHiddenPrefix = false }
+            setSelectedRange(NSRange(location: result.contentStart, length: anchor - result.contentStart))
+        }
     }
 
     // MARK: - Copy/Cut: include hidden prefixes
