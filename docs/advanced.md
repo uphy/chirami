@@ -157,9 +157,15 @@ Images are scaled to fit the window width.
 - Aspect ratio is preserved
 - Maximum height is capped at 400px
 
-### Width Specification
+### Resize
 
-Use `![alt|width](url)` syntax to specify the display width in pixels.
+Drag the right edge of an image to resize it. The cursor changes to a resize cursor (↔) when hovering near the right edge.
+
+- Drag right to enlarge, left to shrink (minimum width: 50px)
+- On release, the final width is written into the Markdown as `![alt|width](url)`
+- The resize is undoable (Cmd+Z)
+
+You can also set the width manually in Markdown using `![alt|width](url)` syntax:
 
 ```markdown
 ![screenshot|300](image.png)

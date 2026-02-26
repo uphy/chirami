@@ -11,6 +11,13 @@ class MarkdownTextView: NSTextView {
     var noteURL: URL?
     var attachmentsDir: URL?
 
+    // Image resize state
+    private var isResizingImage = false
+    private var resizingImageCharIndex: Int?
+    private var resizingImageStartWidth: CGFloat = 0
+    private var resizingDragStartX: CGFloat = 0
+    private let imageResizeEdgeThreshold: CGFloat = 8
+
     private var dragModifierFlags: NSEvent.ModifierFlags {
         AppConfig.shared.data.dragModifierFlags
     }
@@ -40,12 +47,30 @@ class MarkdownTextView: NSTextView {
         addTrackingArea(area)
     }
 
+    // MARK: - Image resize helpers
+
+    /// Returns the char index and rect of an image whose right edge is near `point`.
+    private func imageAtRightEdge(at point: NSPoint) -> (charIndex: Int, rect: NSRect)? {
+        guard let bulletLM = layoutManager as? BulletLayoutManager else { return nil }
+        for (charIndex, rect) in bulletLM.drawnImageRects {
+            if abs(point.x - rect.maxX) <= imageResizeEdgeThreshold
+                && point.y >= rect.minY && point.y <= rect.maxY {
+                return (charIndex, rect)
+            }
+        }
+        return nil
+    }
+
     override func mouseMoved(with event: NSEvent) {
         if event.modifierFlags.contains(dragModifierFlags) {
             NSCursor.openHand.set()
             return
         }
         let point = convert(event.locationInWindow, from: nil)
+        if imageAtRightEdge(at: point) != nil {
+            NSCursor.resizeLeftRight.set()
+            return
+        }
         if charIndexOfCheckbox(at: point) != nil || linkURL(at: point) != nil {
             NSCursor.pointingHand.set()
         } else {
@@ -90,6 +115,13 @@ class MarkdownTextView: NSTextView {
         }
 
         let point = convert(event.locationInWindow, from: nil)
+        if let (charIndex, rect) = imageAtRightEdge(at: point) {
+            isResizingImage = true
+            resizingImageCharIndex = charIndex
+            resizingImageStartWidth = rect.width
+            resizingDragStartX = point.x
+            return
+        }
         if let idx = charIndexOfCheckbox(at: point) {
             onCheckboxClick?(idx)
             return
@@ -99,6 +131,71 @@ class MarkdownTextView: NSTextView {
             return
         }
         super.mouseDown(with: event)
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        guard isResizingImage, let charIndex = resizingImageCharIndex else {
+            super.mouseDragged(with: event)
+            return
+        }
+        let point = convert(event.locationInWindow, from: nil)
+        let newWidth = max(50, resizingImageStartWidth + (point.x - resizingDragStartX))
+        if let bulletLM = layoutManager as? BulletLayoutManager {
+            bulletLM.dragOverrideWidths[charIndex] = newWidth
+        }
+        needsDisplay = true
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        guard isResizingImage, let charIndex = resizingImageCharIndex else {
+            super.mouseUp(with: event)
+            return
+        }
+        let point = convert(event.locationInWindow, from: nil)
+        let finalWidth = max(50, resizingImageStartWidth + (point.x - resizingDragStartX))
+
+        isResizingImage = false
+        resizingImageCharIndex = nil
+        if let bulletLM = layoutManager as? BulletLayoutManager {
+            bulletLM.dragOverrideWidths.removeAll()
+        }
+
+        commitImageWidth(Int(finalWidth.rounded()), at: charIndex)
+    }
+
+    /// Updates the markdown text to set the image width at the given character index.
+    /// Searches for `![alt](url)` containing `charIndex` and adds/updates `|width` in the alt text.
+    private func commitImageWidth(_ width: Int, at charIndex: Int) {
+        guard let storage = textStorage else { return }
+        let fullText = storage.string as NSString
+        let pattern = MarkdownStyler.imagePattern
+        let matches = pattern.matches(in: storage.string, range: NSRange(location: 0, length: fullText.length))
+
+        for match in matches {
+            let matchRange = match.range
+            // The charIndex corresponds to the `!` character at the start of the match
+            guard matchRange.location == charIndex else { continue }
+
+            let altRange = match.range(at: 1)
+            guard altRange.location != NSNotFound else { continue }
+            let altText = fullText.substring(with: altRange)
+
+            let newAlt: String
+            if let pipeIndex = altText.lastIndex(of: "|") {
+                // Replace existing width after the last pipe
+                newAlt = String(altText[..<pipeIndex]) + "|\(width)"
+            } else {
+                // Append |width to alt text
+                newAlt = altText + "|\(width)"
+            }
+
+            let newAltRange = NSRange(location: altRange.location, length: altRange.length)
+            if shouldChangeText(in: newAltRange, replacementString: newAlt) {
+                storage.replaceCharacters(in: newAltRange, with: newAlt)
+                didChangeText()
+            }
+            break
+        }
     }
 
     private func linkURL(at point: NSPoint) -> URL? {
@@ -430,7 +527,7 @@ class MarkdownTextView: NSTextView {
         switch service.save(image: image, to: attachmentsDir, noteURL: noteURL) {
         case .success(let result):
             NSLog("[Chirami] paste: image saved to \(result.fileURL.path)")
-            insertSmartPasteText(result.markdownText)
+            insertSmartPasteText(result.markdownText + "\n")
         case .failure(let error):
             NSLog("[Chirami] paste: image save failed: \(error)")
             super.paste(sender)

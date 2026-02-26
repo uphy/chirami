@@ -5,6 +5,12 @@ class BulletLayoutManager: NSLayoutManager {
 
     var baseFontSize: CGFloat = 14
 
+    /// Rects of drawn images keyed by character index (in view coordinates).
+    private(set) var drawnImageRects: [Int: NSRect] = [:]
+
+    /// Temporary width overrides during drag resize, keyed by character index.
+    var dragOverrideWidths: [Int: CGFloat] = [:]
+
     override init() {
         super.init()
         self.delegate = self
@@ -155,6 +161,9 @@ class BulletLayoutManager: NSLayoutManager {
             drawSFSymbol(symbolName, at: range, origin: origin, color: color, size: baseFontSize)
         }
 
+        // Clear stale image rects before redrawing
+        drawnImageRects.removeAll()
+
         // Draw inline images (or a placeholder icon while loading)
         textStorage.enumerateAttribute(.imageIcon, in: charRange, options: []) { value, range, _ in
             guard let urlString = value as? String else { return }
@@ -220,6 +229,7 @@ class BulletLayoutManager: NSLayoutManager {
     /// Draws a loaded image inline at the glyph position of the `!` marker character.
     /// Scales the image to fit the line fragment height while capping at the container width.
     /// When `requestedWidth` is specified, the image is drawn at that width (clamped to available width).
+    /// During drag resize, `dragOverrideWidths` takes priority over `requestedWidth`.
     private func drawInlineImage(_ image: NSImage, at range: NSRange, origin: NSPoint, requestedWidth: CGFloat? = nil) {
         let glyphIndex = glyphIndexForCharacter(at: range.location)
         guard textContainer(forGlyphAt: glyphIndex, effectiveRange: nil) != nil else { return }
@@ -233,18 +243,34 @@ class BulletLayoutManager: NSLayoutManager {
         let imageSize = image.size
         guard imageSize.width > 0, imageSize.height > 0 else { return }
 
+        // Drag override width takes priority over requestedWidth
+        let effectiveWidth: CGFloat? = dragOverrideWidths[range.location] ?? requestedWidth
+
         let maxWidth: CGFloat
-        if let requested = requestedWidth {
-            maxWidth = min(requested, availableWidth)
+        if let effective = effectiveWidth {
+            maxWidth = min(effective, availableWidth)
         } else {
             maxWidth = availableWidth
         }
-        let scale = min(maxWidth / imageSize.width, lineRect.height / imageSize.height)
+        let isDragOverride = dragOverrideWidths[range.location] != nil
+        let scale: CGFloat
+        if isDragOverride {
+            // During drag, ignore line height constraint so the image can grow beyond the original size
+            scale = maxWidth / imageSize.width
+        } else {
+            scale = min(maxWidth / imageSize.width, lineRect.height / imageSize.height)
+        }
         let drawWidth = (imageSize.width * scale).rounded()
         let drawHeight = (imageSize.height * scale).rounded()
 
         let x = origin.x + lineRect.origin.x + glyphLocation.x
-        let y = origin.y + lineRect.origin.y + ((lineRect.height - drawHeight) / 2).rounded()
+        let y: CGFloat
+        if isDragOverride {
+            // Top-align during drag to avoid gap above image
+            y = origin.y + lineRect.origin.y
+        } else {
+            y = origin.y + lineRect.origin.y + ((lineRect.height - drawHeight) / 2).rounded()
+        }
 
         // NSTextView is flipped (y increases downward). CGContext.draw(cgImage:in:) assumes
         // unflipped coordinates (y increases upward). Apply an explicit flip so the image
@@ -255,6 +281,9 @@ class BulletLayoutManager: NSLayoutManager {
         ctx.scaleBy(x: 1, y: -1)
         ctx.draw(cgImage, in: CGRect(x: 0, y: 0, width: drawWidth, height: drawHeight))
         ctx.restoreGState()
+
+        // Record the drawn rect for hit-testing (view coordinates)
+        drawnImageRects[range.location] = NSRect(x: x, y: y, width: drawWidth, height: drawHeight)
     }
 
     /// Draws an SF Symbol at the actual glyph position (for inline elements).
