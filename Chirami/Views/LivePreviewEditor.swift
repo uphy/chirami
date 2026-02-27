@@ -42,6 +42,7 @@ struct LivePreviewEditor: NSViewRepresentable {
         textView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
         textView.usesFindBar = true
         textView.isIncrementalSearchingEnabled = true
+        textView.selectedTextAttributes = [.backgroundColor: noteColor.selectionColor]
 
         let coordinator = context.coordinator
         textView.onCheckboxClick = { [weak coordinator] charIndex in
@@ -104,6 +105,7 @@ struct LivePreviewEditor: NSViewRepresentable {
         }
 
         if needsRestyle {
+            textView.selectedTextAttributes = [.backgroundColor: noteColor.selectionColor]
             coordinator.applyStyling(to: textView)
         }
 

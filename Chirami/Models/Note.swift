@@ -45,9 +45,13 @@ private struct ColorSet {
     let light: (r: CGFloat, g: CGFloat, b: CGFloat)
 
     var nsColor: NSColor {
+        nsColor(alpha: 1.0)
+    }
+
+    func nsColor(alpha: CGFloat) -> NSColor {
         NSColor(name: nil) { appearance in
-            let c = appearance.isDark ? dark : light
-            return NSColor(red: c.r, green: c.g, blue: c.b, alpha: 1.0)
+            let c = appearance.isDark ? self.dark : self.light
+            return NSColor(red: c.r, green: c.g, blue: c.b, alpha: alpha)
         }
     }
 }
@@ -99,6 +103,14 @@ enum NoteColor: String, CaseIterable, Codable {
     var nsColor: NSColor { def.background.nsColor }
     var textColor: NSColor { def.text.nsColor }
     var linkColor: NSColor { def.link.nsColor }
+    var selectionColor: NSColor {
+        let t = def.text
+        return NSColor(name: nil) { appearance in
+            let c = appearance.isDark ? t.dark : t.light
+            let alpha: CGFloat = appearance.isDark ? 0.3 : 0.15
+            return NSColor(red: c.r, green: c.g, blue: c.b, alpha: alpha)
+        }
+    }
     var displayName: String { rawValue.capitalized }
 }
 
