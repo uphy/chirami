@@ -58,6 +58,8 @@ Chirami renders Markdown in an Obsidian-style Live Preview: the block containing
 
 **Link click** — Click a rendered link to open it in the default browser.
 
+**Link open from caret** — Place the cursor inside a markdown link and press Cmd+Enter or Option+Enter to open the URL in the default browser. Works in both regular text and task list items.
+
 ## Keyboard Shortcuts
 
 | Shortcut | Action |
@@ -76,6 +78,8 @@ Chirami renders Markdown in an Obsidian-style Live Preview: the block containing
 | Shift+Tab (with selection) | Dedent all selected lines |
 | Enter (on list item) | Continue list with next marker |
 | Enter (on empty list item) | End list |
+| Cmd+Enter (on link) | Open link at caret |
+| Option+Enter (on link) | Open link at caret |
 | Ctrl+A | Move cursor to content start (press again for line start) |
 | ESC / Cmd+W | Close note |
 | Ctrl+Option+H / Ctrl+Option+← | Warp window left |

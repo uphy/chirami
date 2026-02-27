@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "prompt",
-            "prompt": "Review the changes made in this session. Determine if README.md or documentation needs updating. Only block for MAJOR changes: new user-facing features, killer features, breaking changes to public API, or removal of major functionality. Do NOT block for: bug fixes, refactoring, minor UI tweaks, internal improvements, config changes, dependency updates, test changes, or incremental enhancements to existing features. When in doubt, approve. If updates are needed, respond {\"ok\": false, \"reason\": \"README update recommended: [what major feature/change to document]\"}. Otherwise respond {\"ok\": true}."
+            "prompt": "Review the changes made in this session. Read docs/features.md and compare it against the actual code changes. Block if any of the following are true: (1) A new user-facing feature, keyboard shortcut, behavior, or option was added but is not documented in docs/features.md. (2) An existing feature was changed or removed but docs/features.md still describes the old behavior. (3) README.md needs updating for significant new features. Do NOT block for: bug fixes that don't change documented behavior, refactoring, internal improvements, test changes, or dependency updates. When in doubt, block. If updates are needed, respond {\"ok\": false, \"reason\": \"Docs update needed: [what to add/change in which file]\"}. Otherwise respond {\"ok\": true}."
           }
         ]
       }

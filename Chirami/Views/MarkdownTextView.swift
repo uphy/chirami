@@ -293,6 +293,30 @@ class MarkdownTextView: NSTextView {
         return storage.attribute(.link, at: charIndex, effectiveRange: nil) as? URL
     }
 
+    /// Returns the URL of the markdown link at the current caret position, or nil.
+    /// Uses regex parsing because the `.link` attribute is not set when the caret is inside a link (raw mode).
+    private func linkURLAtCaret() -> URL? {
+        guard let storage = textStorage else { return nil }
+        let nsString = storage.string as NSString
+        let caretLocation = selectedRange().location
+        let lineRange = nsString.lineRange(for: NSRange(location: caretLocation, length: 0))
+        let lineText = nsString.substring(with: lineRange)
+        let lineNS = lineText as NSString
+        let regex = MarkdownStyler.linkPattern
+        let matches = regex.matches(in: lineText, range: NSRange(location: 0, length: lineNS.length))
+        for match in matches {
+            let matchStart = lineRange.location + match.range.location
+            let matchEnd = matchStart + match.range.length
+            // Include the character right after the closing parenthesis
+            guard caretLocation >= matchStart && caretLocation <= matchEnd else { continue }
+            let urlString = lineNS.substring(with: match.range(at: 2))
+            if let url = URL(string: urlString) {
+                return url
+            }
+        }
+        return nil
+    }
+
     private func charIndexOfCheckbox(at point: NSPoint) -> Int? {
         guard let storage = textStorage else { return nil }
         let charIndex = characterIndexForInsertion(at: point)
@@ -634,6 +658,21 @@ class MarkdownTextView: NSTextView {
     }
 
     // MARK: - Keyboard shortcuts
+
+    override func keyDown(with event: NSEvent) {
+        // Cmd+Enter or Option+Enter: open link at caret
+        // Both are handled here in keyDown to keep the logic in one place.
+        // Cmd+Enter reaches keyDown because this LSUIElement app has no menu bar to consume it.
+        // Option+Enter reaches keyDown because it bypasses performKeyEquivalent on macOS.
+        let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        if flags == .command || flags == .option,
+           event.keyCode == 36,
+           let url = linkURLAtCaret() {
+            NSWorkspace.shared.open(url)
+            return
+        }
+        super.keyDown(with: event)
+    }
 
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
         let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
