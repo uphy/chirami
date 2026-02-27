@@ -32,6 +32,9 @@ class MarkdownStyler {
         .font: NSFont.systemFont(ofSize: 0.001)
     ]
 
+    /// Pre-computed line-start indices for the current style pass. Populated by style(_:cursorLocation:).
+    var lineStartCache: [String.Index] = []
+
     init(noteColor: NoteColor = .yellow, baseFontSize: CGFloat = 14) {
         self.noteColor = noteColor
         self.baseFontSize = baseFontSize
@@ -42,6 +45,9 @@ class MarkdownStyler {
     /// Style `text`, showing the block containing `cursorLocation` as raw Markdown.
     func style(_ text: String, cursorLocation: Int) -> NSAttributedString {
         guard !text.isEmpty else { return NSAttributedString(string: text) }
+
+        lineStartCache = buildLineStarts(in: text)
+        defer { lineStartCache = [] }
 
         let doc = Document(parsing: text)
         let result = NSMutableAttributedString(string: text, attributes: baseAttributes)

@@ -4,7 +4,6 @@ enum ClipboardContentType {
     case html(String)
     case url(URL)
     case json(String)
-    case code(String)
     case plainText(String)
 }
 
@@ -46,10 +45,6 @@ final class SmartPasteService {
             return .json(trimmed)
         }
 
-        if isCode(trimmed) {
-            return .code(trimmed)
-        }
-
         return .plainText(text)
     }
 
@@ -73,8 +68,6 @@ final class SmartPasteService {
             }
         case .json(let json):
             return SmartPasteResult(markdown: wrapInCodeBlock(json, language: "json"), pendingTitleFetch: nil)
-        case .code(let code):
-            return SmartPasteResult(markdown: wrapInCodeBlock(code, language: nil), pendingTitleFetch: nil)
         case .plainText(let text):
             return SmartPasteResult(markdown: text, pendingTitleFetch: nil)
         }
@@ -120,20 +113,6 @@ final class SmartPasteService {
         } catch {
             return false
         }
-    }
-
-    private func isCode(_ text: String) -> Bool {
-        let lines = text.components(separatedBy: "\n")
-        guard lines.count >= 2 else { return false }
-
-        let codeIndicators: [Character] = ["{", "}", ";", "(", ")"]
-        let hasCodeChars = text.contains(where: { codeIndicators.contains($0) })
-
-        let hasIndentation = lines.contains { line in
-            line.hasPrefix("    ") || line.hasPrefix("\t")
-        }
-
-        return hasCodeChars || hasIndentation
     }
 
     // MARK: - HTML → Markdown (custom converter using XMLDocument)
