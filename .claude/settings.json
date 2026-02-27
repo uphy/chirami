@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "prompt",
-            "prompt": "Review the changes made in this session. Read docs/features.md and compare it against the actual code changes. Block if any of the following are true: (1) A new user-facing feature, keyboard shortcut, behavior, or option was added but is not documented in docs/features.md. (2) An existing feature was changed or removed but docs/features.md still describes the old behavior. (3) README.md needs updating for significant new features. Do NOT block for: bug fixes that don't change documented behavior, refactoring, internal improvements, test changes, or dependency updates. When in doubt, block. If updates are needed, respond {\"ok\": false, \"reason\": \"Docs update needed: [what to add/change in which file]\"}. Otherwise respond {\"ok\": true}."
+            "prompt": "You MUST respond with ONLY a JSON object, no other text. Read docs/features.md, then check if the code changes in this session added, changed, or removed any user-facing feature, shortcut, or behavior not reflected in docs/features.md. Approve bug fixes, refactoring, internal changes, and test changes. When in doubt, block. Respond ONLY with either {\"ok\": true} or {\"ok\": false, \"reason\": \"short description of what to update\"}."
           }
         ]
       }
