@@ -134,6 +134,7 @@ extension MarkdownStyler {
             if editing && (isChecked == nil || cursorLocation < itemRange.location + contentStart) {
                 applyListItemRawStyle(
                     to: storage, itemRange: itemRange, contentStart: contentStart,
+                    ownContentEnd: ownContentEnd,
                     cursorLocation: isChecked != nil ? cursorLocation : nil,
                     in: text
                 )
@@ -141,7 +142,8 @@ extension MarkdownStyler {
                 applyListItemEditingTaskStyle(
                     to: storage, itemRange: itemRange, markerAbsLocation: markerAbsLocation,
                     markerLength: markerLength, isChecked: isChecked!, contentStart: contentStart,
-                    ordered: ordered, nestingLevel: nestingLevel, cursorLocation: cursorLocation,
+                    ordered: ordered, nestingLevel: nestingLevel,
+                    ownContentEnd: ownContentEnd, cursorLocation: cursorLocation,
                     in: text
                 )
             } else {
@@ -176,6 +178,7 @@ extension MarkdownStyler {
         to storage: NSMutableAttributedString,
         itemRange: NSRange,
         contentStart: Int,
+        ownContentEnd: Int,
         cursorLocation: Int? = nil,
         in text: String
     ) {
@@ -195,9 +198,10 @@ extension MarkdownStyler {
             let markerRange = NSRange(location: itemRange.location, length: markerEnd)
             storage.addAttributes([.foregroundColor: NSColor.secondaryLabelColor], range: markerRange)
         }
-        // Apply inline styles to content
-        if itemRange.length > contentStart {
-            let contentRange = NSRange(location: itemRange.location + contentStart, length: itemRange.length - contentStart)
+        // Apply inline styles to own content (exclude nested sublists)
+        let ownLength = ownContentEnd - itemRange.location
+        if ownLength > contentStart {
+            let contentRange = NSRange(location: itemRange.location + contentStart, length: ownLength - contentStart)
             let contentText = (text as NSString).substring(with: contentRange)
             if let cursorLocation = cursorLocation {
                 applyInlinePatterns(to: storage, in: contentText, offset: contentRange.location, cursorLocation: cursorLocation)
@@ -217,6 +221,7 @@ extension MarkdownStyler {
         contentStart: Int,
         ordered: Bool,
         nestingLevel: Int,
+        ownContentEnd: Int,
         cursorLocation: Int,
         in text: String
     ) {
@@ -243,9 +248,10 @@ extension MarkdownStyler {
             ], range: spaceAfterCheckbox)
         }
 
-        // Body: keep baseAttributes (already applied), apply inline styles
-        if itemRange.length > contentStart {
-            let contentRange = NSRange(location: itemRange.location + contentStart, length: itemRange.length - contentStart)
+        // Body: apply inline styles on own content (exclude nested sublists)
+        let ownLength = ownContentEnd - itemRange.location
+        if ownLength > contentStart {
+            let contentRange = NSRange(location: itemRange.location + contentStart, length: ownLength - contentStart)
             let contentText = (text as NSString).substring(with: contentRange)
             applyInlinePatterns(to: storage, in: contentText, offset: contentRange.location, cursorLocation: cursorLocation)
         }
@@ -330,9 +336,10 @@ extension MarkdownStyler {
         // Paragraph style
         applyListParagraphStyle(to: storage, itemRange: itemRange, ordered: ordered, nestingLevel: nestingLevel, isTask: isChecked != nil, in: text)
 
-        // Inline styles on content
-        if itemRange.length > contentStart {
-            let contentRange = NSRange(location: itemRange.location + contentStart, length: itemRange.length - contentStart)
+        // Inline styles on own content (exclude nested sublists)
+        let ownLength = ownContentEnd - itemRange.location
+        if ownLength > contentStart {
+            let contentRange = NSRange(location: itemRange.location + contentStart, length: ownLength - contentStart)
             let contentText = (text as NSString).substring(with: contentRange)
             applyInlinePatterns(to: storage, in: contentText, offset: contentRange.location)
         }

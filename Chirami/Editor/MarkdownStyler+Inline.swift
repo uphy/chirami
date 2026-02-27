@@ -152,19 +152,19 @@ extension MarkdownStyler {
                 }
             } else {
                 // Rendered styling: apply link and hide syntax
+                let textRange = match.range(at: 1)
                 let urlRange = match.range(at: 2)
-                if urlRange.location != NSNotFound {
+                if textRange.location != NSNotFound, urlRange.location != NSNotFound {
                     let urlStr = nsText.substring(with: urlRange)
                     if let url = URL(string: urlStr) {
+                        let adjustedTextRange = NSRange(location: textRange.location + offset, length: textRange.length)
+                        // Apply .link only to visible text to prevent underline extending to line start
                         storage.addAttributes([
                             .link: url,
                             .foregroundColor: noteColor.linkColor
-                        ], range: fullRange)
+                        ], range: adjustedTextRange)
                     }
-                }
 
-                let textRange = match.range(at: 1)
-                if textRange.location != NSNotFound {
                     let openBracket = NSRange(location: fullRange.location, length: 1)
                     storage.addAttributes(Self.hiddenAttributes, range: openBracket)
 

@@ -139,6 +139,34 @@ class BulletLayoutManager: NSLayoutManager {
         }
     }
 
+    override func drawUnderline(
+        forGlyphRange glyphRange: NSRange,
+        underlineType underlineVal: NSUnderlineStyle,
+        baselineOffset: CGFloat,
+        lineFragmentRect lineRect: NSRect,
+        lineFragmentGlyphRange lineGlyphRange: NSRange,
+        containerOrigin: NSPoint
+    ) {
+        // Clip the underline drawing to the bounding rect of the actual glyphs.
+        // NSTextView's link underline can extend across adjacent hidden characters
+        // (0.001pt font) used for Markdown syntax hiding, causing the underline to
+        // stretch from the line start to the link text.
+        guard let textContainer = textContainers.first,
+              let ctx = NSGraphicsContext.current?.cgContext else {
+            super.drawUnderline(forGlyphRange: glyphRange, underlineType: underlineVal, baselineOffset: baselineOffset, lineFragmentRect: lineRect, lineFragmentGlyphRange: lineGlyphRange, containerOrigin: containerOrigin)
+            return
+        }
+
+        let glyphBounds = boundingRect(forGlyphRange: glyphRange, in: textContainer)
+        let clipRect = glyphBounds.offsetBy(dx: containerOrigin.x, dy: containerOrigin.y)
+            .insetBy(dx: 0, dy: -4)
+
+        ctx.saveGState()
+        ctx.clip(to: clipRect)
+        super.drawUnderline(forGlyphRange: glyphRange, underlineType: underlineVal, baselineOffset: baselineOffset, lineFragmentRect: lineRect, lineFragmentGlyphRange: lineGlyphRange, containerOrigin: containerOrigin)
+        ctx.restoreGState()
+    }
+
     override func drawGlyphs(forGlyphRange glyphsToShow: NSRange, at origin: NSPoint) {
         super.drawGlyphs(forGlyphRange: glyphsToShow, at: origin)
 
