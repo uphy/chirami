@@ -178,7 +178,7 @@ class MarkdownTextView: NSTextView {
             return
         }
         if let url = linkURL(at: point) {
-            NSWorkspace.shared.open(url)
+            openLink(url)
             return
         }
         super.mouseDown(with: event)
@@ -315,6 +315,11 @@ class MarkdownTextView: NSTextView {
             }
         }
         return nil
+    }
+
+    private func openLink(_ url: URL) {
+        NSWorkspace.shared.open(url)
+        self.window?.resignKey()
     }
 
     private func charIndexOfCheckbox(at point: NSPoint) -> Int? {
@@ -668,7 +673,7 @@ class MarkdownTextView: NSTextView {
         if flags == .command || flags == .option,
            event.keyCode == 36,
            let url = linkURLAtCaret() {
-            NSWorkspace.shared.open(url)
+            openLink(url)
             return
         }
         super.keyDown(with: event)
