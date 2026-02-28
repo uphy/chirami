@@ -4,6 +4,7 @@ import AppKit
 class MarkdownTextView: NSTextView {
     var onCheckboxClick: ((Int) -> Void)?
     var onFontSizeChange: ((CGFloat) -> Void)?
+    var onTogglePin: (() -> Void)?
     var customMenuItems: (() -> [NSMenuItem])?
     var currentFontSize: CGFloat = 14
     private var isDragModifierHeld = false
@@ -685,6 +686,12 @@ class MarkdownTextView: NSTextView {
         // Cmd+Shift+V: Plain text paste
         if flags == [.command, .shift], event.charactersIgnoringModifiers?.lowercased() == "v" {
             paste(nil)
+            return true
+        }
+
+        // Cmd+Option+P: Toggle Pin (auto-hide notes only)
+        if flags == [.command, .option], event.charactersIgnoringModifiers?.lowercased() == "p" {
+            onTogglePin?()
             return true
         }
 

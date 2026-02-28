@@ -74,7 +74,7 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
             panel.setupPinButton(target: self, action: #selector(togglePinAction))
         }
 
-        let rootView = NoteContentView(model: contentModel, noteId: note.id)
+        let rootView = NoteContentView(model: contentModel, noteId: note.id, onTogglePin: note.autoHide ? { [weak self] in self?.togglePinAction() } : nil)
             .environmentObject(NoteStore.shared)
         panel.contentView = NSHostingView(rootView: rootView)
 
@@ -350,7 +350,7 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
 
     // MARK: - Pin
 
-    @objc private func togglePinAction() {
+    @objc func togglePinAction() {
         isPinned.toggle()
         (window as? NotePanel)?.updatePinState(isPinned: isPinned)
     }
@@ -422,7 +422,7 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
         }
 
         contentModel = NoteContentModel(note: note)
-        let rootView = NoteContentView(model: contentModel, noteId: note.id)
+        let rootView = NoteContentView(model: contentModel, noteId: note.id, onTogglePin: note.autoHide ? { [weak self] in self?.togglePinAction() } : nil)
             .environmentObject(NoteStore.shared)
         (window as? NotePanel)?.contentView = NSHostingView(rootView: rootView)
 
@@ -516,6 +516,7 @@ class NoteContentModel: ObservableObject {
 struct NoteContentView: View {
     @ObservedObject var model: NoteContentModel
     let noteId: String
+    var onTogglePin: (() -> Void)?
     @State private var showColorPicker = false
     @EnvironmentObject private var noteStore: NoteStore
 
@@ -534,6 +535,7 @@ struct NoteContentView: View {
             onFontSizeChange: { newSize in
                 model.fontSize = newSize
             },
+            onTogglePin: onTogglePin,
             customMenuItems: { [weak noteStore] in
                 var items: [NSMenuItem] = []
                 guard let noteStore, let note = noteStore.notes.first(where: { $0.id == noteId }) else {

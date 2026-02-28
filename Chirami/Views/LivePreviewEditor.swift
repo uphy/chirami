@@ -10,6 +10,7 @@ struct LivePreviewEditor: NSViewRepresentable {
     var noteURL: URL?
     var attachmentsDir: URL?
     var onFontSizeChange: ((CGFloat) -> Void)?
+    var onTogglePin: (() -> Void)?
     var customMenuItems: (() -> [NSMenuItem])?
 
     func makeNSView(context: Context) -> NSScrollView {
@@ -51,6 +52,7 @@ struct LivePreviewEditor: NSViewRepresentable {
         textView.onFontSizeChange = { [weak coordinator] newSize in
             coordinator?.handleFontSizeChange(newSize)
         }
+        textView.onTogglePin = onTogglePin
         textView.customMenuItems = customMenuItems
         textView.noteURL = noteURL
         textView.attachmentsDir = attachmentsDir

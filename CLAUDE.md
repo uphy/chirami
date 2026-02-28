@@ -1,45 +1,77 @@
-# AI-DLC and Spec-Driven Development
+# CLAUDE.md
 
-Kiro-style Spec Driven Development implementation on AI-DLC (AI Development Life Cycle)
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Project Context
+## プロダクトビジョン
 
-### Paths
-- Steering: `.kiro/steering/`
-- Specs: `.kiro/specs/`
+@docs/product-vision.md
 
-### Steering vs Specification
+## プロジェクト概要
 
-**Steering** (`.kiro/steering/`) - Guide AI with project-wide rules and context
-**Specs** (`.kiro/specs/`) - Formalize development process for individual features
+Fusen は macOS 付箋型 Markdown ノートアプリ。Stickies のシンプルさと Obsidian の Live Preview を plain `.md` ファイルで実現する。メニューバー常駐型（LSUIElement）で、各ノートは独立した NSPanel ウィンドウとして表示される。
 
-### Active Specifications
-- Check `.kiro/specs/` for active specifications
-- Use `/kiro:spec-status [feature-name]` to check progress
+## ビルド
 
-## Development Guidelines
-- Think in English, generate responses in Japanese. All Markdown content written to project files (e.g., requirements.md, design.md, tasks.md, research.md, validation reports) MUST be written in the target language configured for this specification (see spec.json.language).
+```bash
+# 初回セットアップ（xcodegen が必要）
+brew install xcodegen
+xcodegen generate
 
-## Minimal Workflow
-- Phase 0 (optional): `/kiro:steering`, `/kiro:steering-custom`
-- Phase 1 (Specification):
-  - `/kiro:spec-init "description"`
-  - `/kiro:spec-requirements {feature}`
-  - `/kiro:validate-gap {feature}` (optional: for existing codebase)
-  - `/kiro:spec-design {feature} [-y]`
-  - `/kiro:validate-design {feature}` (optional: design review)
-  - `/kiro:spec-tasks {feature} [-y]`
-- Phase 2 (Implementation): `/kiro:spec-impl {feature} [tasks]`
-  - `/kiro:validate-impl {feature}` (optional: after implementation)
-- Progress check: `/kiro:spec-status {feature}` (use anytime)
+# ビルド・実行は Xcode で
+open Fusen.xcodeproj
+# Xcode で ⌘R
+```
 
-## Development Rules
-- 3-phase approval workflow: Requirements → Design → Tasks → Implementation
-- Human review required each phase; use `-y` only for intentional fast-track
-- Keep steering current and verify alignment with `/kiro:spec-status`
-- Follow the user's instructions precisely, and within that scope act autonomously: gather the necessary context and complete the requested work end-to-end in this run, asking questions only when essential information is missing or the instructions are critically ambiguous.
+Xcode プロジェクトは `project.yml` から xcodegen で生成する。`Fusen.xcodeproj` を直接編集せず、`project.yml` を変更して `xcodegen generate` を再実行すること。
 
-## Steering Configuration
-- Load entire `.kiro/steering/` as project memory
-- Default files: `product.md`, `tech.md`, `structure.md`
-- Custom files are supported (managed via `/kiro:steering-custom`)
+SPM 依存は初回ビルド時に自動取得される。`swift build` でもビルド可能（Package.swift あり）。
+
+### mise タスク
+
+`.mise/tasks/` にビルド・デプロイ用のタスクを定義している。
+
+- `mise run generate` — xcodegen でプロジェクトファイルを生成
+- `mise run build` — Release ビルド（.app バンドル生成）
+- `mise run apply` — `~/Applications` にインストール（実行中なら再起動）
+- `mise run clean` — ビルド成果物を削除
+
+## アーキテクチャ
+
+### Config/State 分離
+
+- `~/.config/fusen/config.yaml` — ノート一覧・外観設定（dotfiles 管理可能）
+- `~/.local/state/fusen/state.yaml` — ウィンドウ位置・サイズ・表示状態（揮発的、アプリが自動管理）
+
+YAML の読み書きには Yams を使用。構造体定義は `Config/ConfigModels.swift`。
+
+### Singleton パターン
+
+主要サービスは Singleton + `@MainActor` で統一:
+
+- `NoteStore.shared` — ノート管理・ファイル I/O
+- `AppConfig.shared` — config.yaml 読み書き
+- `AppState.shared` — state.yaml 読み書き
+- `WindowManager.shared` — 全ウィンドウ制御
+
+### NSPanel + SwiftUI ハイブリッド
+
+ノートウィンドウは AppKit の `NSPanel`（always-on-top 対応）に SwiftUI View をホストする構成。`NoteWindow.swift` に `NotePanel`, `NoteWindowController`, `NoteContentView` が同居。
+
+### Live Preview エディタ
+
+Obsidian 風の Live Preview を実現するコア部分:
+
+- `LivePreviewEditor` — NSViewRepresentable で NSTextView をラップ
+- `MarkdownStyler` — swift-markdown の AST を NSAttributedString に変換。カーソルのあるブロックだけ raw Markdown を表示し、他ブロックはレンダリング済みにする。カーソル位置がどのブロックに属するかの特定もここで行う
+- `BulletLayoutManager` — カスタム NSLayoutManager。箇条書きの描画、コードブロック背景、blockquote の border 描画を担当
+
+**注意**: MarkdownStyler では UTF-8 と String.Index/NSRange の変換が重要。非 ASCII テキスト（日本語）でのオフセット計算に注意が必要。
+
+### 依存ライブラリ
+
+| ライブラリ | 用途 |
+|-----------|------|
+| swift-markdown | Markdown AST パーサー |
+| HotKey | グローバルホットキー登録 |
+| Yams | YAML パーサー |
+| Highlightr | コードブロックの Syntax Highlighting |
