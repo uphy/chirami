@@ -1,53 +1,68 @@
-## 1. プロジェクト構成
+## 0. 事前調査
 
-- [ ] 1.1 `ChiramiDisplay/` ディレクトリを作成する
-- [ ] 1.2 `project.yml` に `ChiramiDisplay` ターゲット（type: application）を追加し、`Chirami/Editor/` を shared sources として参照する
-- [ ] 1.3 `ChiramiDisplay/Info.plist` を作成する（`LSUIElement = true`, `NSPrincipalClass = NSApplication`）
-- [ ] 1.4 `ChiramiDisplay/ChiramiDisplay.entitlements` を作成する（サンドボックスなし）
-- [ ] 1.5 `mise run generate` でXcodeプロジェクトを再生成し、ビルドが通ることを確認する
+- [ ] 0.1 macOSの `open` コマンドおよび `NSWorkspace.open()` が受け付けるURIの最大サイズを実測する。結果に基づき `maxContentSize`（content= に直接埋め込む上限）の値を決定する。**このタスクはタスク6.5のブロッカー。先に完了してから6.5に着手すること。**
 
-## 2. 引数パーサーの実装
+## 1. URI scheme ハンドラの実装（Chirami.app）
 
-- [ ] 2.1 `ChiramiDisplay/ArgumentParser.swift` を作成し、`--file`, `--help`, 位置引数テキスト, stdin の4入力形式をパースする関数を実装する
-- [ ] 2.2 入力優先順位（引数 > ファイル > stdin）のロジックを実装する
-- [ ] 2.3 stdin が端末（isatty）かどうかを判定し、端末の場合はstdin読み取りをスキップするロジックを追加する
-- [ ] 2.4 `--help` フラグ時にusageをstdoutに出力してexit 0する処理を実装する
-- [ ] 2.5 コンテンツが得られなかった場合にstderrにusageを出力してexit 1する処理を実装する
+- [ ] 1.1 `Info.plist` に `CFBundleURLTypes` で `chirami://` スキームを登録する
+- [ ] 1.2 `AppDelegate` に `application(_:open:)` ハンドラを追加し、`chirami://display` を受け取る処理を実装する（SwiftUI の `.onOpenURL` ではなく AppKit 側に実装することで既存コードとの一貫性を保つ）
+- [ ] 1.3 URLパラメータ（`file`, `content`, `readonly`, `callback_pipe`）をパースするユーティリティを実装する
+- [ ] 1.4 `callback_pipe` パスのバリデーション（`/tmp/` または `$TMPDIR` 以下のみ許可）を実装する
 
-## 3. DisplayPanel の実装
+## 2. DisplayPanel の実装（Chirami.app）
 
-- [ ] 3.1 `ChiramiDisplay/DisplayPanel.swift` を作成する（NSPanelサブクラス）
-- [ ] 3.2 ESCキーと閉じるボタンで `NSApp.terminate(nil)` を呼ぶ `sendEvent` と `performClose` を実装する
-- [ ] 3.3 パネルを `.floating` レベルで初期化し、`collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]` を設定する
+- [ ] 2.1 `Chirami/Display/DisplayPanel.swift` を作成する（NSPanelサブクラス）
+- [ ] 2.2 `styleMask`, `collectionBehavior`, `level` を設定し、Always-on-topで表示する
+- [ ] 2.3 ESCキー・閉じるボタンで heartbeat timerを停止 → `CLOSED\n` を `callback_pipe` に書き込んでからウィンドウを閉じる処理を実装する
+- [ ] 2.4 `callback_pipe` が指定されている場合、ウィンドウを閉じる時に `CLOSED\n` をFIFOへ書き込む処理を実装する（HEARTBEATは不要）
 
-## 4. DisplayContentView の実装
+## 3. DisplayContentView の実装（Chirami.app）
 
-- [ ] 4.1 `ChiramiDisplay/DisplayContentView.swift` を作成する（NSTextView + NSScrollView）
-- [ ] 4.2 `BulletLayoutManager` を使用して NSTextStorage + NSLayoutManager + NSTextContainer を構成する
-- [ ] 4.3 `NSTextView` を `isEditable = false, isSelectable = true` で設定する
-- [ ] 4.4 `MarkdownStyler` を使用してMarkdownコンテンツをNSAttributedStringに変換してテキストビューに適用する
-- [ ] 4.5 NSScrollView でラップしてスクロール対応にする
+- [ ] 3.1 `Chirami/Display/DisplayContentView.swift` を作成する（NSTextView + NSScrollView）
+- [ ] 3.2 `BulletLayoutManager` を使用して NSTextStorage + NSLayoutManager + NSTextContainer を構成する
+- [ ] 3.3 `readonly` パラメータに応じて `isEditable` を切り替える
+- [ ] 3.4 `MarkdownStyler` を使用してMarkdownコンテンツをNSAttributedStringに変換してテキストビューに適用する
+- [ ] 3.5 読み取り専用モードでは常に全面レンダリング表示する。`MarkdownStyler` に `func styleAll(_ text: String) -> NSAttributedString` convenience overload を追加し（内部で `style(_:cursorLocation: -1)` を呼ぶ）、`DisplayContentView` からはこの overload を使う
+- [ ] 3.6 読み取り専用モード時は `DisplayPanel` の `title` を `"🔒 chirami"` に設定し、編集可能モード時は `"chirami"` に設定する
 
-## 5. DisplayWindowController の実装
+## 4. 自動保存の実装（Chirami.app・ファイルモードのみ）
 
-- [ ] 5.1 `ChiramiDisplay/DisplayWindowController.swift` を作成する（NSWindowControllerサブクラス）
-- [ ] 5.2 コンストラクタでコンテンツ文字列を受け取り、DisplayPanel と DisplayContentView を構成する
+- [ ] 4.1 `DisplayContentModel` クラスを作成し、`lastSavedContent` による重複保存防止ロジックを実装する
+- [ ] 4.2 `textDidChange()` から `DisplayContentModel.save()` を呼び出し、`String.write(to:atomically:encoding:)` でファイルへ書き込む
+- [ ] 4.3 `readonly=1` のときは保存処理を無効化する
+
+## 5. DisplayWindowManager の実装（Chirami.app）
+
+- [ ] 5.1 `Chirami/Display/DisplayWindowManager.swift` を作成する（`[DisplayWindowController]` 配列で複数ウィンドウを管理、閉じたものは配列から除去する）
+- [ ] 5.2 URIパラメータを受け取り、`DisplayPanel` と `DisplayContentView` を構成してウィンドウを表示する
 - [ ] 5.3 デフォルトウィンドウサイズ（幅 400 × 高さ 500 程度）と画面中央配置のロジックを実装する
 
-## 6. エントリーポイントの実装
+## 6. Go CLIの実装（chirami）
 
-- [ ] 6.1 `ChiramiDisplay/main.swift` を作成する
-- [ ] 6.2 `CommandLine.arguments` をArgumentParserでパースしてコンテンツ文字列を取得する
-- [ ] 6.3 `NSApplication.shared` を `.accessory` アクティベーションポリシーで設定する
-- [ ] 6.4 `DisplayWindowController` を作成してウィンドウを表示する
-- [ ] 6.5 `NSApplication.shared.run()` でメインループを開始しウィンドウが閉じるまでブロックする
+- [ ] 6.1 `cmd/chirami/` ディレクトリを作成し、`go.mod` を初期化する
+- [ ] 6.2 `cobra` でサブコマンド構造（`main.go` + `display.go` + `internal/uri.go` + `internal/fifo.go`）を作成する
+- [ ] 6.3 `display` サブコマンドで引数・`--file`・stdinの3入力形式をパースし、優先順位（引数 > ファイル > stdin）を実装する
+- [ ] 6.3.1 `--file` が指定された場合、`os.Stat()` でファイル存在を確認し、存在しない場合はstderrにエラーを出力してexit code 1で終了する
+- [ ] 6.4 stdin判定: `os.Stdin.Stat()` の `ModeCharDevice` フラグでTTYとパイプを区別し、TTYの場合はstdinを読まない
+- [ ] 6.5 コンテンツが `4096` バイト超の場合はtmpfileに書き出して `file=` + `readonly=1` で渡すロジックを実装する
+- [ ] 6.6 `--wait` フラグ時にFIFOを作成し、`callback_pipe` パラメータとして渡すロジックを実装する
+- [ ] 6.7 `open "chirami://display?..."` を実行してChirami.appにURIを渡す処理を実装する（Chirami.appが未起動の場合はmacOSが自動起動する）
+- [ ] 6.8 `--wait` 時はFIFOを読み込んで `CLOSED\n` を待機する: `CLOSED` 受信でexit 0、read error（Chirami.appクラッシュによるEOF等）でexit 1。tmpfileおよびFIFOは削除しない（OSに任せる）。
+- [ ] 6.9 コンテンツが得られなかった場合にstderrにusageを出力してexit 1する
 
 ## 7. ビルドと配布
 
-- [ ] 7.1 `mise run build` で `ChiramiDisplay.app` がビルドされることを確認する
-- [ ] 7.2 ビルドスクリプトで `chirami-display` バイナリを `Chirami.app/Contents/MacOS/` にコピーする（または `mise.toml` の build タスクを更新する）
-- [ ] 7.3 `chirami-display "## Test\nHello"` を手動実行してフローティングウィンドウが表示されることを確認する
-- [ ] 7.4 `echo "# Stdin Test" | chirami-display` でstdin入力が動作することを確認する
-- [ ] 7.5 `chirami-display --file ~/Notes/test.md` でファイル入力が動作することを確認する
-- [ ] 7.6 ESCキーおよびウィンドウの閉じるボタンでexit code 0で終了することを確認する
-- [ ] 7.7 存在しないファイルパスでexit code 1・stderrエラーが出ることを確認する
+- [ ] 7.1 `mise.toml` の `build` タスクに `GOOS=darwin GOARCH=arm64 go build -o chirami ./cmd/chirami` を追加する
+- [ ] 7.2 ビルドスクリプトで `chirami` バイナリを `Chirami.app/Contents/MacOS/` にコピーする
+- [ ] 7.3 `homebrew-tap` の `Casks/chirami.rb` に `binary "#{appdir}/Chirami.app/Contents/MacOS/chirami"` stanza を追加し、インストール時に自動で symlink が作られるようにする
+
+## 8. 動作確認
+
+- [ ] 8.1 `chirami display "## Test\nHello"` でフローティングウィンドウが読み取り専用で即座にexit 0することを確認する
+- [ ] 8.2 `echo "# Stdin Test" | chirami display` でstdin入力が読み取り専用で表示されることを確認する
+- [ ] 8.3 `chirami display --file ~/Notes/test.md` で編集可能なウィンドウが表示され、編集内容がファイルに保存されることを確認する
+- [ ] 8.4 `chirami display --wait "# Blocking"` でウィンドウを閉じるまでプロセスがブロックされることを確認する
+- [ ] 8.5 ESCキーおよびウィンドウの閉じるボタンで `--wait` 時にexit code 0で終了することを確認する
+- [ ] 8.6 存在しないファイルパスでexit code 1・stderrエラーが出ることを確認する
+- [ ] 8.7 `chirami` のみの実行でサブコマンド一覧のusageが表示されることを確認する
+- [ ] 8.8 `--wait` 中にChirami.appを強制終了し、Go CLIがすぐにexit code 1で終了することを確認する（FIFOがEOFになるためタイムアウト待ちは不要）
