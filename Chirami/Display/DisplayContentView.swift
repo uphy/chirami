@@ -14,11 +14,11 @@ class DisplayContentView: NSView, NSTextViewDelegate {
     private var isApplyingStyling = false
     private var lastCursorLocation = 0
 
-    init(content: String, fileURL: URL?, isReadOnly: Bool) {
+    init(content: String, fileURL: URL?, isReadOnly: Bool, noteColor: NoteColor = .yellow, fontSize: CGFloat = 14) {
         self.isReadOnly = isReadOnly
 
         let layoutManager = BulletLayoutManager()
-        layoutManager.baseFontSize = 14
+        layoutManager.baseFontSize = fontSize
 
         let textContainer = NSTextContainer()
         textContainer.widthTracksTextView = true
@@ -37,7 +37,7 @@ class DisplayContentView: NSView, NSTextViewDelegate {
         textView.isAutomaticQuoteSubstitutionEnabled = false
         textView.isAutomaticDashSubstitutionEnabled = false
         textView.textContainerInset = NSSize(width: 8, height: 10)
-        textView.font = NSFont.systemFont(ofSize: 14)
+        textView.font = NSFont.systemFont(ofSize: fontSize)
         textView.backgroundColor = .clear
         textView.drawsBackground = false
         textView.isVerticallyResizable = true
@@ -54,7 +54,7 @@ class DisplayContentView: NSView, NSTextViewDelegate {
 
         self.textView = textView
         self.scrollView = scrollView
-        self.styler = MarkdownStyler(noteColor: .yellow, baseFontSize: 14)
+        self.styler = MarkdownStyler(noteColor: noteColor, baseFontSize: fontSize)
         self.contentModel = (fileURL != nil && !isReadOnly) ? DisplayContentModel(fileURL: fileURL!, initialContent: content) : nil
 
         super.init(frame: .zero)

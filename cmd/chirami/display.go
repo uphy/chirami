@@ -20,22 +20,26 @@ const maxContentSize = 4096
 func newDisplayCmd() *cobra.Command {
 	var fileFlag string
 	var waitFlag bool
+	var profileFlag string
+	var idFlag string
 
 	cmd := &cobra.Command{
 		Use:   "display [text]",
 		Short: "Display Markdown content in a floating window",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runDisplay(cmd, args, fileFlag, waitFlag)
+			return runDisplay(cmd, args, fileFlag, waitFlag, profileFlag, idFlag)
 		},
 	}
 
 	cmd.Flags().StringVar(&fileFlag, "file", "", "Path to a Markdown file to display (editable)")
 	cmd.Flags().BoolVar(&waitFlag, "wait", false, "Block until the window is closed")
+	cmd.Flags().StringVar(&profileFlag, "profile", "", "Profile name for display settings")
+	cmd.Flags().StringVar(&idFlag, "id", "", "Window identity for content replacement")
 
 	return cmd
 }
 
-func runDisplay(cmd *cobra.Command, args []string, fileFlag string, waitFlag bool) error {
+func runDisplay(cmd *cobra.Command, args []string, fileFlag string, waitFlag bool, profileFlag string, idFlag string) error {
 	content, fileURL, isReadOnly, err := getContent(args, fileFlag)
 	if err != nil {
 		return err
@@ -48,6 +52,13 @@ func runDisplay(cmd *cobra.Command, args []string, fileFlag string, waitFlag boo
 	}
 
 	params := map[string]string{}
+
+	if profileFlag != "" {
+		params["profile"] = profileFlag
+	}
+	if idFlag != "" {
+		params["id"] = idFlag
+	}
 
 	if fileURL != "" {
 		params["file"] = fileURL

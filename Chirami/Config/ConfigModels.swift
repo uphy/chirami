@@ -17,13 +17,14 @@ struct ChiramiConfig: Codable {
     var appearance: String?
     var hotkey: String?
     var notes: [NoteConfig] = []
+    var adhoc: AdhocConfig?
     var karabiner: KarabinerConfig?
     var smartPaste: SmartPasteConfig?
     var dragModifier: String?
     var warpModifier: String?
 
     enum CodingKeys: String, CodingKey {
-        case appearance, hotkey, notes, karabiner
+        case appearance, hotkey, notes, adhoc, karabiner
         case smartPaste = "smart_paste"
         case dragModifier = "drag_modifier"
         case warpModifier = "warp_modifier"
@@ -209,6 +210,43 @@ struct NoteConfig: Codable {
     }
 }
 
+// MARK: - Adhoc Config
+
+struct AdhocConfig: Codable {
+    var profiles: [String: AdhocProfile]?
+}
+
+struct AdhocProfile: Codable {
+    var title: String?
+    var color: String?
+    var transparency: Double?
+    var fontSize: Int?
+    var position: String?       // "cursor" | nil
+    var hotkey: String?
+
+    enum CodingKeys: String, CodingKey {
+        case title, color, transparency, position, hotkey
+        case fontSize = "font_size"
+    }
+
+    func resolveColor() -> NoteColor {
+        if let c = color, let color = NoteColor(rawValue: c) { return color }
+        return .yellow
+    }
+
+    func resolveTransparency() -> Double {
+        transparency ?? 0.9
+    }
+
+    func resolveFontSize() -> CGFloat {
+        CGFloat(fontSize ?? 14)
+    }
+
+    func resolvePosition() -> NotePosition {
+        position == "cursor" ? .cursor : .fixed
+    }
+}
+
 // MARK: - State (~/.local/state/chirami/state.yaml)
 
 struct ChiramiState: Codable {
@@ -222,10 +260,12 @@ struct WindowState: Codable {
     var visible: Bool
     var alwaysOnTop: Bool?
     var pinned: Bool?
+    var lastUsed: Date?
 
     enum CodingKeys: String, CodingKey {
         case position, size, visible, pinned
         case alwaysOnTop = "always_on_top"
+        case lastUsed = "last_used"
     }
 
     init(position: CGPoint, size: CGSize, visible: Bool, alwaysOnTop: Bool? = nil, pinned: Bool? = nil) {

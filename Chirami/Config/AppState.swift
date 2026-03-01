@@ -54,6 +54,19 @@ class AppState: YAMLStore<ChiramiState> {
         updateWindowState(for: noteId) { $0.visible = visible }
     }
 
+    /// Remove oldest ad-hoc state entries if the count exceeds the limit.
+    func pruneAdhocEntries(limit: Int = 100) {
+        update { state in
+            let adhocEntries = state.windows.filter { $0.key.hasPrefix("adhoc:") }
+            guard adhocEntries.count > limit else { return }
+            let sorted = adhocEntries.sorted { ($0.value.lastUsed ?? .distantPast) < ($1.value.lastUsed ?? .distantPast) }
+            let toRemove = sorted.prefix(adhocEntries.count - limit)
+            for (key, _) in toRemove {
+                state.windows.removeValue(forKey: key)
+            }
+        }
+    }
+
     private func updateWindowState(for noteId: String, _ modify: (inout WindowState) -> Void) {
         update { state in
             var ws = state.windows[noteId] ?? Self.defaultWindowState

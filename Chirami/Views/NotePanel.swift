@@ -170,14 +170,27 @@ class NotePanel: NSPanel {
         if event.modifierFlags.contains(dragFlags) {
             // Handle modifier+drag for the entire window (not just titlebar)
             if event.type == .leftMouseDown {
+                let initialMouseLocation = NSEvent.mouseLocation
+                let initialOrigin = frame.origin
                 NSCursor.closedHand.push()
-                performDrag(with: event)
+                disableCursorRects()
+
+                while true {
+                    guard let next = nextEvent(matching: [.leftMouseUp, .leftMouseDragged]) else { break }
+                    if next.type == .leftMouseUp { break }
+                    let current = NSEvent.mouseLocation
+                    setFrameOrigin(CGPoint(
+                        x: initialOrigin.x + (current.x - initialMouseLocation.x),
+                        y: initialOrigin.y + (current.y - initialMouseLocation.y)
+                    ))
+                }
+
+                enableCursorRects()
                 NSCursor.pop()
                 return
             }
-            // Titlebar hover cursor
-            let location = event.locationInWindow
-            if location.y > contentLayoutRect.maxY && event.type == .mouseMoved {
+            // Show openHand cursor anywhere in the window while drag modifier is held
+            if event.type == .mouseMoved {
                 super.sendEvent(event)
                 NSCursor.openHand.set()
                 return

@@ -4,9 +4,9 @@ import AppKit
 class DisplayPanel: NotePanel {
 
     private var callbackPipeFd: Int32 = -1
-    private var didNotifyClosed = false
+    var didNotifyClosed = false
 
-    init(callbackPipePath: String?, isReadOnly: Bool) {
+    init(callbackPipePath: String?, isReadOnly: Bool, color: NoteColor = .yellow, transparency: Double = 0.9, customTitle: String? = nil) {
         let frame = NSRect(x: 0, y: 0, width: 400, height: 500)
         super.init(
             contentRect: frame,
@@ -15,12 +15,15 @@ class DisplayPanel: NotePanel {
             defer: false
         )
 
-        title = isReadOnly ? "🔒 chirami" : "chirami"
+        let baseTitle = customTitle ?? "chirami"
+        title = isReadOnly ? "🔒 \(baseTitle)" : baseTitle
         titlebarAppearsTransparent = true
         isMovableByWindowBackground = true
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         level = .floating
         isRestorable = false
+        backgroundColor = color.nsColor
+        alphaValue = transparency
 
         standardWindowButton(.miniaturizeButton)?.isHidden = true
         standardWindowButton(.zoomButton)?.isHidden = true

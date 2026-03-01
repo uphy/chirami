@@ -158,6 +158,32 @@ while (candidatePosition overlaps with any visible same-profile window) {
 
 state キー: `adhoc:<id>`（既存 Registered Note のキーと衝突しないよう prefix 付与）
 
+### 9. State の LRU pruning
+
+`--id` なしの Ad-hoc Note は state.yaml に保存しないため肥大化しない。一方、`--id` 付きの Ad-hoc Note はウィンドウ状態を永続化するため、スクリプト等で大量のユニークな `--id` が使われた場合にエントリが増え続ける問題を防ぐ。
+
+**方針**: Ad-hoc state エントリ数に上限（100）を設け、アプリ起動時に超過分を古い順に削除する。
+
+**実装**:
+
+- `WindowState` に `lastUsed: Date?` フィールドを追加（既存エントリは nil → 最古扱い）
+- Ad-hoc Note の表示・移動・リサイズ時に `lastUsed` を更新
+- アプリ起動時に `adhoc:` prefix を持つエントリが上限を超えていたら、`lastUsed` が古い順に削除
+
+```
+let maxAdhocEntries = 100
+let adhocEntries = state.windows.filter { $0.key.hasPrefix("adhoc:") }
+if adhocEntries.count > maxAdhocEntries {
+    let sorted = adhocEntries.sorted { ($0.value.lastUsed ?? .distantPast) < ($1.value.lastUsed ?? .distantPast) }
+    let toRemove = sorted.prefix(adhocEntries.count - maxAdhocEntries)
+    for (key, _) in toRemove {
+        state.windows.removeValue(forKey: key)
+    }
+}
+```
+
+Registered Note のエントリ（`adhoc:` prefix なし）は pruning 対象外。
+
 ## Risks / Trade-offs
 
 - **profile 名の衝突リスク** → profile キーは config.yaml でユーザーが管理するため、重複は YAML レベルで防がれる

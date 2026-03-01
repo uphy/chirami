@@ -29,6 +29,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Apply appearance mode from config
         applyAppearance()
 
+        // Prune stale Ad-hoc Note state entries
+        AppState.shared.pruneAdhocEntries()
+
         // Open all Registered Note windows
         windowManager.openAllWindows()
 
@@ -52,6 +55,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                     self?.applyAppearance()
                     self?.registerAllHotkeys()
                     self?.windowManager.reloadWindows()
+                }
+            }
+            .store(in: &cancellables)
+
+        // Re-register profile hotkeys when config changes
+        AppConfig.shared.$data
+            .dropFirst()
+            .sink { [weak self] _ in
+                Task { @MainActor in
+                    self?.registerAllHotkeys()
                 }
             }
             .store(in: &cancellables)
@@ -83,6 +96,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             hotkeyService.register(id: "note:\(noteId)", keyString: keyString) { [weak self] in
                 Task { @MainActor in
                     self?.windowManager.toggleWindow(for: noteId)
+                }
+            }
+        }
+        // Register profile hotkeys for Ad-hoc Notes
+        if let profiles = AppConfig.shared.config.adhoc?.profiles {
+            for (name, profile) in profiles {
+                guard let keyString = profile.hotkey else { continue }
+                let profileName = name
+                hotkeyService.register(id: "adhoc-profile:\(profileName)", keyString: keyString) {
+                    Task { @MainActor in
+                        DisplayWindowManager.shared.toggleProfile(profileName)
+                    }
                 }
             }
         }
