@@ -99,6 +99,30 @@ Chirami lives in the macOS menu bar. Click the icon to open the popover:
 - **Launch at Login** — Toggle auto-launch on macOS startup.
 - **Quit Chirami** — Exit the application.
 
+## CLI
+
+The `chirami` CLI lets you display Markdown content in a floating window from the terminal.
+
+```bash
+# Display inline text
+chirami display "# Hello World"
+
+# Display a file (editable)
+chirami display --file ~/Notes/todo.md
+
+# Pipe from stdin
+cat README.md | chirami display
+
+# Block until the window is closed
+chirami display --wait --file ~/Notes/todo.md
+```
+
+**Content sources** (priority order): positional argument > `--file` > stdin.
+
+- Positional argument and stdin content are read-only.
+- `--file` opens the file for editing.
+- `--wait` blocks the CLI process until the window is closed.
+
 ## External Editor Sync
 
 Chirami watches note files for changes using `DispatchSource`. Edits made in Obsidian, VS Code, or any other editor are reflected immediately in the Chirami window.

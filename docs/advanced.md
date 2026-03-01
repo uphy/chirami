@@ -215,6 +215,41 @@ On app startup, Chirami automatically deletes image files that are no longer ref
 - Scans the Markdown content of all notes to identify referenced images
 - For periodic notes, checks image references across all files matching the template pattern
 
+## CLI Usage
+
+The `chirami` command-line tool opens Markdown content in a floating Chirami window directly from the terminal.
+
+### Install
+
+The CLI binary is bundled inside `Chirami.app`. Add it to your PATH:
+
+```bash
+export PATH="$PATH:~/Applications/Chirami.app/Contents/MacOS"
+```
+
+### Examples
+
+```bash
+# Show a quick note
+chirami display "## Meeting Notes"
+
+# Open a file for editing
+chirami display --file ~/project/TODO.md
+
+# Pipe command output
+git diff --stat | chirami display
+
+# Wait for the window to close before continuing
+chirami display --wait --file ~/Notes/scratch.md
+```
+
+### Options
+
+| Flag | Description |
+|------|-------------|
+| `--file <path>` | Path to a Markdown file to display (editable) |
+| `--wait` | Block until the window is closed |
+
 ## Tips
 
 ### Dotfiles Management

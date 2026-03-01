@@ -16,6 +16,7 @@ A macOS sticky-note Markdown app. Access your notes as floating windows — with
 - **Window Warp** — Modifier+H/J/K/L to snap windows to a 3×3 grid
 - **External Editor Sync** — Live file watching; edits in Obsidian or VS Code reflect instantly
 - **Per-note styling** — Background color, transparency, and font size for each note
+- **CLI** — `chirami display` to show Markdown in a floating window from the terminal
 
 See [Features](docs/features.md) for the full feature guide and keyboard shortcuts.
 
