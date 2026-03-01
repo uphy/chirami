@@ -2,143 +2,6 @@ import Testing
 import Yams
 @testable import Chirami
 
-// MARK: - NoteDefaults Codable
-
-@Suite("NoteDefaults Codable")
-struct NoteDefaultsTests {
-
-    @Test("decodes all fields")
-    func decodeAllFields() throws {
-        let yaml = """
-        color: blue
-        transparency: 0.8
-        font_size: 16
-        position: cursor
-        auto_hide: true
-        """
-        let defaults = try YAMLDecoder().decode(NoteDefaults.self, from: yaml)
-        #expect(defaults.color == "blue")
-        #expect(defaults.transparency == 0.8)
-        #expect(defaults.fontSize == 16)
-        #expect(defaults.position == "cursor")
-        #expect(defaults.autoHide == true)
-    }
-
-    @Test("decodes partial fields (color only)")
-    func decodePartialFields() throws {
-        let yaml = """
-        color: green
-        """
-        let defaults = try YAMLDecoder().decode(NoteDefaults.self, from: yaml)
-        #expect(defaults.color == "green")
-        #expect(defaults.transparency == nil)
-        #expect(defaults.fontSize == nil)
-        #expect(defaults.position == nil)
-        #expect(defaults.autoHide == nil)
-    }
-
-    @Test("empty object results in all fields nil")
-    func decodeEmpty() throws {
-        let yaml = "{}"
-        let defaults = try YAMLDecoder().decode(NoteDefaults.self, from: yaml)
-        #expect(defaults.color == nil)
-        #expect(defaults.transparency == nil)
-        #expect(defaults.fontSize == nil)
-        #expect(defaults.position == nil)
-        #expect(defaults.autoHide == nil)
-    }
-
-    @Test("unknown fields like title and hotkey are ignored")
-    func ignoresUnknownFields() throws {
-        let yaml = """
-        color: blue
-        title: "should be ignored"
-        hotkey: "cmd+1"
-        """
-        let defaults = try YAMLDecoder().decode(NoteDefaults.self, from: yaml)
-        #expect(defaults.color == "blue")
-    }
-}
-
-// MARK: - ChiramiConfig with defaults
-
-@Suite("ChiramiConfig defaults field")
-struct ChiramiConfigDefaultsTests {
-
-    @Test("decodes config with defaults section")
-    func decodeWithDefaults() throws {
-        let yaml = """
-        defaults:
-          color: blue
-          transparency: 0.7
-          font_size: 18
-          position: cursor
-          auto_hide: true
-        notes:
-          - path: ~/notes/test.md
-        """
-        let config = try YAMLDecoder().decode(ChiramiConfig.self, from: yaml)
-        #expect(config.defaults != nil)
-        #expect(config.defaults?.color == "blue")
-        #expect(config.defaults?.transparency == 0.7)
-        #expect(config.defaults?.fontSize == 18)
-        #expect(config.defaults?.position == "cursor")
-        #expect(config.defaults?.autoHide == true)
-        #expect(config.notes.count == 1)
-    }
-
-    @Test("decodes config without defaults (backward compatible)")
-    func decodeWithoutDefaults() throws {
-        let yaml = """
-        hotkey: cmd+shift+f
-        notes:
-          - path: ~/notes/test.md
-            color: yellow
-        """
-        let config = try YAMLDecoder().decode(ChiramiConfig.self, from: yaml)
-        #expect(config.defaults == nil)
-        #expect(config.hotkey == "cmd+shift+f")
-        #expect(config.notes.count == 1)
-    }
-
-    @Test("preserves root-level fields")
-    func preservesRootLevelFields() throws {
-        let yaml = """
-        hotkey: cmd+shift+f
-        defaults:
-          color: pink
-        notes:
-          - path: ~/notes/a.md
-        karabiner:
-          variable: chirami_active
-          on_focus: 1
-          on_unfocus: 0
-        smart_paste:
-          enabled: true
-          fetch_url_title: false
-        """
-        let config = try YAMLDecoder().decode(ChiramiConfig.self, from: yaml)
-        #expect(config.hotkey == "cmd+shift+f")
-        #expect(config.defaults != nil)
-        #expect(config.notes.count == 1)
-        #expect(config.karabiner != nil)
-        #expect(config.smartPaste != nil)
-    }
-
-    @Test("accepts partial defaults")
-    func decodePartialDefaults() throws {
-        let yaml = """
-        defaults:
-          color: purple
-        notes: []
-        """
-        let config = try YAMLDecoder().decode(ChiramiConfig.self, from: yaml)
-        #expect(config.defaults?.color == "purple")
-        #expect(config.defaults?.transparency == nil)
-        #expect(config.defaults?.fontSize == nil)
-    }
-}
-
 // MARK: - ChiramiConfig dragModifier
 
 @Suite("ChiramiConfig drag_modifier field")
@@ -240,48 +103,74 @@ struct NoteConfigPeriodicNoteTests {
     }
 }
 
-// MARK: - NoteConfig resolve with defaults
+// MARK: - NoteConfig resolve methods
 
 @Suite("NoteConfig resolve method")
 struct NoteConfigResolveTests {
 
-    @Test("position: note-level overrides defaults")
-    func resolvePositionNoteOverridesDefaults() {
+    @Test("position: returns .cursor when set")
+    func resolvePositionCursor() {
         let config = NoteConfig(path: "~/a.md", position: "cursor")
-        let defaults = NoteDefaults(position: nil)
-        #expect(config.resolvePosition(defaults: defaults) == .cursor)
+        #expect(config.resolvePosition() == .cursor)
     }
 
-    @Test("position: falls back to defaults when not set on note")
-    func resolvePositionFallsBackToDefaults() {
-        let config = NoteConfig(path: "~/a.md")
-        let defaults = NoteDefaults(position: "cursor")
-        #expect(config.resolvePosition(defaults: defaults) == .cursor)
-    }
-
-    @Test("position: defaults to .fixed when both unset")
+    @Test("position: defaults to .fixed when unset")
     func resolvePositionDefaultsToFixed() {
         let config = NoteConfig(path: "~/a.md")
-        #expect(config.resolvePosition(defaults: nil) == .fixed)
+        #expect(config.resolvePosition() == .fixed)
     }
 
-    @Test("autoHide: note-level overrides defaults")
-    func resolveAutoHideNoteOverridesDefaults() {
+    @Test("autoHide: returns true when set")
+    func resolveAutoHideTrue() {
         let config = NoteConfig(path: "~/a.md", autoHide: true)
-        let defaults = NoteDefaults(autoHide: false)
-        #expect(config.resolveAutoHide(defaults: defaults) == true)
+        #expect(config.resolveAutoHide() == true)
     }
 
-    @Test("autoHide: falls back to defaults when not set on note")
-    func resolveAutoHideFallsBackToDefaults() {
-        let config = NoteConfig(path: "~/a.md")
-        let defaults = NoteDefaults(autoHide: true)
-        #expect(config.resolveAutoHide(defaults: defaults) == true)
-    }
-
-    @Test("autoHide: defaults to false when both unset")
+    @Test("autoHide: defaults to false when unset")
     func resolveAutoHideDefaultsToFalse() {
         let config = NoteConfig(path: "~/a.md")
-        #expect(config.resolveAutoHide(defaults: nil) == false)
+        #expect(config.resolveAutoHide() == false)
+    }
+
+    @Test("color: returns note-level value")
+    func resolveColorFromNote() {
+        let config = NoteConfig(path: "~/a.md", color: "blue")
+        #expect(config.resolveColor() == .blue)
+    }
+
+    @Test("color: defaults to yellow when unset")
+    func resolveColorDefaultsToYellow() {
+        let config = NoteConfig(path: "~/a.md")
+        #expect(config.resolveColor() == .yellow)
+    }
+
+    @Test("color: falls back to yellow for invalid value")
+    func resolveColorInvalidFallsBack() {
+        let config = NoteConfig(path: "~/a.md", color: "invalid_color")
+        #expect(config.resolveColor() == .yellow)
+    }
+
+    @Test("transparency: returns note-level value")
+    func resolveTransparencyFromNote() {
+        let config = NoteConfig(path: "~/a.md", transparency: 0.5)
+        #expect(config.resolveTransparency() == 0.5)
+    }
+
+    @Test("transparency: defaults to 0.9 when unset")
+    func resolveTransparencyDefault() {
+        let config = NoteConfig(path: "~/a.md")
+        #expect(config.resolveTransparency() == 0.9)
+    }
+
+    @Test("fontSize: returns note-level value")
+    func resolveFontSizeFromNote() {
+        let config = NoteConfig(path: "~/a.md", fontSize: 20)
+        #expect(config.resolveFontSize() == 20)
+    }
+
+    @Test("fontSize: defaults to 14 when unset")
+    func resolveFontSizeDefault() {
+        let config = NoteConfig(path: "~/a.md")
+        #expect(config.resolveFontSize() == 14)
     }
 }

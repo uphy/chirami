@@ -12,7 +12,7 @@ struct AttachmentsDirTests {
     func staticNoteFallback() {
         let config = NoteConfig(path: "~/notes/todo.md")
         let noteURL = URL(fileURLWithPath: "/Users/test/notes/todo.md")
-        let result = config.resolveAttachmentsDir(noteURL: noteURL, defaults: nil, isPeriodicNote: false, pathTemplate: nil)
+        let result = config.resolveAttachmentsDir(noteURL: noteURL, isPeriodicNote: false, pathTemplate: nil)
         #expect(result.path == "/Users/test/notes/todo.attachments")
     }
 
@@ -20,7 +20,7 @@ struct AttachmentsDirTests {
     func periodicNoteFallback() {
         let config = NoteConfig(path: "/Users/test/notes/daily/{yyyy-MM-dd}.md")
         let noteURL = URL(fileURLWithPath: "/Users/test/notes/daily/2026-02-26.md")
-        let result = config.resolveAttachmentsDir(noteURL: noteURL, defaults: nil, isPeriodicNote: true, pathTemplate: "/Users/test/notes/daily/{yyyy-MM-dd}.md")
+        let result = config.resolveAttachmentsDir(noteURL: noteURL, isPeriodicNote: true, pathTemplate: "/Users/test/notes/daily/{yyyy-MM-dd}.md")
         #expect(result.path == "/Users/test/notes/daily/attachments")
     }
 
@@ -30,7 +30,7 @@ struct AttachmentsDirTests {
     func noteRelativePath() {
         let config = NoteConfig(path: "~/notes/todo.md", attachment: AttachmentConfig(dir: "images/"))
         let noteURL = URL(fileURLWithPath: "/Users/test/notes/todo.md")
-        let result = config.resolveAttachmentsDir(noteURL: noteURL, defaults: nil, isPeriodicNote: false, pathTemplate: nil)
+        let result = config.resolveAttachmentsDir(noteURL: noteURL, isPeriodicNote: false, pathTemplate: nil)
         #expect(result.path == "/Users/test/notes/images")
     }
 
@@ -38,7 +38,7 @@ struct AttachmentsDirTests {
     func noteAbsolutePath() {
         let config = NoteConfig(path: "~/notes/todo.md", attachment: AttachmentConfig(dir: "/tmp/attachments"))
         let noteURL = URL(fileURLWithPath: "/Users/test/notes/todo.md")
-        let result = config.resolveAttachmentsDir(noteURL: noteURL, defaults: nil, isPeriodicNote: false, pathTemplate: nil)
+        let result = config.resolveAttachmentsDir(noteURL: noteURL, isPeriodicNote: false, pathTemplate: nil)
         #expect(result.path == "/tmp/attachments")
     }
 
@@ -46,43 +46,12 @@ struct AttachmentsDirTests {
     func noteTildePath() {
         let config = NoteConfig(path: "~/notes/todo.md", attachment: AttachmentConfig(dir: "~/Pictures/chirami"))
         let noteURL = URL(fileURLWithPath: "/Users/test/notes/todo.md")
-        let result = config.resolveAttachmentsDir(noteURL: noteURL, defaults: nil, isPeriodicNote: false, pathTemplate: nil)
+        let result = config.resolveAttachmentsDir(noteURL: noteURL, isPeriodicNote: false, pathTemplate: nil)
         let home = FileManager.realHomeDirectory.path
         #expect(result.path == "\(home)/Pictures/chirami")
     }
 
-    // MARK: - Defaults fallback
-
-    @Test("defaults used when note-level not set")
-    func defaultsFallback() {
-        let config = NoteConfig(path: "~/notes/todo.md")
-        let defaults = NoteDefaults(attachment: AttachmentConfig(dir: "attachments/"))
-        let noteURL = URL(fileURLWithPath: "/Users/test/notes/todo.md")
-        let result = config.resolveAttachmentsDir(noteURL: noteURL, defaults: defaults, isPeriodicNote: false, pathTemplate: nil)
-        #expect(result.path == "/Users/test/notes/attachments")
-    }
-
-    @Test("note-level overrides defaults")
-    func noteOverridesDefaults() {
-        let config = NoteConfig(path: "~/notes/todo.md", attachment: AttachmentConfig(dir: "my-images/"))
-        let defaults = NoteDefaults(attachment: AttachmentConfig(dir: "attachments/"))
-        let noteURL = URL(fileURLWithPath: "/Users/test/notes/todo.md")
-        let result = config.resolveAttachmentsDir(noteURL: noteURL, defaults: defaults, isPeriodicNote: false, pathTemplate: nil)
-        #expect(result.path == "/Users/test/notes/my-images")
-    }
-
     // MARK: - Codable
-
-    @Test("NoteDefaults decodes attachment.dir")
-    func noteDefaultsCodable() throws {
-        let yaml = """
-        color: blue
-        attachment:
-          dir: ~/Pictures/chirami
-        """
-        let defaults = try YAMLDecoder().decode(NoteDefaults.self, from: yaml)
-        #expect(defaults.attachment?.dir == "~/Pictures/chirami")
-    }
 
     @Test("NoteConfig decodes attachment.dir")
     func noteConfigCodable() throws {

@@ -7,8 +7,7 @@ CLI (`chirami display`) で Ad-hoc Note を表示できるが、色・位置・a
 - config.yaml に `display.profiles` セクションを追加。各 profile は Ad-hoc Note の設定プリセット兼グルーピング単位
 - CLI に `--profile <name>` フラグを追加。指定された profile の設定でウィンドウを表示
 - profile に hotkey を設定可能。その profile で表示された全 Ad-hoc Note を一括トグル
-- `--profile` 省略時は `defaults` → ハードコードデフォルトの設定で表示
-- `defaults` を Registered Note / Ad-hoc Note 共通の基底設定として統一
+- `--profile` 省略時はハードコードデフォルトの設定で表示
 - `--id` 付きウィンドウの位置・サイズを state.yaml に保存
 
 ## Capabilities
@@ -24,7 +23,7 @@ CLI (`chirami display`) で Ad-hoc Note を表示できるが、色・位置・a
 ## Impact
 
 - **Config**: `ConfigModels.swift` に `DisplayConfig`, `DisplayProfile` 構造体追加、`ChiramiConfig` に `display` フィールド追加
-- **Config (defaults)**: `defaults` の resolve スコープを Ad-hoc Note にも拡張
+- **Config**: resolve メソッドは `profile → hardcoded` の 2 段階フォールバック
 - **CLI (Go)**: `display.go` に `--profile` フラグ追加、URI パラメータに `profile=<name>` 追加
 - **App (Swift)**: URI handler で profile パラメータを解釈し、対応する設定を適用。`DisplayWindowManager` で profile 別ウィンドウ管理
 - **State**: `ChiramiState` に Ad-hoc Note ウィンドウの状態保存を追加

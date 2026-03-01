@@ -32,7 +32,7 @@ class NoteStore: ObservableObject {
             if noteConfig.isPeriodicNote {
                 let rolloverDelay = DurationParser.parse(noteConfig.rolloverDelay)
                 let date = logicalDate(rolloverDelay: rolloverDelay)
-                return resolvePeriodicNote(from: noteConfig, for: date, defaults: config.defaults)
+                return resolvePeriodicNote(from: noteConfig, for: date)
             }
 
             // Static note (existing logic)
@@ -43,17 +43,17 @@ class NoteStore: ObservableObject {
             let title = noteConfig.title
                 ?? URL(fileURLWithPath: noteConfig.resolvedPath)
                     .deletingPathExtension().lastPathComponent
-            let color = noteConfig.resolveColor(defaults: config.defaults)
-            let transparency = noteConfig.resolveTransparency(defaults: config.defaults)
-            let fontSize = noteConfig.resolveFontSize(defaults: config.defaults)
+            let color = noteConfig.resolveColor()
+            let transparency = noteConfig.resolveTransparency()
+            let fontSize = noteConfig.resolveFontSize()
 
             let alwaysOnTop = appState.windowState(for: id)?.alwaysOnTop ?? true
 
-            let notePosition = noteConfig.resolvePosition(defaults: config.defaults)
-            let autoHide = noteConfig.resolveAutoHide(defaults: config.defaults)
+            let notePosition = noteConfig.resolvePosition()
+            let autoHide = noteConfig.resolveAutoHide()
 
             let attachmentsDir = noteConfig.resolveAttachmentsDir(
-                noteURL: url, defaults: config.defaults,
+                noteURL: url,
                 isPeriodicNote: false, pathTemplate: nil
             )
 
@@ -76,7 +76,7 @@ class NoteStore: ObservableObject {
 
     /// Resolves a Note for the given date from NoteConfig.
     /// Creates the file automatically if it does not exist (with template → copy template, without → empty file).
-    func resolvePeriodicNote(from config: NoteConfig, for date: Date, defaults: NoteDefaults? = nil) -> Note? {
+    func resolvePeriodicNote(from config: NoteConfig, for date: Date) -> Note? {
         let resolvedPath = PathTemplateResolver.resolve(config.path, for: date)
         guard let url = resolvePath(resolvedPath) else { return nil }
 
@@ -109,13 +109,12 @@ class NoteStore: ObservableObject {
             title = fileName
         }
 
-        let configDefaults = defaults ?? appConfig.config.defaults
-        let color = config.resolveColor(defaults: configDefaults)
-        let transparency = config.resolveTransparency(defaults: configDefaults)
-        let fontSize = config.resolveFontSize(defaults: configDefaults)
+        let color = config.resolveColor()
+        let transparency = config.resolveTransparency()
+        let fontSize = config.resolveFontSize()
         let alwaysOnTop = appState.windowState(for: id)?.alwaysOnTop ?? true
-        let notePosition = config.resolvePosition(defaults: configDefaults)
-        let autoHide = config.resolveAutoHide(defaults: configDefaults)
+        let notePosition = config.resolvePosition()
+        let autoHide = config.resolveAutoHide()
 
         let rolloverDelay = DurationParser.parse(config.rolloverDelay)
         let templateFile: URL? = config.template.flatMap { resolvePath($0) }
@@ -128,7 +127,7 @@ class NoteStore: ObservableObject {
         )
 
         let attachmentsDir = config.resolveAttachmentsDir(
-            noteURL: url, defaults: configDefaults,
+            noteURL: url,
             isPeriodicNote: true, pathTemplate: config.path
         )
 

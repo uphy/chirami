@@ -187,10 +187,6 @@ You can also set the width manually in Markdown using `![alt|width](url)` syntax
 Configure the image storage directory with `attachment.dir`.
 
 ```yaml
-defaults:
-  attachment:
-    dir: ~/Pictures/chirami/
-
 notes:
   - path: ~/Notes/todo.md
     attachment:
@@ -200,9 +196,8 @@ notes:
 **Resolution order:**
 
 1. Per-note `attachment.dir` if set
-2. `defaults.attachment.dir` if set
-3. Static notes: `<note-stem>.attachments/` (same directory as the note)
-4. Periodic notes: template path's parent directory + `attachments/`
+2. Static notes: `<note-stem>.attachments/` (same directory as the note)
+3. Periodic notes: template path's parent directory + `attachments/`
 
 **Path formats:**
 

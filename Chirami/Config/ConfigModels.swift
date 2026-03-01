@@ -7,21 +7,6 @@ struct AttachmentConfig: Codable {
     var dir: String?
 }
 
-struct NoteDefaults: Codable {
-    var color: String?
-    var transparency: Double?
-    var fontSize: Int?
-    var position: String?
-    var autoHide: Bool?
-    var attachment: AttachmentConfig?
-
-    enum CodingKeys: String, CodingKey {
-        case color, transparency, position, attachment
-        case fontSize = "font_size"
-        case autoHide = "auto_hide"
-    }
-}
-
 enum AppearanceMode: String, Codable {
     case auto
     case light
@@ -31,7 +16,6 @@ enum AppearanceMode: String, Codable {
 struct ChiramiConfig: Codable {
     var appearance: String?
     var hotkey: String?
-    var defaults: NoteDefaults?
     var notes: [NoteConfig] = []
     var karabiner: KarabinerConfig?
     var smartPaste: SmartPasteConfig?
@@ -39,7 +23,7 @@ struct ChiramiConfig: Codable {
     var warpModifier: String?
 
     enum CodingKeys: String, CodingKey {
-        case appearance, hotkey, defaults, notes, karabiner
+        case appearance, hotkey, notes, karabiner
         case smartPaste = "smart_paste"
         case dragModifier = "drag_modifier"
         case warpModifier = "warp_modifier"
@@ -176,31 +160,29 @@ struct NoteConfig: Codable {
         case rolloverDelay = "rollover_delay"
     }
 
-    func resolveColor(defaults: NoteDefaults?) -> NoteColor {
+    func resolveColor() -> NoteColor {
         if let c = color, let color = NoteColor(rawValue: c) { return color }
-        if let c = defaults?.color, let color = NoteColor(rawValue: c) { return color }
         return .yellow
     }
 
-    func resolveTransparency(defaults: NoteDefaults?) -> Double {
-        transparency ?? defaults?.transparency ?? 0.9
+    func resolveTransparency() -> Double {
+        transparency ?? 0.9
     }
 
-    func resolveFontSize(defaults: NoteDefaults?) -> CGFloat {
-        CGFloat(fontSize ?? defaults?.fontSize ?? 14)
+    func resolveFontSize() -> CGFloat {
+        CGFloat(fontSize ?? 14)
     }
 
-    func resolvePosition(defaults: NoteDefaults?) -> NotePosition {
-        let value = position ?? defaults?.position
-        return value == "cursor" ? .cursor : .fixed
+    func resolvePosition() -> NotePosition {
+        position == "cursor" ? .cursor : .fixed
     }
 
-    func resolveAutoHide(defaults: NoteDefaults?) -> Bool {
-        autoHide ?? defaults?.autoHide ?? false
+    func resolveAutoHide() -> Bool {
+        autoHide ?? false
     }
 
-    func resolveAttachmentsDir(noteURL: URL, defaults: NoteDefaults?, isPeriodicNote: Bool, pathTemplate: String?) -> URL {
-        let dir = attachment?.dir ?? defaults?.attachment?.dir
+    func resolveAttachmentsDir(noteURL: URL, isPeriodicNote: Bool, pathTemplate: String?) -> URL {
+        let dir = attachment?.dir
         guard let dir else {
             if isPeriodicNote, let pathTemplate {
                 // Periodic note: template parent directory + "attachments/"

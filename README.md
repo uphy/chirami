@@ -49,11 +49,6 @@ See [Getting Started](docs/getting-started.md) for the full setup guide.
 Config file: **`~/.config/chirami/config.yaml`**
 
 ```yaml
-defaults:
-  color: yellow
-  transparency: 0.9
-  font_size: 14
-
 notes:
   - path: ~/Notes/todo.md
     title: TODO
