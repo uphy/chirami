@@ -26,6 +26,11 @@ rm -rf ~/Applications/Chirami.app
 cp -R "$app_path" ~/Applications/Chirami.app
 echo "Installed to ~/Applications/Chirami.app"
 
+# Create symlink so `chirami` is accessible from PATH
+mkdir -p ~/.local/bin
+ln -sf ~/Applications/Chirami.app/Contents/MacOS/chirami_bin ~/.local/bin/chirami
+echo "Symlinked ~/.local/bin/chirami → bundle"
+
 # 起動中だったら再起動、未インストールだったら新規起動
 if [ "$was_running" = true ] || [ "$is_installed" = false ]; then
   open ~/Applications/Chirami.app

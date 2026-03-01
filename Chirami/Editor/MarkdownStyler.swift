@@ -42,6 +42,12 @@ class MarkdownStyler {
 
     // MARK: - Public
 
+    /// Style `text` with all blocks fully rendered (no raw Markdown).
+    /// Use for read-only display mode where Live Preview is not needed.
+    func styleAll(_ text: String) -> NSAttributedString {
+        return style(text, cursorLocation: -1)
+    }
+
     /// Style `text`, showing the block containing `cursorLocation` as raw Markdown.
     func style(_ text: String, cursorLocation: Int) -> NSAttributedString {
         guard !text.isEmpty else { return NSAttributedString(string: text) }

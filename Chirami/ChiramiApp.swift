@@ -88,6 +88,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    func application(_ application: NSApplication, open urls: [URL]) {
+        NSLog("[AppDelegate] application(_:open:) called with %d URL(s)", urls.count)
+        for url in urls {
+            NSLog("[AppDelegate] URL: %@", url.absoluteString)
+            guard url.scheme == "chirami" else { continue }
+            if url.host == "display" {
+                DisplayWindowManager.shared.display(url: url)
+            }
+        }
+    }
+
     func applicationWillTerminate(_ notification: Notification) {
         noteStore.stopAccessingAllResources()
     }
