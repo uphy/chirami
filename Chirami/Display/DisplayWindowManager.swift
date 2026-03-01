@@ -1,4 +1,5 @@
 import AppKit
+import SwiftUI
 
 // MARK: - DisplayWindowController
 
@@ -9,14 +10,16 @@ class DisplayWindowController: NSObject, NSWindowDelegate {
     let panel: DisplayPanel
     let profileName: String?
     let windowId: String?
+    private let contentModel: DisplayContentModel
     private let position: NotePosition
     private let transparency: Double
     private(set) var isPinned: Bool
     /// When true, closing this window should NOT notify FIFO (used during --id replacement).
     var suppressCloseNotification = false
 
-    init(panel: DisplayPanel, profileName: String? = nil, windowId: String? = nil, position: NotePosition = .fixed, transparency: Double = 0.9, isPinned: Bool = true) {
+    init(panel: DisplayPanel, contentModel: DisplayContentModel, profileName: String? = nil, windowId: String? = nil, position: NotePosition = .fixed, transparency: Double = 0.9, isPinned: Bool = true) {
         self.panel = panel
+        self.contentModel = contentModel
         self.profileName = profileName
         self.windowId = windowId
         self.position = position
@@ -200,13 +203,8 @@ class DisplayWindowManager {
 
         if let filePath = filePath {
             let fileURLCandidate = URL(fileURLWithPath: filePath)
-            if isReadOnly {
-                displayContent = (try? String(contentsOf: fileURLCandidate, encoding: .utf8)) ?? ""
-                fileURL = nil
-            } else {
-                displayContent = (try? String(contentsOf: fileURLCandidate, encoding: .utf8)) ?? ""
-                fileURL = fileURLCandidate
-            }
+            displayContent = (try? String(contentsOf: fileURLCandidate, encoding: .utf8)) ?? ""
+            fileURL = isReadOnly ? nil : fileURLCandidate
             readOnly = isReadOnly
         } else if let content = content {
             displayContent = content
@@ -228,11 +226,13 @@ class DisplayWindowManager {
         let panel = DisplayPanel(callbackPipePath: validPipe, isReadOnly: readOnly, color: color, transparency: transparency, customTitle: customTitle)
         panel.centerTitle()
         panel.setupCloseButtonHover()
-        let contentView = DisplayContentView(content: displayContent, fileURL: fileURL, isReadOnly: readOnly, noteColor: color, fontSize: fontSize)
-        panel.contentView = contentView
+        let contentModel = DisplayContentModel(content: displayContent, fileURL: fileURL)
+        let contentView = DisplayContentView(model: contentModel, isReadOnly: readOnly, noteColor: color, fontSize: fontSize)
+        panel.contentView = NSHostingView(rootView: contentView)
 
         let controller = DisplayWindowController(
             panel: panel,
+            contentModel: contentModel,
             profileName: profileName,
             windowId: windowId,
             position: position,

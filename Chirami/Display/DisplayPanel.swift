@@ -69,13 +69,4 @@ class DisplayPanel: NotePanel {
         super.close()
     }
 
-    override func becomeKey() {
-        super.becomeKey()
-        // DisplayContentView uses a plain NSTextView (not MarkdownTextView).
-        // super.becomeKey() handles MarkdownTextView; fall back to NSTextView here.
-        if let textView = contentView?.firstDescendant(of: NSTextView.self),
-           !(textView is MarkdownTextView) {
-            makeFirstResponder(textView)
-        }
-    }
 }

@@ -9,6 +9,7 @@ struct LivePreviewEditor: NSViewRepresentable {
     var fontSize: CGFloat = 14
     var noteURL: URL?
     var attachmentsDir: URL?
+    var isReadOnly: Bool = false
     var onFontSizeChange: ((CGFloat) -> Void)?
     var onTogglePin: (() -> Void)?
     var customMenuItems: (() -> [NSMenuItem])?
@@ -26,9 +27,9 @@ struct LivePreviewEditor: NSViewRepresentable {
 
         let textView = MarkdownTextView(frame: .zero, textContainer: textContainer)
         textView.delegate = context.coordinator
-        textView.isEditable = true
+        textView.isEditable = !isReadOnly
         textView.isRichText = true
-        textView.allowsUndo = true
+        textView.allowsUndo = !isReadOnly
         textView.isAutomaticSpellingCorrectionEnabled = false
         textView.isAutomaticQuoteSubstitutionEnabled = false
         textView.isAutomaticDashSubstitutionEnabled = false
@@ -126,7 +127,7 @@ struct LivePreviewEditor: NSViewRepresentable {
     }
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(text: $text, noteColor: noteColor, fontSize: fontSize, noteURL: noteURL, onFontSizeChange: onFontSizeChange)
+        Coordinator(text: $text, noteColor: noteColor, fontSize: fontSize, noteURL: noteURL, isReadOnly: isReadOnly, onFontSizeChange: onFontSizeChange)
     }
 
     // MARK: - Coordinator
@@ -145,15 +146,17 @@ struct LivePreviewEditor: NSViewRepresentable {
             didSet { styler = MarkdownStyler(noteColor: noteColor, baseFontSize: fontSize) }
         }
         var noteURL: URL?
+        let isReadOnly: Bool
         var onFontSizeChange: ((CGFloat) -> Void)?
         private var styler: MarkdownStyler
         private var lastCursorLocation: Int = 0
 
-        init(text: Binding<String>, noteColor: NoteColor, fontSize: CGFloat, noteURL: URL?, onFontSizeChange: ((CGFloat) -> Void)?) {
+        init(text: Binding<String>, noteColor: NoteColor, fontSize: CGFloat, noteURL: URL?, isReadOnly: Bool, onFontSizeChange: ((CGFloat) -> Void)?) {
             self.text = text
             self.noteColor = noteColor
             self.fontSize = fontSize
             self.noteURL = noteURL
+            self.isReadOnly = isReadOnly
             self.onFontSizeChange = onFontSizeChange
             self.styler = MarkdownStyler(noteColor: noteColor, baseFontSize: fontSize)
             super.init()
@@ -291,8 +294,8 @@ struct LivePreviewEditor: NSViewRepresentable {
             }
 
             let text = storage.string
-            let cursorLocation = isWindowFocused ? textView.selectedRange().location : NSNotFound
-            let safeLocation = isWindowFocused ? min(cursorLocation, text.utf16.count) : NSNotFound
+            let cursorLocation = (isWindowFocused && !isReadOnly) ? textView.selectedRange().location : NSNotFound
+            let safeLocation = (isWindowFocused && !isReadOnly) ? min(cursorLocation, text.utf16.count) : NSNotFound
 
             let styled = styler.style(text, cursorLocation: safeLocation)
 
