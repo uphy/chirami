@@ -48,6 +48,10 @@ targets:
         NSDesktopFolderUsageDescription: "Chirami needs access to Desktop to read and write your note files."
         NSDocumentsFolderUsageDescription: "Chirami needs access to Documents to read and write your note files."
         NSDownloadsFolderUsageDescription: "Chirami needs access to Downloads to read and write your note files."
+        CFBundleURLTypes:
+          - CFBundleURLName: com.uphy.Chirami
+            CFBundleURLSchemes:
+              - chirami
     settings:
       base:
         SWIFT_VERSION: "5.9"
