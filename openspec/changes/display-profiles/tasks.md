@@ -1,9 +1,9 @@
 ## 1. Config モデル
 
-- [ ] 1.1 `ConfigModels.swift` に `DisplayConfig` 構造体を追加（`profiles: [String: DisplayProfile]?`）
-- [ ] 1.2 `ConfigModels.swift` に `DisplayProfile` 構造体を追加（title, color, transparency, fontSize, position, hotkey + CodingKeys）
-- [ ] 1.3 `ChiramiConfig` に `display: DisplayConfig?` フィールドを追加
-- [ ] 1.4 `DisplayProfile` に resolve メソッド群を追加（resolveColor, resolveTransparency, resolveFontSize, resolvePosition。fallback: `profile → hardcoded`）
+- [ ] 1.1 `ConfigModels.swift` に `AdhocConfig` 構造体を追加（`profiles: [String: AdhocProfile]?`）
+- [ ] 1.2 `ConfigModels.swift` に `AdhocProfile` 構造体を追加（title, color, transparency, fontSize, position, hotkey + CodingKeys）
+- [ ] 1.3 `ChiramiConfig` に `adhoc: AdhocConfig?` フィールドを追加
+- [ ] 1.4 `AdhocProfile` に resolve メソッド群を追加（resolveColor, resolveTransparency, resolveFontSize, resolvePosition。fallback: `profile → hardcoded`）
 
 ## 2. CLI (Go)
 
@@ -20,9 +20,10 @@
 
 ## 4. DisplayWindowManager の拡張
 
-- [ ] 4.1 `display(url:)` で `profile` パラメータを読み取り、`AppConfig.shared.config.display?.profiles?[name]` から `DisplayProfile` を取得。resolve メソッドでハードコードデフォルトにフォールバック
+- [ ] 4.1 `display(url:)` で `profile` パラメータを読み取り、`AppConfig.shared.config.adhoc?.profiles?[name]` から `AdhocProfile` を取得。resolve メソッドでハードコードデフォルトにフォールバック
 - [ ] 4.2 `--id` 対応: `namedControllers: [String: DisplayWindowController]` を追加し、同一 id の Ad-hoc Note が存在すれば既存を閉じて新規作成（位置・サイズは引き継ぎ、差し替え時の close では FIFO 通知しない）
 - [ ] 4.3 id なしウィンドウの従来の管理（`controllers` 辞書）を維持
+- [ ] 4.4 重なり防止: ウィンドウ配置時（保存済み位置からの復元含む）、候補位置が現在表示中の同一 profile ウィンドウと重なる場合は `(20px, 20px)` ずつオフセット
 
 ## 5. Profile hotkey
 
@@ -32,5 +33,5 @@
 
 ## 6. State 永続化
 
-- [ ] 6.1 `--id` 付き Ad-hoc Note の位置・サイズを state.yaml に保存（キー: `display:<id>`）
+- [ ] 6.1 `--id` 付き Ad-hoc Note の位置・サイズを state.yaml に保存（キー: `adhoc:<id>`）
 - [ ] 6.2 `--id` 付き Ad-hoc Note 表示時に保存済みの位置・サイズを復元

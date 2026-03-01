@@ -58,11 +58,11 @@
 
 ## 8. 動作確認
 
-- [ ] 8.1 `chirami display "## Test\nHello"` でフローティングウィンドウが読み取り専用で即座にexit 0することを確認する
-- [ ] 8.2 `echo "# Stdin Test" | chirami display` でstdin入力が読み取り専用で表示されることを確認する
-- [ ] 8.3 `chirami display --file ~/Notes/test.md` で編集可能なウィンドウが表示され、編集内容がファイルに保存されることを確認する
-- [ ] 8.4 `chirami display --wait "# Blocking"` でウィンドウを閉じるまでプロセスがブロックされることを確認する
-- [ ] 8.5 ESCキーおよびウィンドウの閉じるボタンで `--wait` 時にexit code 0で終了することを確認する
-- [ ] 8.6 存在しないファイルパスでexit code 1・stderrエラーが出ることを確認する
-- [ ] 8.7 `chirami` のみの実行でサブコマンド一覧のusageが表示されることを確認する
-- [ ] 8.8 `--wait` 中にChirami.appを強制終了し、Go CLIがすぐにexit code 1で終了することを確認する（FIFOがEOFになるためタイムアウト待ちは不要）
+- [x] 8.1 `chirami display "## Test\nHello"` でフローティングウィンドウが読み取り専用で即座にexit 0することを確認する
+- [x] 8.2 `echo "# Stdin Test" | chirami display` でstdin入力が読み取り専用で表示されることを確認する
+- [x] 8.3 `chirami display --file ~/Notes/test.md` で編集可能なウィンドウが表示され、編集内容がファイルに保存されることを確認する
+- [x] 8.4 `chirami display --wait "# Blocking"` でウィンドウを閉じるまでプロセスがブロックされることを確認する
+- [x] 8.5 ESCキーおよびウィンドウの閉じるボタンで `--wait` 時にexit code 0で終了することを確認する
+- [x] 8.6 存在しないファイルパスでexit code 1・stderrエラーが出ることを確認する
+- [x] 8.7 `chirami` のみの実行でサブコマンド一覧のusageが表示されることを確認する
+- [x] 8.8 `--wait` 中にChirami.appを強制終了し、Go CLIがすぐにexit code 1で終了することを確認する（FIFOがEOFになるためタイムアウト待ちは不要）
