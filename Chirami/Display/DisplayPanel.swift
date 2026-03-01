@@ -3,12 +3,10 @@ import AppKit
 /// A floating panel for CLI-initiated content display, sharing NotePanel's visual style.
 class DisplayPanel: NotePanel {
 
-    private let callbackPipePath: String?
+    private var callbackPipeFd: Int32 = -1
     private var didNotifyClosed = false
 
     init(callbackPipePath: String?, isReadOnly: Bool) {
-        self.callbackPipePath = callbackPipePath
-
         let frame = NSRect(x: 0, y: 0, width: 400, height: 500)
         super.init(
             contentRect: frame,
@@ -32,6 +30,18 @@ class DisplayPanel: NotePanel {
         onHideRequest = { [weak self] in
             self?.close()
         }
+
+        // Open the FIFO early so the Go CLI's read-side gets a writer immediately.
+        // If this process is force-quit, the OS closes the fd, producing EOF on the
+        // Go side so it can detect the crash and exit.
+        if let pipePath = callbackPipePath {
+            DispatchQueue.global(qos: .utility).async { [weak self] in
+                let fd = open(pipePath, O_WRONLY)
+                DispatchQueue.main.async {
+                    self?.callbackPipeFd = fd
+                }
+            }
+        }
     }
 
     /// Write CLOSED\n to the callback FIFO if one was provided.
@@ -39,18 +49,15 @@ class DisplayPanel: NotePanel {
     func notifyClosed() {
         guard !didNotifyClosed else { return }
         didNotifyClosed = true
-        guard let pipePath = callbackPipePath,
+        let fd = callbackPipeFd
+        guard fd >= 0,
               let data = "CLOSED\n".data(using: .utf8) else { return }
-        DispatchQueue.global(qos: .utility).async {
-            // Blocking open: waits until Go's os.Open(pipePath) is ready to read.
-            let fd = open(pipePath, O_WRONLY)
-            guard fd >= 0 else { return }
-            data.withUnsafeBytes { bytes in
-                guard let ptr = bytes.baseAddress else { return }
-                _ = write(fd, ptr, bytes.count)
-            }
-            _ = Darwin.close(fd)
+        callbackPipeFd = -1
+        data.withUnsafeBytes { bytes in
+            guard let ptr = bytes.baseAddress else { return }
+            _ = write(fd, ptr, bytes.count)
         }
+        _ = Darwin.close(fd)
     }
 
     /// Notify the CLI before closing, regardless of how the window is dismissed.

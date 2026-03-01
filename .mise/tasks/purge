@@ -15,6 +15,12 @@ if [ -d ~/Applications/Chirami.app ]; then
   echo "Removed ~/Applications/Chirami.app"
 fi
 
+# Remove CLI symlink
+if [ -L ~/.local/bin/chirami ]; then
+  rm ~/.local/bin/chirami
+  echo "Removed ~/.local/bin/chirami"
+fi
+
 # Remove config directory
 if [ -d ~/.config/chirami ]; then
   rm -rf ~/.config/chirami

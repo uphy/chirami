@@ -54,7 +54,7 @@
 
 - [x] 7.1 `mise.toml` の `build` タスクに `GOOS=darwin GOARCH=arm64 go build -o chirami ./cmd/chirami` を追加する
 - [x] 7.2 ビルドスクリプトで `chirami_bin` バイナリを `Chirami.app/Contents/MacOS/` にコピーする（macOS APFS の大文字小文字を区別しない性質により `chirami` は `Chirami` を上書きするため `chirami_bin` を使用）。`mise run apply` タスクで `~/.local/bin/chirami → Contents/MacOS/chirami_bin` のシンボリックリンクを作成する
-- [ ] 7.3 `homebrew-tap` の `Casks/chirami.rb` に `binary "#{appdir}/Chirami.app/Contents/MacOS/chirami_bin", target: "chirami"` stanza を追加し、インストール時に自動で symlink が作られるようにする
+- [x] 7.3 `homebrew-tap` の `Casks/chirami.rb` に `binary "#{appdir}/Chirami.app/Contents/MacOS/chirami_bin", target: "chirami"` stanza を追加し、インストール時に自動で symlink が作られるようにする
 
 ## 8. 動作確認
 
