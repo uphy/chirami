@@ -57,11 +57,11 @@ notes:
 | `warp_modifier` | string | `ctrl+option` | Modifier key combination for Window Warp (HJKL grid movement). Specify modifiers joined with `+` (e.g. `ctrl+option`, `command+shift`). Allowed tokens: `ctrl`/`control`, `option`/`opt`, `command`/`cmd`, `shift`. |
 | `smart_paste` | object | — | Smart Paste configuration. See [Smart Paste](advanced.md#smart-paste). |
 | `karabiner` | object | — | Karabiner-Elements integration. See [Karabiner](advanced.md#karabiner-elements-integration). |
-| `notes` | array | `[]` | List of note configurations. |
+| `notes` | array | `[]` | List of Registered Note configurations. |
 
-## Note Settings
+## Note Settings (Registered Notes)
 
-Each entry in `notes` configures one sticky note window.
+Each entry in `notes` configures one Registered Note — a sticky note window managed by Chirami.
 
 | Field | Type | Default | Required | Description |
 |-------|------|---------|----------|-------------|

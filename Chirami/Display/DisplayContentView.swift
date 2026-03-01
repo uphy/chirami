@@ -1,6 +1,7 @@
 import AppKit
 
-/// A scrollable text view that renders Markdown content using BulletLayoutManager and MarkdownStyler.
+/// Content view for Ad-hoc Notes. A scrollable text view that renders Markdown content
+/// using BulletLayoutManager and MarkdownStyler.
 /// In read-only mode: full rendering via styleAll. In editable mode: live preview.
 class DisplayContentView: NSView, NSTextViewDelegate {
 

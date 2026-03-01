@@ -1,6 +1,6 @@
 import Foundation
 
-/// Manages auto-saving content to a file for display windows.
+/// Manages auto-saving content to a file for Ad-hoc Note windows.
 /// Prevents redundant writes using lastSavedContent comparison.
 class DisplayContentModel {
 

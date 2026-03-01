@@ -7,6 +7,7 @@ enum NotePosition: Equatable {
     case cursor
 }
 
+/// Metadata for a Periodic Note (a Registered Note with a date-template path).
 struct PeriodicNoteInfo: Equatable {
     let pathTemplate: String
     let rolloverDelay: TimeInterval
@@ -14,6 +15,8 @@ struct PeriodicNoteInfo: Equatable {
     let titlePrefix: String?
 }
 
+/// A Registered Note — a note defined in config.yaml's `notes[]` array.
+/// Can be either a Static Note (fixed path) or a Periodic Note (date-template path).
 struct Note: Identifiable, Equatable {
     let id: String
     var path: URL

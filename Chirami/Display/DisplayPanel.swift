@@ -1,6 +1,6 @@
 import AppKit
 
-/// A floating panel for CLI-initiated content display, sharing NotePanel's visual style.
+/// A floating panel for Ad-hoc Notes (CLI-initiated content display), sharing NotePanel's visual style.
 class DisplayPanel: NotePanel {
 
     private var callbackPipeFd: Int32 = -1

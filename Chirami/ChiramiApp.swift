@@ -29,7 +29,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Apply appearance mode from config
         applyAppearance()
 
-        // Open all note windows
+        // Open all Registered Note windows
         windowManager.openAllWindows()
 
         // Register per-note hotkeys
@@ -94,6 +94,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             NSLog("[AppDelegate] URL: %@", url.absoluteString)
             guard url.scheme == "chirami" else { continue }
             if url.host == "display" {
+                // Ad-hoc Note: opened dynamically via chirami://display URI
                 DisplayWindowManager.shared.display(url: url)
             }
         }

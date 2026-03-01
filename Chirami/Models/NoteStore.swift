@@ -1,6 +1,8 @@
 import Foundation
 import Combine
 
+/// Manages Registered Notes — notes defined in config.yaml's `notes[]` array.
+/// Loads Static Notes and Periodic Notes from config, handles file I/O, and persists window state.
 @MainActor
 class NoteStore: ObservableObject {
     static let shared = NoteStore()
@@ -35,7 +37,7 @@ class NoteStore: ObservableObject {
                 return resolvePeriodicNote(from: noteConfig, for: date)
             }
 
-            // Static note (existing logic)
+            // Static Note: fixed file path
             guard let fallbackURL = resolvePath(noteConfig.path) else { return nil }
 
             let id = noteConfig.noteId

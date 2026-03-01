@@ -2,7 +2,7 @@ import AppKit
 
 // MARK: - DisplayWindowController
 
-/// Manages a single display window opened via chirami://display URI.
+/// Manages a single Ad-hoc Note window opened via chirami://display URI.
 @MainActor
 class DisplayWindowController: NSObject, NSWindowDelegate {
 
@@ -35,7 +35,7 @@ class DisplayWindowController: NSObject, NSWindowDelegate {
 
 // MARK: - DisplayWindowManager
 
-/// Manages all display windows opened via chirami://display URIs.
+/// Manages all Ad-hoc Note windows opened via chirami://display URIs.
 /// Parses URL parameters and creates/destroys DisplayWindowController instances.
 @MainActor
 class DisplayWindowManager {

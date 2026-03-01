@@ -2,7 +2,7 @@
 
 ## Periodic Notes
 
-Periodic notes automatically resolve to a date-based file path. Use `{date-format}` placeholders in the `path` field — any path containing `{...}` is treated as a periodic note.
+Periodic Notes are a type of Registered Note that automatically resolve to a date-based file path. Use `{date-format}` placeholders in the `path` field — any path containing `{...}` is treated as a periodic note.
 
 ### Template Syntax
 
@@ -215,9 +215,9 @@ On app startup, Chirami automatically deletes image files that are no longer ref
 - Scans the Markdown content of all notes to identify referenced images
 - For periodic notes, checks image references across all files matching the template pattern
 
-## CLI Usage
+## CLI Usage (Ad-hoc Notes)
 
-The `chirami` command-line tool opens Markdown content in a floating Chirami window directly from the terminal.
+The `chirami` command-line tool opens Markdown content as an Ad-hoc Note — a floating Chirami window created dynamically from the terminal.
 
 ### Install
 

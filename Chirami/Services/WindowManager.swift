@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-/// Manages all note windows: creation, show/hide, always-on-top, transparency.
+/// Manages windows for Registered Notes: creation, show/hide, always-on-top, transparency.
 @MainActor
 class WindowManager: ObservableObject {
     static let shared = WindowManager()
