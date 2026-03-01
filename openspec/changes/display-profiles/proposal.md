@@ -1,6 +1,6 @@
 ## Why
 
-CLI (`chirami display`) で Ad-hoc Note を表示できるが、色・位置・autoHide などの見た目・振る舞い設定を毎回指定する必要がある。コマンド完了通知、agent 出力表示、インタラクティブ確認など用途ごとに設定が異なるため、config.yaml で名前付きプリセット（profile）を定義し、CLI からは profile 名を指定するだけで使えるようにしたい。
+CLI (`chirami display`) で Ad-hoc Note を表示できるが、色・位置などの見た目・振る舞い設定を毎回指定する必要がある。コマンド完了通知、agent 出力表示、インタラクティブ確認など用途ごとに設定が異なるため、config.yaml で名前付きプリセット（profile）を定義し、CLI からは profile 名を指定するだけで使えるようにしたい。
 
 ## What Changes
 

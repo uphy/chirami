@@ -24,7 +24,6 @@ struct Note: Identifiable, Equatable {
     var alwaysOnTop: Bool = true
     var hotkey: String?
     var position: NotePosition = .fixed
-    var autoHide: Bool = false
     var periodicInfo: PeriodicNoteInfo?
     var attachmentsDir: URL?
 
@@ -32,7 +31,7 @@ struct Note: Identifiable, Equatable {
         lhs.id == rhs.id && lhs.color == rhs.color && lhs.transparency == rhs.transparency
             && lhs.title == rhs.title && lhs.path == rhs.path && lhs.alwaysOnTop == rhs.alwaysOnTop
             && lhs.hotkey == rhs.hotkey && lhs.fontSize == rhs.fontSize
-            && lhs.position == rhs.position && lhs.autoHide == rhs.autoHide
+            && lhs.position == rhs.position
             && lhs.periodicInfo == rhs.periodicInfo
             && lhs.attachmentsDir == rhs.attachmentsDir
     }

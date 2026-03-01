@@ -131,7 +131,6 @@ struct NoteConfig: Codable {
     var fontSize: Int?
     var hotkey: String?
     var position: String?
-    var autoHide: Bool?
     var rolloverDelay: String?
     var template: String?
     var attachment: AttachmentConfig?
@@ -156,7 +155,6 @@ struct NoteConfig: Codable {
     enum CodingKeys: String, CodingKey {
         case path, title, color, transparency, hotkey, position, template, attachment
         case fontSize = "font_size"
-        case autoHide = "auto_hide"
         case rolloverDelay = "rollover_delay"
     }
 
@@ -175,10 +173,6 @@ struct NoteConfig: Codable {
 
     func resolvePosition() -> NotePosition {
         position == "cursor" ? .cursor : .fixed
-    }
-
-    func resolveAutoHide() -> Bool {
-        autoHide ?? false
     }
 
     func resolveAttachmentsDir(noteURL: URL, isPeriodicNote: Bool, pathTemplate: String?) -> URL {
@@ -227,17 +221,19 @@ struct WindowState: Codable {
     var size: [Double]
     var visible: Bool
     var alwaysOnTop: Bool?
+    var pinned: Bool?
 
     enum CodingKeys: String, CodingKey {
-        case position, size, visible
+        case position, size, visible, pinned
         case alwaysOnTop = "always_on_top"
     }
 
-    init(position: CGPoint, size: CGSize, visible: Bool, alwaysOnTop: Bool? = nil) {
+    init(position: CGPoint, size: CGSize, visible: Bool, alwaysOnTop: Bool? = nil, pinned: Bool? = nil) {
         self.position = [position.x, position.y]
         self.size = [size.width, size.height]
         self.visible = visible
         self.alwaysOnTop = alwaysOnTop
+        self.pinned = pinned
     }
 
     var cgPoint: CGPoint { CGPoint(x: position[0], y: position[1]) }

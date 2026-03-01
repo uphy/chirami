@@ -50,7 +50,6 @@ class NoteStore: ObservableObject {
             let alwaysOnTop = appState.windowState(for: id)?.alwaysOnTop ?? true
 
             let notePosition = noteConfig.resolvePosition()
-            let autoHide = noteConfig.resolveAutoHide()
 
             let attachmentsDir = noteConfig.resolveAttachmentsDir(
                 noteURL: url,
@@ -61,7 +60,7 @@ class NoteStore: ObservableObject {
                 id: id, path: url, title: title, color: color,
                 transparency: transparency, fontSize: fontSize,
                 alwaysOnTop: alwaysOnTop, hotkey: noteConfig.hotkey,
-                position: notePosition, autoHide: autoHide,
+                position: notePosition,
                 attachmentsDir: attachmentsDir
             )
         }
@@ -114,7 +113,6 @@ class NoteStore: ObservableObject {
         let fontSize = config.resolveFontSize()
         let alwaysOnTop = appState.windowState(for: id)?.alwaysOnTop ?? true
         let notePosition = config.resolvePosition()
-        let autoHide = config.resolveAutoHide()
 
         let rolloverDelay = DurationParser.parse(config.rolloverDelay)
         let templateFile: URL? = config.template.flatMap { resolvePath($0) }
@@ -135,7 +133,7 @@ class NoteStore: ObservableObject {
             id: id, path: url, title: title, color: color,
             transparency: transparency, fontSize: fontSize,
             alwaysOnTop: alwaysOnTop, hotkey: config.hotkey,
-            position: notePosition, autoHide: autoHide,
+            position: notePosition,
             periodicInfo: periodicInfo,
             attachmentsDir: attachmentsDir
         )
@@ -193,6 +191,18 @@ class NoteStore: ObservableObject {
             }
         }
         loadFromConfig()
+    }
+
+    func isPinned(_ note: Note) -> Bool {
+        if let pinned = appState.windowState(for: note.id)?.pinned {
+            return pinned
+        }
+        // Default: cursor notes are unpinned, fixed notes are pinned
+        return note.position != .cursor
+    }
+
+    func setPinned(_ value: Bool, for note: Note) {
+        appState.setPinned(value, for: note.id)
     }
 
     func updateAlwaysOnTop(_ value: Bool, for note: Note) {

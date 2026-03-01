@@ -64,7 +64,6 @@ notes:
   - path: ~/Desktop/scratch.md
     hotkey: cmd+shift+s
     position: cursor
-    auto_hide: true
 ```
 
 See [Configuration](docs/configuration.md) for the full field reference.

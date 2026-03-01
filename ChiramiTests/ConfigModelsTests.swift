@@ -120,18 +120,6 @@ struct NoteConfigResolveTests {
         #expect(config.resolvePosition() == .fixed)
     }
 
-    @Test("autoHide: returns true when set")
-    func resolveAutoHideTrue() {
-        let config = NoteConfig(path: "~/a.md", autoHide: true)
-        #expect(config.resolveAutoHide() == true)
-    }
-
-    @Test("autoHide: defaults to false when unset")
-    func resolveAutoHideDefaultsToFalse() {
-        let config = NoteConfig(path: "~/a.md")
-        #expect(config.resolveAutoHide() == false)
-    }
-
     @Test("color: returns note-level value")
     func resolveColorFromNote() {
         let config = NoteConfig(path: "~/a.md", color: "blue")
@@ -172,5 +160,46 @@ struct NoteConfigResolveTests {
     func resolveFontSizeDefault() {
         let config = NoteConfig(path: "~/a.md")
         #expect(config.resolveFontSize() == 14)
+    }
+}
+
+// MARK: - WindowState pinned
+
+@Suite("WindowState pinned field")
+struct WindowStatePinnedTests {
+
+    @Test("pinned decodes from YAML when specified")
+    func decodePinnedFromYAML() throws {
+        let yaml = """
+        position: [100, 200]
+        size: [300, 400]
+        visible: true
+        pinned: true
+        """
+        let state = try YAMLDecoder().decode(WindowState.self, from: yaml)
+        #expect(state.pinned == true)
+    }
+
+    @Test("pinned is nil when not specified")
+    func decodePinnedNilWhenUnspecified() throws {
+        let yaml = """
+        position: [100, 200]
+        size: [300, 400]
+        visible: true
+        """
+        let state = try YAMLDecoder().decode(WindowState.self, from: yaml)
+        #expect(state.pinned == nil)
+    }
+
+    @Test("pinned false decodes correctly")
+    func decodePinnedFalse() throws {
+        let yaml = """
+        position: [100, 200]
+        size: [300, 400]
+        visible: true
+        pinned: false
+        """
+        let state = try YAMLDecoder().decode(WindowState.self, from: yaml)
+        #expect(state.pinned == false)
     }
 }

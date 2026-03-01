@@ -5,7 +5,7 @@ Chirami の付箋ウィンドウ（Note）には2種類の作り方がある:
 - **Registered Note**: config.yaml の `notes[]` に登録。常にファイルに紐づき、アプリ起動中は永続的に存在する
 - **Ad-hoc Note**: CLI (`chirami display`) で都度作成。テキスト・ファイル・stdin からコンテンツを受け取る。ファイル指定時は editable
 
-両方とも同じ付箋ウィンドウであり、見た目設定（color, transparency, fontSize, position, autoHide, title）は共通。現状 Ad-hoc Note はハードコードデフォルトで表示され、見た目の設定手段がない。
+両方とも同じ付箋ウィンドウであり、見た目設定（color, transparency, fontSize, position, title）は共通。現状 Ad-hoc Note はハードコードデフォルトで表示され、見た目の設定手段がない。
 
 既存の Registered Note では `NoteConfig` → ハードコードデフォルトの resolve チェーンで設定を解決している。Ad-hoc Note でも同様のパターンを、profile 経由で適用する。
 
@@ -40,7 +40,7 @@ Chirami の付箋ウィンドウ（Note）には2種類の作り方がある:
 | ライフサイクル | 永続 | 一時的 |
 | Hotkey スコープ | 1 ウィンドウ単位 | profile 単位 |
 
-見た目設定（color, transparency, fontSize, position, autoHide, title）は共通。
+見た目設定（color, transparency, fontSize, position, title）は共通。
 
 ### 2. Config モデル: `DisplayConfig` + `DisplayProfile` を新設
 
@@ -57,13 +57,11 @@ struct DisplayProfile: Codable {
     var transparency: Double?
     var fontSize: Int?
     var position: String?       // "cursor" | nil
-    var autoHide: Bool?
     var hotkey: String?
 
     enum CodingKeys: String, CodingKey {
         case title, color, transparency, position, hotkey
         case fontSize = "font_size"
-        case autoHide = "auto_hide"
     }
 }
 ```
@@ -91,7 +89,6 @@ display:
   profiles:
     notify:
       color: pink
-      auto_hide: true
       hotkey: cmd+shift+n
 ```
 

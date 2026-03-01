@@ -119,7 +119,7 @@ The `cli_path` field is optional — Chirami auto-detects the `karabiner_cli` bi
 
 ## Transient Note
 
-Combine `position: cursor` with `auto_hide: true` to create a note that appears at the mouse cursor and disappears when you click away. Useful for scratch-pad or quick-capture workflows.
+Use `position: cursor` to create a note that appears at the mouse cursor. Cursor notes start unpinned by default — they hide automatically when focus is lost. Useful for scratch-pad or quick-capture workflows.
 
 ```yaml
 notes:
@@ -127,10 +127,9 @@ notes:
     title: Scratch
     hotkey: cmd+shift+s
     position: cursor
-    auto_hide: true
 ```
 
-Press the hotkey → the note pops up at your cursor → type your note → click elsewhere and it vanishes.
+Press the hotkey → the note pops up at your cursor → type your note → click elsewhere and it vanishes. Click the pin button (📌) to keep it visible.
 
 ## Images
 

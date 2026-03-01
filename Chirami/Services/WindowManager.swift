@@ -32,16 +32,24 @@ class WindowManager: ObservableObject {
         let controller = NoteWindowController(note: note)
         controllers[note.id] = controller
 
-        // Transient notes (auto_hide + cursor) start hidden
-        if note.autoHide && note.position == .cursor {
+        let pinned = noteStore.isPinned(note)
+
+        // Unpinned cursor notes start hidden
+        if !pinned && note.position == .cursor {
             return
         }
-        controller.showIfNeeded()
+
+        if pinned {
+            // Pinned notes always show on launch
+            controller.show()
+        } else {
+            controller.showIfNeeded()
+        }
     }
 
     func toggleAllWindows() {
-        let nonAutoHide = controllers.values.filter { !$0.note.autoHide }
-        let anyVisible = nonAutoHide.contains { $0.isVisible }
+        let pinnedControllers = controllers.values.filter { noteStore.isPinned($0.note) }
+        let anyVisible = pinnedControllers.contains { $0.isVisible }
         if anyVisible {
             hideAllWindows()
         } else {
@@ -50,14 +58,14 @@ class WindowManager: ObservableObject {
     }
 
     func showAllWindows() {
-        for note in noteStore.notes where !note.autoHide {
+        for note in noteStore.notes where noteStore.isPinned(note) {
             openWindow(for: note)
             controllers[note.id]?.show()
         }
     }
 
     func hideAllWindows() {
-        controllers.values.filter { !$0.note.autoHide }.forEach { $0.hide() }
+        controllers.values.filter { noteStore.isPinned($0.note) }.forEach { $0.hide() }
     }
 
     func toggleWindow(for noteId: String) {

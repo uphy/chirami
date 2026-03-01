@@ -55,7 +55,6 @@ class AppConfig: YAMLStore<ChiramiConfig> {
         title: Quick Memo
         color: blue
         position: cursor
-        auto_hide: true
         hotkey: cmd+shift+m
 
       - path: ~/.config/chirami/sample-notes/daily/{yyyy-MM-dd}.md
@@ -106,7 +105,9 @@ class AppConfig: YAMLStore<ChiramiConfig> {
 
     - **`hotkey: cmd+shift+m`** — summon/dismiss with a keyboard shortcut
     - **`position: cursor`** — appears at the mouse cursor position when summoned
-    - **`auto_hide: true`** — automatically hides when focus is lost
+
+    Cursor notes start unpinned by default — they hide when focus is lost.
+    Click the pin button to keep them visible.
 
     These can be customized in `config.yaml`.
     """

@@ -104,7 +104,7 @@ class NotePanel: NSPanel {
         todayButton?.isHidden = isToday
     }
 
-    /// Add a pin button to the right end of the titlebar (for auto_hide notes).
+    /// Add a pin button to the right end of the titlebar.
     func setupPinButton(target: AnyObject, action: Selector) {
         guard let closeButton = standardWindowButton(.closeButton) else { return }
 

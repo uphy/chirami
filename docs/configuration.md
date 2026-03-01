@@ -33,7 +33,6 @@ notes:
     font_size: 14
     hotkey: cmd+shift+t
     position: fixed
-    auto_hide: false
 
   - path: ~/Notes/daily/{yyyy-MM-dd}.md
     title: Daily
@@ -46,7 +45,6 @@ notes:
     color: yellow
     hotkey: cmd+shift+s
     position: cursor
-    auto_hide: true
 ```
 
 ## Top-Level Settings
@@ -74,7 +72,6 @@ Each entry in `notes` configures one sticky note window.
 | `font_size` | integer | `14` | no | Font size in points. Range: 8–32. |
 | `hotkey` | string | — | no | Global hotkey to toggle this note (e.g. `cmd+shift+m`). |
 | `position` | string | `fixed` | no | `fixed` (remembers last position) or `cursor` (appears at mouse cursor). |
-| `auto_hide` | boolean | `false` | no | Hide window when it loses focus. |
 | `rollover_delay` | string | — | no | Delay before date rollover for periodic notes (e.g. `2h`, `30m`). |
 | `template` | string | — | no | Template file path for periodic notes. Copied when creating a new day's file. |
 | `attachment.dir` | string | — | no | Attachment directory for images. See [Images](advanced.md#images). |

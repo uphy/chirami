@@ -1,9 +1,9 @@
 ## 1. Config モデル
 
 - [ ] 1.1 `ConfigModels.swift` に `DisplayConfig` 構造体を追加（`profiles: [String: DisplayProfile]?`）
-- [ ] 1.2 `ConfigModels.swift` に `DisplayProfile` 構造体を追加（title, color, transparency, fontSize, position, autoHide, hotkey + CodingKeys）
+- [ ] 1.2 `ConfigModels.swift` に `DisplayProfile` 構造体を追加（title, color, transparency, fontSize, position, hotkey + CodingKeys）
 - [ ] 1.3 `ChiramiConfig` に `display: DisplayConfig?` フィールドを追加
-- [ ] 1.4 `DisplayProfile` に resolve メソッド群を追加（resolveColor, resolveTransparency, resolveFontSize, resolvePosition, resolveAutoHide。fallback: `profile → hardcoded`）
+- [ ] 1.4 `DisplayProfile` に resolve メソッド群を追加（resolveColor, resolveTransparency, resolveFontSize, resolvePosition。fallback: `profile → hardcoded`）
 
 ## 2. CLI (Go)
 
@@ -16,7 +16,7 @@
 - [ ] 3.2 `DisplayContentView` を拡張し、fontSize を受け取れるようにする
 - [ ] 3.3 `DisplayWindowController` に profileName プロパティを追加
 - [ ] 3.4 `DisplayWindowController` に position（cursor）対応を追加
-- [ ] 3.5 `DisplayWindowController` に autoHide 対応を追加（windowDidResignKey で非表示）
+- [ ] 3.5 `DisplayWindowController` に pin/unpin 対応を追加（unpinned 時は windowDidResignKey で非表示）
 
 ## 4. DisplayWindowManager の拡張
 

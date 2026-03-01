@@ -22,7 +22,11 @@ class AppState: YAMLStore<ChiramiState> {
     }
 
     func updateWindow(for noteId: String, position: CGPoint, size: CGSize, visible: Bool) {
-        update { $0.windows[noteId] = WindowState(position: position, size: size, visible: visible) }
+        updateWindowState(for: noteId) { ws in
+            ws.position = [position.x, position.y]
+            ws.size = [size.width, size.height]
+            ws.visible = visible
+        }
     }
 
     func saveBookmark(for noteId: String, data bookmarkData: Data) {
@@ -36,6 +40,10 @@ class AppState: YAMLStore<ChiramiState> {
 
     func removeBookmark(for noteId: String) {
         update { $0.bookmarks.removeValue(forKey: noteId) }
+    }
+
+    func setPinned(_ value: Bool, for noteId: String) {
+        updateWindowState(for: noteId) { $0.pinned = value }
     }
 
     func setAlwaysOnTop(_ value: Bool, for noteId: String) {

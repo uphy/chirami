@@ -13,7 +13,7 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
     private var contentModel: NoteContentModel
     private var cancellables = Set<AnyCancellable>()
     private var isShowingToday: Bool = true
-    private var isPinned: Bool = false
+    private var isPinned: Bool
     private var isFadingOut: Bool = false
     private var fadeOutToken: Int = 0
 
@@ -21,6 +21,7 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
 
     init(note: Note) {
         self.note = note
+        self.isPinned = NoteStore.shared.isPinned(note)
         self.contentModel = NoteContentModel(note: note)
 
         let savedState = NoteStore.shared.windowState(for: note)
@@ -70,11 +71,10 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
             updateNavigationButtons()
         }
 
-        if note.autoHide {
-            panel.setupPinButton(target: self, action: #selector(togglePinAction))
-        }
+        panel.setupPinButton(target: self, action: #selector(togglePinAction))
+        panel.updatePinState(isPinned: isPinned)
 
-        let rootView = NoteContentView(model: contentModel, noteId: note.id, onTogglePin: note.autoHide ? { [weak self] in self?.togglePinAction() } : nil)
+        let rootView = NoteContentView(model: contentModel, noteId: note.id, onTogglePin: { [weak self] in self?.togglePinAction() })
             .environmentObject(NoteStore.shared)
         panel.contentView = NSHostingView(rootView: rootView)
 
@@ -228,14 +228,13 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
         panel.level = updated.alwaysOnTop ? .floating : .normal
         contentModel.fontSize = updated.fontSize
         note.position = updated.position
-        note.autoHide = updated.autoHide
         note.transparency = updated.transparency  // Keep in sync for fade-in target
     }
 
     // MARK: - NSWindowDelegate
 
     func windowDidResignKey(_ notification: Notification) {
-        guard note.autoHide, !isPinned, isVisible else { return }
+        guard !isPinned, isVisible else { return }
         contentModel.save()
         hide()
     }
@@ -353,6 +352,7 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
     @objc func togglePinAction() {
         isPinned.toggle()
         (window as? NotePanel)?.updatePinState(isPinned: isPinned)
+        noteStore.setPinned(isPinned, for: note)
     }
 
     // MARK: - Periodic Note Navigation
@@ -422,7 +422,7 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
         }
 
         contentModel = NoteContentModel(note: note)
-        let rootView = NoteContentView(model: contentModel, noteId: note.id, onTogglePin: note.autoHide ? { [weak self] in self?.togglePinAction() } : nil)
+        let rootView = NoteContentView(model: contentModel, noteId: note.id, onTogglePin: { [weak self] in self?.togglePinAction() })
             .environmentObject(NoteStore.shared)
         (window as? NotePanel)?.contentView = NSHostingView(rootView: rootView)
 
