@@ -738,7 +738,10 @@ class MarkdownTextView: NSTextView {
 
     private func performSmartPaste() {
         let service = SmartPasteService.shared
-        guard let contentType = service.detectContentType() else { return }
+        guard let contentType = service.detectContentType() else {
+            paste(nil)
+            return
+        }
 
         let config = AppConfig.shared.data.smartPaste
         let fetchUrlTitle = config?.fetchUrlTitle != false
