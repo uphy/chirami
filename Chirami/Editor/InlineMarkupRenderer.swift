@@ -7,9 +7,15 @@ enum InlineMarkupRenderer {
 
     // MARK: - Centralized inline code styling
 
-    static func inlineCodeAttributes(fontSize: CGFloat) -> [NSAttributedString.Key: Any] {
-        [
-            .font: NSFont.monospacedSystemFont(ofSize: fontSize - 1, weight: .regular),
+    static func inlineCodeAttributes(fontSize: CGFloat, fontName: String? = nil) -> [NSAttributedString.Key: Any] {
+        let font: NSFont
+        if let fontName, let customFont = NSFont(name: fontName, size: fontSize - 1) {
+            font = customFont
+        } else {
+            font = NSFont.monospacedSystemFont(ofSize: fontSize - 1, weight: .regular)
+        }
+        return [
+            .font: font,
             .foregroundColor: NSColor.systemOrange,
             .inlineCodeBackground: NSColor.labelColor.withAlphaComponent(0.08)
         ]

@@ -15,6 +15,7 @@ enum AppearanceMode: String, Codable {
 
 struct ChiramiConfig: Codable {
     var appearance: String?
+    var font: String?
     var hotkey: String?
     var notes: [NoteConfig] = []
     var adhoc: AdhocConfig?
@@ -24,7 +25,7 @@ struct ChiramiConfig: Codable {
     var warpModifier: String?
 
     enum CodingKeys: String, CodingKey {
-        case appearance, hotkey, notes, adhoc, karabiner
+        case appearance, font, hotkey, notes, adhoc, karabiner
         case smartPaste = "smart_paste"
         case dragModifier = "drag_modifier"
         case warpModifier = "warp_modifier"

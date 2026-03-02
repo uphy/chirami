@@ -227,7 +227,7 @@ class DisplayWindowManager {
         panel.centerTitle()
         panel.setupCloseButtonHover()
         let contentModel = DisplayContentModel(content: displayContent, fileURL: fileURL)
-        let contentView = DisplayContentView(model: contentModel, isReadOnly: readOnly, noteColor: color, fontSize: fontSize)
+        let contentView = DisplayContentView(model: contentModel, isReadOnly: readOnly, noteColor: color, fontSize: fontSize, fontName: AppConfig.shared.config.font)
         panel.contentView = NSHostingView(rootView: contentView)
 
         let controller = DisplayWindowController(

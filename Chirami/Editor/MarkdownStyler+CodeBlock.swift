@@ -30,7 +30,7 @@ extension MarkdownStyler {
         let substring = nsText.substring(with: range)
         let lines = substring.components(separatedBy: "\n")
 
-        let monoFont = NSFont.monospacedSystemFont(ofSize: (baseFontSize * 0.86).rounded(), weight: .regular)
+        let monoFont = self.monoFont(size: (baseFontSize * 0.86).rounded())
 
         // Collect code body lines (excluding fence lines) for syntax highlighting
         var codeLines: [(text: String, offset: Int, length: Int)] = []

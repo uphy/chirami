@@ -4,6 +4,7 @@ import AppKit
 class BulletLayoutManager: NSLayoutManager {
 
     var baseFontSize: CGFloat = 14
+    var fontName: String?
 
     /// Rects of drawn images keyed by character index (in view coordinates).
     private(set) var drawnImageRects: [Int: NSRect] = [:]
@@ -227,11 +228,18 @@ class BulletLayoutManager: NSLayoutManager {
     /// `self.location(forGlyphAt:)` to return an incorrect baseline for empty list items.
     /// Computed directly from font metrics to avoid the last-line issue where NSLayoutManager
     /// does not include lineSpacing in the last line's fragment rect height.
+    private func referenceFont(size: CGFloat) -> NSFont {
+        if let fontName, let font = NSFont(name: fontName, size: size) {
+            return font
+        }
+        return NSFont.systemFont(ofSize: size)
+    }
+
     private func baselineOffset(forGlyphAt glyphIndex: Int, fontSize: CGFloat) -> CGFloat {
-        let referenceFont = NSFont.systemFont(ofSize: fontSize)
+        let refFont = referenceFont(size: fontSize)
         // minimumLineHeight matches applyListParagraphStyle: ceil(ascender - descender + leading)
         // baseline = minimumLineHeight + descender
-        return ceil(referenceFont.ascender - referenceFont.descender + referenceFont.leading) + referenceFont.descender
+        return ceil(refFont.ascender - refFont.descender + refFont.leading) + refFont.descender
     }
 
     private func nestingLevel(at charLocation: Int) -> Int {
@@ -265,7 +273,7 @@ class BulletLayoutManager: NSLayoutManager {
         let tinted = image.tinted(with: color)
         let imageSize = tinted.size
         let x = origin.x + pos.lineRect.origin.x + 2 + CGFloat(pos.level) * 20
-        let textFont = NSFont.systemFont(ofSize: size)
+        let textFont = referenceFont(size: size)
         let textCenterY = pos.baselineY - textFont.capHeight / 2
         let y = textCenterY - imageSize.height / 2
         tinted.draw(in: NSRect(x: x, y: y, width: imageSize.width, height: imageSize.height))
@@ -386,7 +394,7 @@ class BulletLayoutManager: NSLayoutManager {
         let tinted = image.tinted(with: color)
         let imageSize = tinted.size
         let x = origin.x + lineRect.origin.x + glyphLocation.x
-        let textFont = NSFont.systemFont(ofSize: size)
+        let textFont = referenceFont(size: size)
         let textCenterY = baselineY - textFont.capHeight / 2
         let y = textCenterY - imageSize.height / 2
         tinted.draw(in: NSRect(x: x, y: y, width: imageSize.width, height: imageSize.height))
@@ -395,7 +403,7 @@ class BulletLayoutManager: NSLayoutManager {
     private func drawSymbol(_ symbol: String, at range: NSRange, origin: NSPoint, color: NSColor, fontSize: CGFloat) {
         guard let pos = glyphPosition(at: range, origin: origin, fontSize: fontSize) else { return }
 
-        let font = NSFont.systemFont(ofSize: fontSize)
+        let font = referenceFont(size: fontSize)
         let attrs: [NSAttributedString.Key: Any] = [
             .font: font,
             .foregroundColor: color

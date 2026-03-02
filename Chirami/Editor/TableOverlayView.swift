@@ -21,7 +21,7 @@ class TableOverlayData: NSObject {
         self.columnCount = columnCount
     }
 
-    static func from(table: Table, baseFontSize: CGFloat, noteColor: NoteColor) -> TableOverlayData {
+    static func from(table: Table, baseFontSize: CGFloat, noteColor: NoteColor, fontName: String? = nil) -> TableOverlayData {
         let alignments = table.columnAlignments.map { alignment -> NSTextAlignment in
             switch alignment {
             case .left: return .left
@@ -36,8 +36,15 @@ class TableOverlayData: NSObject {
             return alignments[index]
         }
 
-        let headerFont = NSFont.systemFont(ofSize: baseFontSize, weight: .semibold)
-        let bodyFont = NSFont.systemFont(ofSize: baseFontSize)
+        let headerFont: NSFont
+        let bodyFont: NSFont
+        if let fontName, let customFont = NSFont(name: fontName, size: baseFontSize) {
+            bodyFont = customFont
+            headerFont = NSFontManager.shared.convert(customFont, toHaveTrait: .boldFontMask)
+        } else {
+            headerFont = NSFont.systemFont(ofSize: baseFontSize, weight: .semibold)
+            bodyFont = NSFont.systemFont(ofSize: baseFontSize)
+        }
 
         var headerCells: [CellData] = []
         for (i, cell) in table.head.cells.enumerated() {

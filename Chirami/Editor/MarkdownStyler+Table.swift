@@ -9,7 +9,7 @@ extension MarkdownStyler {
 
     func applyTableStyle(to storage: NSMutableAttributedString, table: Table, range: NSRange, in text: String) {
         storage.addAttributes(
-            [.foregroundColor: NSColor.clear, .font: NSFont.systemFont(ofSize: baseFontSize)],
+            [.foregroundColor: NSColor.clear, .font: bodyFont(size: baseFontSize)],
             range: range
         )
 
@@ -24,7 +24,7 @@ extension MarkdownStyler {
                                  range: NSRange(location: lineStart, length: length))
         }
 
-        let overlayData = TableOverlayData.from(table: table, baseFontSize: baseFontSize, noteColor: noteColor)
+        let overlayData = TableOverlayData.from(table: table, baseFontSize: baseFontSize, noteColor: noteColor, fontName: fontName)
         storage.addAttribute(.tableOverlay, value: overlayData, range: range)
     }
 
@@ -49,7 +49,7 @@ extension MarkdownStyler {
             // Bold monospace for header row, regular for body rows
             let weight: NSFont.Weight = isFirst ? .bold : .regular
             storage.addAttributes(
-                [.font: NSFont.monospacedSystemFont(ofSize: baseFontSize, weight: weight)],
+                [.font: monoFont(size: baseFontSize, weight: weight)],
                 range: lineRange
             )
 

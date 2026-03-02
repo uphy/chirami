@@ -17,7 +17,7 @@ extension MarkdownStyler {
 
     func applyHeadingStyle(level: Int, to storage: NSMutableAttributedString, range: NSRange) {
         storage.addAttributes([
-            .font: NSFont.systemFont(ofSize: headingFontSize(for: level), weight: .bold),
+            .font: boldFont(size: headingFontSize(for: level)),
             .foregroundColor: noteColor.textColor
         ], range: range)
     }

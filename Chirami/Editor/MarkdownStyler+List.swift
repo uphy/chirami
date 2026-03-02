@@ -203,11 +203,7 @@ extension MarkdownStyler {
         if ownLength > contentStart {
             let contentRange = NSRange(location: itemRange.location + contentStart, length: ownLength - contentStart)
             let contentText = (text as NSString).substring(with: contentRange)
-            if let cursorLocation = cursorLocation {
-                applyInlinePatterns(to: storage, in: contentText, offset: contentRange.location, cursorLocation: cursorLocation)
-            } else {
-                applyRawInlinePatterns(to: storage, in: contentText, offset: contentRange.location)
-            }
+            applyRawInlinePatterns(to: storage, in: contentText, offset: contentRange.location, cursorLocation: cursorLocation)
         }
     }
 
@@ -242,7 +238,7 @@ extension MarkdownStyler {
             let levelIndent: CGFloat = 20 + 20 * CGFloat(nestingLevel)
             let spaceAfterCheckbox = NSRange(location: markerAbsLocation + markerLength + 3, length: 1)
             storage.addAttributes([
-                .font: NSFont.systemFont(ofSize: baseFontSize),
+                .font: bodyFont(size: baseFontSize),
                 .expansion: -1.0,
                 .kern: levelIndent
             ], range: spaceAfterCheckbox)
@@ -253,7 +249,7 @@ extension MarkdownStyler {
         if ownLength > contentStart {
             let contentRange = NSRange(location: itemRange.location + contentStart, length: ownLength - contentStart)
             let contentText = (text as NSString).substring(with: contentRange)
-            applyInlinePatterns(to: storage, in: contentText, offset: contentRange.location, cursorLocation: cursorLocation)
+            applyRawInlinePatterns(to: storage, in: contentText, offset: contentRange.location, cursorLocation: cursorLocation)
         }
     }
 
@@ -289,7 +285,7 @@ extension MarkdownStyler {
                 let levelIndent: CGFloat = 20 + 20 * CGFloat(nestingLevel)
                 let spaceAfterCheckbox = NSRange(location: markerAbsLocation + markerLength + 3, length: 1)
                 storage.addAttributes([
-                    .font: NSFont.systemFont(ofSize: baseFontSize),
+                    .font: bodyFont(size: baseFontSize),
                     .expansion: -1.0,
                     .kern: levelIndent
                 ], range: spaceAfterCheckbox)
@@ -312,7 +308,7 @@ extension MarkdownStyler {
                 let levelIndent: CGFloat = 14 + 20 * CGFloat(nestingLevel)
                 let lastHiddenCharRange = NSRange(location: markerAbsLocation + markerLength - 1, length: 1)
                 storage.addAttributes([
-                    .font: NSFont.systemFont(ofSize: baseFontSize),
+                    .font: bodyFont(size: baseFontSize),
                     .expansion: -1.0,
                     .kern: levelIndent
                 ], range: lastHiddenCharRange)
@@ -398,7 +394,7 @@ extension MarkdownStyler {
         let textStart: CGFloat = (ordered || isTask) ? 20 : 14
         let levelIndent = textStart + nestingStep * CGFloat(nestingLevel)
 
-        let font = NSFont.systemFont(ofSize: baseFontSize)
+        let font = bodyFont(size: baseFontSize)
         let paragraphStyle = NSMutableParagraphStyle()
         paragraphStyle.tabStops = []
         paragraphStyle.defaultTabInterval = 0.001

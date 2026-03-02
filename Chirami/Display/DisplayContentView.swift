@@ -6,6 +6,7 @@ struct DisplayContentView: View {
     let isReadOnly: Bool
     let noteColor: NoteColor
     let fontSize: CGFloat
+    let fontName: String?
 
     var body: some View {
         LivePreviewEditor(
@@ -13,6 +14,7 @@ struct DisplayContentView: View {
             backgroundColor: noteColor.nsColor,
             noteColor: noteColor,
             fontSize: fontSize,
+            fontName: fontName,
             noteURL: model.fileURL,
             isReadOnly: isReadOnly
         )

@@ -530,6 +530,7 @@ struct NoteContentView: View {
             backgroundColor: note?.color.nsColor ?? NoteColor.yellow.nsColor,
             noteColor: note?.color ?? .yellow,
             fontSize: model.fontSize,
+            fontName: AppConfig.shared.config.font,
             noteURL: note?.path,
             attachmentsDir: note?.attachmentsDir,
             onFontSizeChange: { newSize in

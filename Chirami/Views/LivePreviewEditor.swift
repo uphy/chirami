@@ -7,6 +7,7 @@ struct LivePreviewEditor: NSViewRepresentable {
     var backgroundColor: NSColor = .white
     var noteColor: NoteColor = .yellow
     var fontSize: CGFloat = 14
+    var fontName: String?
     var noteURL: URL?
     var attachmentsDir: URL?
     var isReadOnly: Bool = false
@@ -34,7 +35,14 @@ struct LivePreviewEditor: NSViewRepresentable {
         textView.isAutomaticQuoteSubstitutionEnabled = false
         textView.isAutomaticDashSubstitutionEnabled = false
         textView.textContainerInset = NSSize(width: 8, height: 10)
-        textView.font = NSFont.systemFont(ofSize: fontSize)
+        if let fontName, let customFont = NSFont(name: fontName, size: fontSize) {
+            textView.font = customFont
+        } else {
+            textView.font = NSFont.systemFont(ofSize: fontSize)
+        }
+        if let layoutManager = textView.layoutManager as? BulletLayoutManager {
+            layoutManager.fontName = fontName
+        }
         textView.currentFontSize = fontSize
         textView.backgroundColor = backgroundColor.withAlphaComponent(0)
         textView.drawsBackground = false
@@ -97,6 +105,15 @@ struct LivePreviewEditor: NSViewRepresentable {
             needsRestyle = true
         }
 
+        // Update font name if changed
+        if coordinator.fontName != fontName {
+            coordinator.fontName = fontName
+            if let layoutManager = textView.layoutManager as? BulletLayoutManager {
+                layoutManager.fontName = fontName
+            }
+            needsRestyle = true
+        }
+
         // Update font size if changed
         if coordinator.fontSize != fontSize {
             coordinator.fontSize = fontSize
@@ -127,7 +144,7 @@ struct LivePreviewEditor: NSViewRepresentable {
     }
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(text: $text, noteColor: noteColor, fontSize: fontSize, noteURL: noteURL, isReadOnly: isReadOnly, onFontSizeChange: onFontSizeChange)
+        Coordinator(text: $text, noteColor: noteColor, fontSize: fontSize, fontName: fontName, noteURL: noteURL, isReadOnly: isReadOnly, onFontSizeChange: onFontSizeChange)
     }
 
     // MARK: - Coordinator
@@ -140,10 +157,13 @@ struct LivePreviewEditor: NSViewRepresentable {
 
         var isWindowFocused = true
         var noteColor: NoteColor {
-            didSet { styler = MarkdownStyler(noteColor: noteColor, baseFontSize: fontSize) }
+            didSet { styler = MarkdownStyler(noteColor: noteColor, baseFontSize: fontSize, fontName: fontName) }
         }
         var fontSize: CGFloat {
-            didSet { styler = MarkdownStyler(noteColor: noteColor, baseFontSize: fontSize) }
+            didSet { styler = MarkdownStyler(noteColor: noteColor, baseFontSize: fontSize, fontName: fontName) }
+        }
+        var fontName: String? {
+            didSet { styler = MarkdownStyler(noteColor: noteColor, baseFontSize: fontSize, fontName: fontName) }
         }
         var noteURL: URL?
         let isReadOnly: Bool
@@ -151,14 +171,15 @@ struct LivePreviewEditor: NSViewRepresentable {
         private var styler: MarkdownStyler
         private var lastCursorLocation: Int = 0
 
-        init(text: Binding<String>, noteColor: NoteColor, fontSize: CGFloat, noteURL: URL?, isReadOnly: Bool, onFontSizeChange: ((CGFloat) -> Void)?) {
+        init(text: Binding<String>, noteColor: NoteColor, fontSize: CGFloat, fontName: String? = nil, noteURL: URL?, isReadOnly: Bool, onFontSizeChange: ((CGFloat) -> Void)?) {
             self.text = text
             self.noteColor = noteColor
             self.fontSize = fontSize
+            self.fontName = fontName
             self.noteURL = noteURL
             self.isReadOnly = isReadOnly
             self.onFontSizeChange = onFontSizeChange
-            self.styler = MarkdownStyler(noteColor: noteColor, baseFontSize: fontSize)
+            self.styler = MarkdownStyler(noteColor: noteColor, baseFontSize: fontSize, fontName: fontName)
             super.init()
 
             NotificationCenter.default.addObserver(
