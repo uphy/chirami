@@ -16,18 +16,20 @@ extension MarkdownStyler {
 
     // MARK: - Rendered inline styles
 
-    func applyInlineStyles(to storage: NSMutableAttributedString, range: NSRange, in text: String) {
+    func applyInlineStyles(to storage: NSMutableAttributedString, range: NSRange, in text: String, fontSize: CGFloat? = nil) {
         let substring = (text as NSString).substring(with: range)
-        applyInlinePatterns(to: storage, in: substring, offset: range.location)
+        applyInlinePatterns(to: storage, in: substring, offset: range.location, fontSize: fontSize)
     }
 
-    func applyInlinePatterns(to storage: NSMutableAttributedString, in text: String, offset: Int, cursorLocation: Int? = nil) {
+    func applyInlinePatterns(to storage: NSMutableAttributedString, in text: String, offset: Int, cursorLocation: Int? = nil, fontSize: CGFloat? = nil) {
+        let size = fontSize ?? baseFontSize
+
         applyPattern(Self.boldPattern, to: storage, in: text, offset: offset,
-                     attributes: [.font: NSFont.systemFont(ofSize: baseFontSize, weight: .bold)],
+                     attributes: [.font: boldFont(size: size)],
                      hideMarkers: true, markerLength: 2)
 
         applyPattern(Self.italicPattern, to: storage, in: text, offset: offset,
-                     attributes: [.font: NSFontManager.shared.convert(NSFont.systemFont(ofSize: baseFontSize), toHaveTrait: .italicFontMask)],
+                     attributes: [.font: italicFont(size: size)],
                      hideMarkers: true, markerLength: 1)
 
         applyPattern(Self.strikethroughPattern, to: storage, in: text, offset: offset,
@@ -35,7 +37,7 @@ extension MarkdownStyler {
                      hideMarkers: true, markerLength: 2)
 
         applyPattern(Self.inlineCodePattern, to: storage, in: text, offset: offset,
-                     attributes: InlineMarkupRenderer.inlineCodeAttributes(fontSize: baseFontSize),
+                     attributes: InlineMarkupRenderer.inlineCodeAttributes(fontSize: size, fontName: fontName),
                      hideMarkers: true, markerLength: 1)
 
         applyLinkPattern(to: storage, in: text, offset: offset, cursorLocation: cursorLocation)
@@ -46,16 +48,16 @@ extension MarkdownStyler {
 
     func applyRawInlinePatterns(to storage: NSMutableAttributedString, in text: String, offset: Int, cursorLocation: Int? = nil) {
         applyRawPattern(Self.boldPattern, to: storage, in: text, offset: offset,
-                        contentAttributes: [.font: NSFont.systemFont(ofSize: baseFontSize, weight: .bold), .foregroundColor: noteColor.textColor])
+                        contentAttributes: [.font: boldFont(size: baseFontSize), .foregroundColor: noteColor.textColor])
 
         applyRawPattern(Self.italicPattern, to: storage, in: text, offset: offset,
-                        contentAttributes: [.font: NSFontManager.shared.convert(NSFont.systemFont(ofSize: baseFontSize), toHaveTrait: .italicFontMask), .foregroundColor: noteColor.textColor])
+                        contentAttributes: [.font: italicFont(size: baseFontSize), .foregroundColor: noteColor.textColor])
 
         applyRawPattern(Self.strikethroughPattern, to: storage, in: text, offset: offset,
                         contentAttributes: [.strikethroughStyle: NSUnderlineStyle.single.rawValue, .foregroundColor: noteColor.textColor])
 
         applyRawPattern(Self.inlineCodePattern, to: storage, in: text, offset: offset,
-                        contentAttributes: InlineMarkupRenderer.inlineCodeAttributes(fontSize: baseFontSize))
+                        contentAttributes: InlineMarkupRenderer.inlineCodeAttributes(fontSize: baseFontSize, fontName: fontName))
 
         applyLinkPattern(to: storage, in: text, offset: offset, cursorLocation: cursorLocation)
         applyRawImagePattern(to: storage, in: text, offset: offset)

@@ -17,6 +17,7 @@ class MarkdownStyler {
 
     let noteColor: NoteColor
     let baseFontSize: CGFloat
+    let fontName: String?
 
     /// Width of the text container; used to compute scaled image heights for paragraph layout.
     var containerWidth: CGFloat = 380
@@ -35,9 +36,42 @@ class MarkdownStyler {
     /// Pre-computed line-start indices for the current style pass. Populated by style(_:cursorLocation:).
     var lineStartCache: [String.Index] = []
 
-    init(noteColor: NoteColor = .yellow, baseFontSize: CGFloat = 14) {
+    init(noteColor: NoteColor = .yellow, baseFontSize: CGFloat = 14, fontName: String? = nil) {
         self.noteColor = noteColor
         self.baseFontSize = baseFontSize
+        self.fontName = fontName
+    }
+
+    // MARK: - Font helpers
+
+    func bodyFont(size: CGFloat, weight: NSFont.Weight = .regular) -> NSFont {
+        if let fontName, let font = NSFont(name: fontName, size: size) {
+            if weight == .bold {
+                return NSFontManager.shared.convert(font, toHaveTrait: .boldFontMask)
+            }
+            return font
+        }
+        return NSFont.systemFont(ofSize: size, weight: weight)
+    }
+
+    func boldFont(size: CGFloat) -> NSFont {
+        bodyFont(size: size, weight: .bold)
+    }
+
+    func italicFont(size: CGFloat) -> NSFont {
+        if let fontName, let font = NSFont(name: fontName, size: size) {
+            return NSFontManager.shared.convert(font, toHaveTrait: .italicFontMask)
+        }
+        return NSFontManager.shared.convert(
+            NSFont.systemFont(ofSize: size), toHaveTrait: .italicFontMask
+        )
+    }
+
+    func monoFont(size: CGFloat, weight: NSFont.Weight = .regular) -> NSFont {
+        if let fontName, let font = NSFont(name: fontName, size: size) {
+            return font
+        }
+        return NSFont.monospacedSystemFont(ofSize: size, weight: weight)
     }
 
     // MARK: - Public
@@ -141,7 +175,7 @@ class MarkdownStyler {
             if range.length > prefixLen {
                 let contentRange = NSRange(location: range.location + prefixLen, length: range.length - prefixLen)
                 storage.addAttributes([
-                    .font: NSFont.systemFont(ofSize: headingFontSize(for: heading.level), weight: .bold),
+                    .font: boldFont(size: headingFontSize(for: heading.level)),
                     .foregroundColor: noteColor.textColor
                 ], range: contentRange)
             }
@@ -156,7 +190,7 @@ class MarkdownStyler {
                     storage.addAttributes([.foregroundColor: NSColor.secondaryLabelColor], range: lineRange)
                 } else {
                     storage.addAttributes([
-                        .font: NSFont.monospacedSystemFont(ofSize: (baseFontSize * 0.86).rounded(), weight: .regular),
+                        .font: monoFont(size: (baseFontSize * 0.86).rounded()),
                         .foregroundColor: NSColor.systemGreen
                     ], range: lineRange)
                 }
@@ -194,6 +228,7 @@ class MarkdownStyler {
         case let heading as Heading:
             applyHeadingStyle(level: heading.level, to: storage, range: range)
             hideMarkdownSyntax(in: storage, range: range, text: text, prefix: String(repeating: "#", count: heading.level) + " ")
+            applyInlineStyles(to: storage, range: range, in: text, fontSize: headingFontSize(for: heading.level))
 
         case let codeBlock as CodeBlock:
             applyCodeBlockStyle(to: storage, range: range, text: text, language: codeBlock.language)
@@ -218,7 +253,7 @@ class MarkdownStyler {
         let paragraphStyle = NSMutableParagraphStyle()
         paragraphStyle.lineSpacing = 6
         return [
-            .font: NSFont.systemFont(ofSize: baseFontSize),
+            .font: bodyFont(size: baseFontSize),
             .foregroundColor: noteColor.textColor,
             .paragraphStyle: paragraphStyle
         ]
