@@ -424,6 +424,7 @@ struct LivePreviewEditor: NSViewRepresentable {
             isApplyingStyling = false
             overlayManager.update(textView: textView, noteColor: noteColor, fontSize: fontSize)
             textView.needsDisplay = true
+            textView.updateInsertionPointStateAndRestartTimer(true)
         }
     }
 }

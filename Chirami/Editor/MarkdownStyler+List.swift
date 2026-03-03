@@ -8,16 +8,27 @@ extension MarkdownStyler {
     // MARK: - Recursive list item collection
 
     func collectListItems(from list: any Markup, in text: String, into result: inout [(node: any Markup, range: NSRange)]) {
+        let nsText = text as NSString
         for child in list.children {
             guard let item = child as? ListItem, let r = nsRange(for: item, in: text) else { continue }
             var effectiveR = effectiveListItemRange(r, in: text)
 
-            // Trim parent range at the start of the first nested sublist.
-            // Child lists have their own entries, so the parent should not cover them.
+            // Extend range to include leading whitespace on the item's line.
+            // swift-markdown may report the ListItem range starting at the marker,
+            // but the indentation before the marker belongs to this item visually.
+            let lineStart = nsText.lineRange(for: NSRange(location: effectiveR.location, length: 0)).location
+            if lineStart < effectiveR.location {
+                let ext = effectiveR.location - lineStart
+                effectiveR = NSRange(location: lineStart, length: effectiveR.length + ext)
+            }
+
+            // Trim parent range at the LINE START of the first nested sublist.
+            // Using line start (not AST start) ensures the child's leading
+            // indentation is excluded from the parent's range.
             for subChild in item.children {
                 if isList(subChild),
                    let subRange = nsRange(for: subChild, in: text) {
-                    let trimEnd = subRange.location
+                    let trimEnd = nsText.lineRange(for: NSRange(location: subRange.location, length: 0)).location
                     if trimEnd > effectiveR.location && trimEnd < effectiveR.location + effectiveR.length {
                         effectiveR = NSRange(location: effectiveR.location, length: trimEnd - effectiveR.location)
                     }
