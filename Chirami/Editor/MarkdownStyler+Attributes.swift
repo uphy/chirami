@@ -28,6 +28,20 @@ extension NSAttributedString.Key {
     static let tableSeparatorRow = NSAttributedString.Key("chirami.tableSeparatorRow")
 }
 
+// MARK: - Shared code colors
+
+extension NSColor {
+    static let codeGreen = NSColor(name: nil, dynamicProvider: { appearance in
+        appearance.isDark
+            ? NSColor(calibratedRed: 0.22, green: 0.71, blue: 0.30, alpha: 1.0)
+            : NSColor(calibratedRed: 0.20, green: 0.72, blue: 0.28, alpha: 1.0)
+    })
+
+    static let codeBackground = NSColor(name: nil, dynamicProvider: { appearance in
+        NSColor.labelColor.withAlphaComponent(appearance.isDark ? 0.08 : 0.07)
+    })
+}
+
 extension NSRange {
     func contains(_ location: Int) -> Bool {
         location >= self.location && location < self.location + self.length

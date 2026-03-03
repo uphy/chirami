@@ -16,8 +16,8 @@ enum InlineMarkupRenderer {
         }
         return [
             .font: font,
-            .foregroundColor: NSColor.systemOrange,
-            .inlineCodeBackground: NSColor.labelColor.withAlphaComponent(0.08)
+            .foregroundColor: NSColor.codeGreen,
+            .inlineCodeBackground: NSColor.codeBackground
         ]
     }
 
