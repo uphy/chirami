@@ -49,6 +49,20 @@ extension MarkdownStyler {
     /// exclude them so they are not treated as part of the list item.
     func effectiveListItemRange(_ range: NSRange, in text: String) -> NSRange {
         let nsText = text as NSString
+
+        // swift-markdown may report a very short range for empty list items
+        // (no content after the marker). Extend to cover the item's first line
+        // so the marker text can always be detected.
+        var range = range
+        let lineRange = nsText.lineRange(for: NSRange(location: range.location, length: 0))
+        let lineContent = nsText.substring(with: lineRange)
+        let lineContentEnd = lineRange.location + lineRange.length
+            - (lineContent.hasSuffix("\n") ? 1 : 0)
+        let minLength = max(0, lineContentEnd - range.location)
+        if range.length < minLength {
+            range = NSRange(location: range.location, length: minLength)
+        }
+
         let substring = nsText.substring(with: range)
         let lines = substring.components(separatedBy: "\n")
 
@@ -135,24 +149,46 @@ extension MarkdownStyler {
             for subChild in item.children {
                 if isList(subChild),
                    let subRange = nsRange(for: subChild, in: text) {
-                    ownContentEnd = min(ownContentEnd, subRange.location)
+                    let nsText = text as NSString
+                    let lineStart = nsText.lineRange(for: NSRange(location: subRange.location, length: 0)).location
+                    ownContentEnd = min(ownContentEnd, lineStart)
                     break
                 }
             }
             let ownRange = NSRange(location: itemRange.location, length: max(0, ownContentEnd - itemRange.location))
             let editing = cursorRange.map { overlaps(ownRange, $0) } ?? false
 
-            if editing && (isChecked == nil || cursorLocation < itemRange.location + contentStart) {
+            let ownLength = ownContentEnd - itemRange.location
+            // Exclude trailing newline when checking for actual content beyond the marker.
+            // effectiveListItemRange may include a trailing '\n', which should not count as content.
+            let ownLengthNoNewline: Int
+            if ownLength > 0,
+               (text as NSString).substring(with: NSRange(location: itemRange.location + ownLength - 1, length: 1)) == "\n" {
+                ownLengthNoNewline = ownLength - 1
+            } else {
+                ownLengthNoNewline = ownLength
+            }
+            let hasContent = ownLengthNoNewline > contentStart
+            let cursorInPrefix = editing && hasContent && cursorLocation < itemRange.location + contentStart
+            if cursorInPrefix {
                 applyListItemRawStyle(
                     to: storage, itemRange: itemRange, contentStart: contentStart,
                     ownContentEnd: ownContentEnd,
                     cursorLocation: isChecked != nil ? cursorLocation : nil,
                     in: text
                 )
-            } else if editing {
+            } else if editing, let checked = isChecked {
                 applyListItemEditingTaskStyle(
                     to: storage, itemRange: itemRange, markerAbsLocation: markerAbsLocation,
-                    markerLength: markerLength, isChecked: isChecked!, contentStart: contentStart,
+                    markerLength: markerLength, isChecked: checked, contentStart: contentStart,
+                    ordered: ordered, nestingLevel: nestingLevel,
+                    ownContentEnd: ownContentEnd, cursorLocation: cursorLocation,
+                    in: text
+                )
+            } else if editing {
+                applyListItemEditingBodyStyle(
+                    to: storage, itemRange: itemRange, markerAbsLocation: markerAbsLocation,
+                    markerLength: markerLength, contentStart: contentStart,
                     ordered: ordered, nestingLevel: nestingLevel,
                     ownContentEnd: ownContentEnd, cursorLocation: cursorLocation,
                     in: text
@@ -251,7 +287,61 @@ extension MarkdownStyler {
         if ownLength > contentStart {
             let contentRange = NSRange(location: itemRange.location + contentStart, length: ownLength - contentStart)
             let contentText = (text as NSString).substring(with: contentRange)
-            applyRawInlinePatterns(to: storage, in: contentText, offset: contentRange.location, cursorLocation: cursorLocation)
+            applyBodyContent(to: storage, bodyText: contentText, bodyOffset: contentRange.location,
+                             parentNestingLevel: nestingLevel, cursorLocation: cursorLocation, rawMode: true, in: text)
+        }
+    }
+
+    /// Editing non-task list item with cursor in body zone: render prefix as bullet, keep body editable.
+    private func applyListItemEditingBodyStyle( // swiftlint:disable:this function_parameter_count
+        to storage: NSMutableAttributedString,
+        itemRange: NSRange,
+        markerAbsLocation: Int,
+        markerLength: Int,
+        contentStart: Int,
+        ordered: Bool,
+        nestingLevel: Int,
+        ownContentEnd: Int,
+        cursorLocation: Int,
+        in text: String
+    ) {
+        let leadingWSLength = markerAbsLocation - itemRange.location
+
+        // Hide leading whitespace for nested items
+        if leadingWSLength > 0 {
+            let wsRange = NSRange(location: itemRange.location, length: leadingWSLength)
+            storage.addAttributes(Self.hiddenAttributes, range: wsRange)
+        }
+
+        // Apply paragraph style for indent
+        applyListParagraphStyle(to: storage, itemRange: itemRange, ordered: ordered, nestingLevel: nestingLevel, isTask: false, in: text)
+
+        // Render the marker
+        if ordered {
+            let markerRange = NSRange(location: markerAbsLocation, length: markerLength)
+            storage.addAttributes([.foregroundColor: NSColor.secondaryLabelColor], range: markerRange)
+        } else {
+            // Unordered bullet: hide marker char and tag for BulletLayoutManager to draw
+            let charRange = NSRange(location: markerAbsLocation, length: 1)
+            storage.addAttributes([
+                .foregroundColor: NSColor.clear,
+                .font: NSFont.systemFont(ofSize: 0.001),
+                .bulletMarker: true,
+                .listNestingLevel: nestingLevel
+            ], range: charRange)
+            if markerLength > 1 {
+                let spaceRange = NSRange(location: markerAbsLocation + 1, length: markerLength - 1)
+                storage.addAttributes(Self.hiddenAttributes, range: spaceRange)
+            }
+        }
+
+        // Body: apply inline styles on own content (exclude nested sublists)
+        let ownLength = ownContentEnd - itemRange.location
+        if ownLength > contentStart {
+            let contentRange = NSRange(location: itemRange.location + contentStart, length: ownLength - contentStart)
+            let contentText = (text as NSString).substring(with: contentRange)
+            applyBodyContent(to: storage, bodyText: contentText, bodyOffset: contentRange.location,
+                             parentNestingLevel: nestingLevel, cursorLocation: cursorLocation, rawMode: true, in: text)
         }
     }
 
@@ -320,7 +410,72 @@ extension MarkdownStyler {
         if ownLength > contentStart {
             let contentRange = NSRange(location: itemRange.location + contentStart, length: ownLength - contentStart)
             let contentText = (text as NSString).substring(with: contentRange)
-            applyInlinePatterns(to: storage, in: contentText, offset: contentRange.location)
+            applyBodyContent(to: storage, bodyText: contentText, bodyOffset: contentRange.location,
+                             parentNestingLevel: nestingLevel, cursorLocation: nil, rawMode: false, in: text)
+        }
+    }
+
+    // MARK: - Body content processing
+
+    /// Processes body content line by line.
+    /// Lines that look like orphaned empty nested list markers (e.g. "\t- " that swift-markdown
+    /// parsed as a setext heading underline instead of a nested list item) are rendered as bullets.
+    /// All other lines receive normal inline pattern styling.
+    private func applyBodyContent(
+        to storage: NSMutableAttributedString,
+        bodyText: String,
+        bodyOffset: Int,
+        parentNestingLevel: Int,
+        cursorLocation: Int?,
+        rawMode: Bool,
+        in fullText: String
+    ) {
+        var offset = bodyOffset
+        let lines = bodyText.components(separatedBy: "\n")
+        for (i, line) in lines.enumerated() {
+            let lineNSLen = (line as NSString).length
+            defer { offset += lineNSLen + (i < lines.count - 1 ? 1 : 0) }
+            guard lineNSLen > 0 else { continue }
+
+            // Check whether this line is an orphaned empty nested list marker.
+            // Pattern: one or more leading tabs/spaces, followed by "- " or "* " (and nothing else).
+            let leadingWS = String(line.prefix(while: { $0 == "\t" || $0 == " " }))
+            let stripped = String(line.dropFirst(leadingWS.count))
+            let leadingWSLen = (leadingWS as NSString).length
+            let isOrphanedMarker = leadingWSLen > 0
+                && (stripped == "- " || stripped == "* " || stripped == "-" || stripped == "*")
+
+            guard isOrphanedMarker else {
+                if rawMode {
+                    applyRawInlinePatterns(to: storage, in: line, offset: offset, cursorLocation: cursorLocation ?? -1)
+                } else {
+                    applyInlinePatterns(to: storage, in: line, offset: offset)
+                }
+                continue
+            }
+
+            // Render the orphaned empty marker as a nested unordered bullet.
+            let nestingLevel = parentNestingLevel + 1
+            let lineRange = NSRange(location: offset, length: lineNSLen)
+            let markerLen = (stripped == "- " || stripped == "* ") ? 2 : 1
+
+            // Hide leading whitespace.
+            storage.addAttributes(Self.hiddenAttributes, range: NSRange(location: offset, length: leadingWSLen))
+            // Apply paragraph style for the nested level (overrides parent's style for this line).
+            applyListParagraphStyle(to: storage, itemRange: lineRange, ordered: false,
+                                    nestingLevel: nestingLevel, isTask: false, in: fullText)
+            // Hide marker char and tag for BulletLayoutManager.
+            let markerAbsLoc = offset + leadingWSLen
+            storage.addAttributes([
+                .foregroundColor: NSColor.clear,
+                .font: NSFont.systemFont(ofSize: 0.001),
+                .bulletMarker: true,
+                .listNestingLevel: nestingLevel
+            ], range: NSRange(location: markerAbsLoc, length: 1))
+            if markerLen > 1 {
+                storage.addAttributes(Self.hiddenAttributes,
+                                      range: NSRange(location: markerAbsLoc + 1, length: markerLen - 1))
+            }
         }
     }
 
