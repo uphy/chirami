@@ -232,17 +232,8 @@ extension MarkdownStyler {
         // Apply paragraph style for indent
         applyListParagraphStyle(to: storage, itemRange: itemRange, ordered: ordered, nestingLevel: nestingLevel, isTask: true, in: text)
 
-        // Render the prefix (marker + checkbox)
-        if !ordered {
-            applyTaskPrefixRendered(to: storage, itemRange: itemRange, markerAbsLocation: markerAbsLocation, markerLength: markerLength, isChecked: isChecked, nestingLevel: nestingLevel)
-            let levelIndent: CGFloat = 20 + 20 * CGFloat(nestingLevel)
-            let spaceAfterCheckbox = NSRange(location: markerAbsLocation + markerLength + 3, length: 1)
-            storage.addAttributes([
-                .font: bodyFont(size: baseFontSize),
-                .expansion: -1.0,
-                .kern: levelIndent
-            ], range: spaceAfterCheckbox)
-        }
+        // Render the prefix (marker + checkbox); tasks are always unordered
+        applyTaskPrefixRendered(to: storage, itemRange: itemRange, markerAbsLocation: markerAbsLocation, markerLength: markerLength, isChecked: isChecked, nestingLevel: nestingLevel)
 
         // Body: apply inline styles on own content (exclude nested sublists)
         let ownLength = ownContentEnd - itemRange.location
@@ -281,15 +272,6 @@ extension MarkdownStyler {
             ], range: markerRange)
         } else if let checked = isChecked {
             applyTaskPrefixRendered(to: storage, itemRange: itemRange, markerAbsLocation: markerAbsLocation, markerLength: markerLength, isChecked: checked, nestingLevel: nestingLevel)
-            if !ordered {
-                let levelIndent: CGFloat = 20 + 20 * CGFloat(nestingLevel)
-                let spaceAfterCheckbox = NSRange(location: markerAbsLocation + markerLength + 3, length: 1)
-                storage.addAttributes([
-                    .font: bodyFont(size: baseFontSize),
-                    .expansion: -1.0,
-                    .kern: levelIndent
-                ], range: spaceAfterCheckbox)
-            }
         } else {
             // Unordered bullet (no checkbox)
             let charRange = NSRange(location: markerAbsLocation, length: 1)
@@ -302,16 +284,6 @@ extension MarkdownStyler {
             if markerLength > 1 {
                 let spaceRange = NSRange(location: markerAbsLocation + 1, length: markerLength - 1)
                 storage.addAttributes(Self.hiddenAttributes, range: spaceRange)
-                // Kern on the last hidden character to visually indent visible content.
-                // Use base font + expansion=-1 so kern applies at full value
-                // (kern scales with font size on macOS 13+; 0.001pt font makes kern negligible).
-                let levelIndent: CGFloat = 14 + 20 * CGFloat(nestingLevel)
-                let lastHiddenCharRange = NSRange(location: markerAbsLocation + markerLength - 1, length: 1)
-                storage.addAttributes([
-                    .font: bodyFont(size: baseFontSize),
-                    .expansion: -1.0,
-                    .kern: levelIndent
-                ], range: lastHiddenCharRange)
             }
         }
 
@@ -405,7 +377,7 @@ extension MarkdownStyler {
             paragraphStyle.firstLineHeadIndent = nestingStep * CGFloat(nestingLevel)
             paragraphStyle.tabStops = [NSTextTab(textAlignment: .left, location: levelIndent)]
         } else {
-            paragraphStyle.firstLineHeadIndent = 0
+            paragraphStyle.firstLineHeadIndent = levelIndent
         }
 
         // Apply paragraph style to the full line range so leading whitespace inherits the style

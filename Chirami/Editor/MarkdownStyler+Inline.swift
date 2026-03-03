@@ -180,22 +180,6 @@ extension MarkdownStyler {
         }
     }
 
-    private func applyRawLinkPattern(to storage: NSMutableAttributedString, in text: String, offset: Int) {
-        let regex = Self.linkPattern
-        let nsText = text as NSString
-        let matches = regex.matches(in: text, range: NSRange(location: 0, length: nsText.length))
-        for match in matches {
-            let fullRange = NSRange(location: match.range.location + offset, length: match.range.length)
-            storage.addAttributes([.foregroundColor: NSColor.secondaryLabelColor], range: fullRange)
-
-            let textRange = match.range(at: 1)
-            if textRange.location != NSNotFound {
-                let adjustedRange = NSRange(location: textRange.location + offset, length: textRange.length)
-                storage.addAttributes([.foregroundColor: noteColor.linkColor], range: adjustedRange)
-            }
-        }
-    }
-
     // MARK: - Image width parsing
 
     /// Parses the requested display width from an image alt text containing `|width`.
