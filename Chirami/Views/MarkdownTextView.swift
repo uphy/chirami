@@ -743,7 +743,11 @@ class MarkdownTextView: NSTextView {
             return
         }
 
-        let result = service.convert(contentType)
+        let sel = selectedRange()
+        let selectedText = sel.length > 0
+            ? (string as NSString).substring(with: sel)
+            : nil
+        let result = service.convert(contentType, selectedText: selectedText)
         insertSmartPasteText(result.markdown, cursorOffset: result.cursorOffset)
     }
 

@@ -50,11 +50,17 @@ final class SmartPasteService {
 
     // MARK: - Conversion
 
-    func convert(_ content: ClipboardContentType) -> SmartPasteResult {
+    func convert(_ content: ClipboardContentType, selectedText: String? = nil) -> SmartPasteResult {
         switch content {
         case .html(let html):
             return SmartPasteResult(markdown: convertHTMLToMarkdown(html), cursorOffset: nil)
         case .url(let url):
+            if let selectedText, !selectedText.isEmpty {
+                return SmartPasteResult(
+                    markdown: "[\(selectedText)](\(url.absoluteString))",
+                    cursorOffset: nil
+                )
+            }
             return SmartPasteResult(
                 markdown: "[](\(url.absoluteString))",
                 cursorOffset: 1
