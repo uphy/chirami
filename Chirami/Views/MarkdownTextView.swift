@@ -743,52 +743,21 @@ class MarkdownTextView: NSTextView {
             return
         }
 
-        let config = AppConfig.shared.data.smartPaste
-        let fetchUrlTitle = config?.fetchUrlTitle != false
-        let result = service.convert(contentType, fetchUrlTitle: fetchUrlTitle)
-
-        insertSmartPasteText(result.markdown)
-
-        if let url = result.pendingTitleFetch {
-            // Track the placeholder range for async title update.
-            // The placeholder is "[](URL)" and we need to replace the empty "" between [ and ].
-            let placeholderLink = "[](\(url.absoluteString))"
-            let storage = textStorage!
-            let fullText = storage.string as NSString
-
-            // Find the placeholder we just inserted, searching backwards from cursor.
-            let cursorPos = selectedRange().location
-            let searchRange = NSRange(location: max(0, cursorPos - (placeholderLink as NSString).length - 1),
-                                      length: min((placeholderLink as NSString).length + 1, cursorPos))
-            let placeholderRange = fullText.range(of: placeholderLink, options: .backwards, range: searchRange)
-
-            guard placeholderRange.location != NSNotFound else { return }
-
-            Task {
-                let title = await service.fetchTitle(for: url)
-                let linkText = title ?? url.absoluteString
-                // Re-find the placeholder in case text shifted
-                let currentText = storage.string as NSString
-                let currentPlaceholder = "[](\(url.absoluteString))"
-                let currentRange = currentText.range(of: currentPlaceholder)
-                guard currentRange.location != NSNotFound else { return }
-
-                let insertLoc = currentRange.location + 1
-                let insertRange = NSRange(location: insertLoc, length: 0)
-                if self.shouldChangeText(in: insertRange, replacementString: linkText) {
-                    storage.replaceCharacters(in: insertRange, with: linkText)
-                    self.didChangeText()
-                }
-            }
-        }
+        let result = service.convert(contentType)
+        insertSmartPasteText(result.markdown, cursorOffset: result.cursorOffset)
     }
 
-    private func insertSmartPasteText(_ text: String) {
+    private func insertSmartPasteText(_ text: String, cursorOffset: Int? = nil) {
         guard let storage = textStorage else { return }
         let sel = selectedRange()
         if shouldChangeText(in: sel, replacementString: text) {
             storage.replaceCharacters(in: sel, with: text)
-            let newCursor = sel.location + (text as NSString).length
+            let newCursor: Int
+            if let cursorOffset {
+                newCursor = sel.location + cursorOffset
+            } else {
+                newCursor = sel.location + (text as NSString).length
+            }
             setSelectedRange(NSRange(location: newCursor, length: 0))
             didChangeText()
         }

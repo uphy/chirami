@@ -72,12 +72,6 @@ extension ChiramiConfig {
 
 struct SmartPasteConfig: Codable {
     var enabled: Bool = true
-    var fetchUrlTitle: Bool = true
-
-    enum CodingKeys: String, CodingKey {
-        case enabled
-        case fetchUrlTitle = "fetch_url_title"
-    }
 }
 
 struct KarabinerConfig: Codable {

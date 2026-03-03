@@ -9,7 +9,7 @@ enum ClipboardContentType {
 
 struct SmartPasteResult {
     let markdown: String
-    let pendingTitleFetch: URL?
+    let cursorOffset: Int?
 }
 
 @MainActor
@@ -50,46 +50,19 @@ final class SmartPasteService {
 
     // MARK: - Conversion
 
-    func convert(_ content: ClipboardContentType, fetchUrlTitle: Bool) -> SmartPasteResult {
+    func convert(_ content: ClipboardContentType) -> SmartPasteResult {
         switch content {
         case .html(let html):
-            return SmartPasteResult(markdown: convertHTMLToMarkdown(html), pendingTitleFetch: nil)
+            return SmartPasteResult(markdown: convertHTMLToMarkdown(html), cursorOffset: nil)
         case .url(let url):
-            if fetchUrlTitle {
-                return SmartPasteResult(
-                    markdown: "[](\(url.absoluteString))",
-                    pendingTitleFetch: url
-                )
-            } else {
-                return SmartPasteResult(
-                    markdown: "[\(url.absoluteString)](\(url.absoluteString))",
-                    pendingTitleFetch: nil
-                )
-            }
+            return SmartPasteResult(
+                markdown: "[](\(url.absoluteString))",
+                cursorOffset: 1
+            )
         case .json(let json):
-            return SmartPasteResult(markdown: wrapInCodeBlock(json, language: "json"), pendingTitleFetch: nil)
+            return SmartPasteResult(markdown: wrapInCodeBlock(json, language: "json"), cursorOffset: nil)
         case .plainText(let text):
-            return SmartPasteResult(markdown: text, pendingTitleFetch: nil)
-        }
-    }
-
-    // MARK: - URL title fetching
-
-    func fetchTitle(for url: URL) async -> String? {
-        let config = URLSessionConfiguration.default
-        config.timeoutIntervalForResource = 5
-        let session = URLSession(configuration: config)
-
-        do {
-            let (data, response) = try await session.data(from: url)
-            guard let httpResponse = response as? HTTPURLResponse,
-                  (200...299).contains(httpResponse.statusCode),
-                  let html = String(data: data, encoding: .utf8) else {
-                return nil
-            }
-            return extractTitle(from: html)
-        } catch {
-            return nil
+            return SmartPasteResult(markdown: text, cursorOffset: nil)
         }
     }
 
@@ -306,33 +279,4 @@ final class SmartPasteService {
         return "```\(lang)\n\(text)\n```"
     }
 
-    private func extractTitle(from html: String) -> String? {
-        if let ogTitle = extractMetaContent(from: html, property: "og:title") {
-            return ogTitle
-        }
-        if let titleRange = html.range(of: "<title>"),
-           let endRange = html.range(of: "</title>") {
-            let title = String(html[titleRange.upperBound..<endRange.lowerBound])
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-            return title.isEmpty ? nil : title
-        }
-        return nil
-    }
-
-    private func extractMetaContent(from html: String, property: String) -> String? {
-        let patterns = [
-            "property=\"\(property)\"\\s+content=\"([^\"]+)\"",
-            "content=\"([^\"]+)\"\\s+property=\"\(property)\""
-        ]
-        for pattern in patterns {
-            if let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive),
-               let match = regex.firstMatch(in: html, range: NSRange(html.startIndex..., in: html)) {
-                if let range = Range(match.range(at: 1), in: html) {
-                    let value = String(html[range]).trimmingCharacters(in: .whitespacesAndNewlines)
-                    return value.isEmpty ? nil : value
-                }
-            }
-        }
-        return nil
-    }
 }
