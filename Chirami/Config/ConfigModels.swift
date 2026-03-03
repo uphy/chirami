@@ -262,11 +262,15 @@ struct WindowState: Codable {
     var alwaysOnTop: Bool?
     var pinned: Bool?
     var lastUsed: Date?
+    var cursorPosition: Int?
+    var scrollOffset: [Double]?
 
     enum CodingKeys: String, CodingKey {
         case position, size, visible, pinned
         case alwaysOnTop = "always_on_top"
         case lastUsed = "last_used"
+        case cursorPosition = "cursor_position"
+        case scrollOffset = "scroll_offset"
     }
 
     init(position: CGPoint, size: CGSize, visible: Bool, alwaysOnTop: Bool? = nil, pinned: Bool? = nil) {
@@ -279,4 +283,8 @@ struct WindowState: Codable {
 
     var cgPoint: CGPoint { CGPoint(x: position[0], y: position[1]) }
     var cgSize: CGSize { CGSize(width: size[0], height: size[1]) }
+    var scrollCGPoint: CGPoint? {
+        guard let offset = scrollOffset, offset.count == 2 else { return nil }
+        return CGPoint(x: offset[0], y: offset[1])
+    }
 }

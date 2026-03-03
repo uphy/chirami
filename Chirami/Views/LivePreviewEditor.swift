@@ -11,6 +11,7 @@ struct LivePreviewEditor: NSViewRepresentable {
     var noteURL: URL?
     var attachmentsDir: URL?
     var isReadOnly: Bool = false
+    var editorState: EditorStatePreservable?
     var onFontSizeChange: ((CGFloat) -> Void)?
     var onTogglePin: (() -> Void)?
     var customMenuItems: (() -> [NSMenuItem])?
@@ -74,6 +75,7 @@ struct LivePreviewEditor: NSViewRepresentable {
         scrollView.drawsBackground = false
 
         context.coordinator.textView = textView
+        context.coordinator.editorState = editorState
 
         textView.postsFrameChangedNotifications = true
         NotificationCenter.default.addObserver(
@@ -82,6 +84,23 @@ struct LivePreviewEditor: NSViewRepresentable {
             name: NSView.frameDidChangeNotification,
             object: textView
         )
+
+        // Track scroll position changes for editor state persistence
+        scrollView.contentView.postsBoundsChangedNotifications = true
+        NotificationCenter.default.addObserver(
+            context.coordinator,
+            selector: #selector(Coordinator.scrollViewDidScroll(_:)),
+            name: NSView.boundsDidChangeNotification,
+            object: scrollView.contentView
+        )
+
+        // Restore cursor/scroll from editorState (guards against SwiftUI view recreation).
+        if let editorState = editorState {
+            context.coordinator.deferredRestoreEditorState(
+                cursorLocation: editorState.savedCursorLocation,
+                scrollOffset: editorState.savedScrollOffset
+            )
+        }
 
         return scrollView
     }
@@ -153,6 +172,7 @@ struct LivePreviewEditor: NSViewRepresentable {
         var text: Binding<String>
         var isApplyingStyling = false
         weak var textView: NSTextView?
+        weak var editorState: EditorStatePreservable?
         private let overlayManager = TableOverlayManager()
 
         var isWindowFocused = true
@@ -170,6 +190,7 @@ struct LivePreviewEditor: NSViewRepresentable {
         var onFontSizeChange: ((CGFloat) -> Void)?
         private var styler: MarkdownStyler
         private var lastCursorLocation: Int = 0
+        private var isRestoringEditorState = false
 
         init(text: Binding<String>, noteColor: NoteColor, fontSize: CGFloat, fontName: String? = nil, noteURL: URL?, isReadOnly: Bool, onFontSizeChange: ((CGFloat) -> Void)?) {
             self.text = text
@@ -205,6 +226,15 @@ struct LivePreviewEditor: NSViewRepresentable {
             guard let window = notification.object as? NSWindow,
                   let textView = textView,
                   textView.window === window else { return }
+
+            // Save cursor and scroll position before losing focus
+            if let editorState = editorState {
+                editorState.savedCursorLocation = textView.selectedRange().location
+                if let scrollView = textView.enclosingScrollView {
+                    editorState.savedScrollOffset = scrollView.contentView.bounds.origin
+                }
+            }
+
             isWindowFocused = false
             applyStyling(to: textView)
         }
@@ -215,12 +245,47 @@ struct LivePreviewEditor: NSViewRepresentable {
             applyStyling(to: textView)
         }
 
+        @objc func scrollViewDidScroll(_ notification: Notification) {
+            guard let clipView = notification.object as? NSClipView else { return }
+            editorState?.savedScrollOffset = clipView.bounds.origin
+        }
+
         @objc private func windowDidBecomeKey(_ notification: Notification) {
             guard let window = notification.object as? NSWindow,
                   let textView = textView,
                   textView.window === window else { return }
             isWindowFocused = true
-            applyStyling(to: textView)
+
+            if let editorState = editorState {
+                // Capture values before makeFirstResponder (called after this notification)
+                // can reset the cursor and trigger textViewDidChangeSelection.
+                deferredRestoreEditorState(
+                    cursorLocation: editorState.savedCursorLocation,
+                    scrollOffset: editorState.savedScrollOffset
+                )
+            } else {
+                applyStyling(to: textView)
+            }
+        }
+
+        /// Defers cursor/scroll restoration to run after NotePanel.becomeKey() finishes
+        /// its makeFirstResponder call (which resets the cursor to 0).
+        func deferredRestoreEditorState(cursorLocation: Int, scrollOffset: CGPoint) {
+            isRestoringEditorState = true
+            DispatchQueue.main.async { [weak self] in
+                guard let self, let textView = self.textView else { return }
+                let loc = min(cursorLocation, textView.string.utf16.count)
+                textView.setSelectedRange(NSRange(location: loc, length: 0))
+                self.lastCursorLocation = loc
+                self.editorState?.savedCursorLocation = loc
+                self.isRestoringEditorState = false
+                self.applyStyling(to: textView)
+
+                if let scrollView = textView.enclosingScrollView {
+                    scrollView.contentView.scroll(to: scrollOffset)
+                    scrollView.reflectScrolledClipView(scrollView.contentView)
+                }
+            }
         }
 
         func textDidChange(_ notification: Notification) {
@@ -232,6 +297,7 @@ struct LivePreviewEditor: NSViewRepresentable {
 
         func textViewDidChangeSelection(_ notification: Notification) {
             guard !isApplyingStyling else { return }
+            guard !isRestoringEditorState else { return }
             guard let textView = notification.object as? NSTextView else { return }
             if textView.hasMarkedText() { return }
             if let mdTextView = textView as? MarkdownTextView,
@@ -242,6 +308,7 @@ struct LivePreviewEditor: NSViewRepresentable {
             let newLocation = textView.selectedRange().location
             if newLocation != lastCursorLocation {
                 lastCursorLocation = newLocation
+                editorState?.savedCursorLocation = newLocation
                 applyStyling(to: textView)
             }
         }

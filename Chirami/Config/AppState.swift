@@ -54,6 +54,13 @@ class AppState: YAMLStore<ChiramiState> {
         updateWindowState(for: noteId) { $0.visible = visible }
     }
 
+    func updateEditorState(for noteId: String, cursorPosition: Int, scrollOffset: CGPoint) {
+        updateWindowState(for: noteId) { ws in
+            ws.cursorPosition = cursorPosition
+            ws.scrollOffset = [scrollOffset.x, scrollOffset.y]
+        }
+    }
+
     /// Remove oldest ad-hoc state entries if the count exceeds the limit.
     func pruneAdhocEntries(limit: Int = 100) {
         update { state in

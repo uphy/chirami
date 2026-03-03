@@ -16,7 +16,8 @@ struct DisplayContentView: View {
             fontSize: fontSize,
             fontName: fontName,
             noteURL: model.fileURL,
-            isReadOnly: isReadOnly
+            isReadOnly: isReadOnly,
+            editorState: model
         )
         .onChange(of: model.text) { _, _ in
             model.save()

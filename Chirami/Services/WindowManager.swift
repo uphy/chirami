@@ -82,6 +82,16 @@ class WindowManager: ObservableObject {
         controllers[noteId]?.isVisible ?? false
     }
 
+    func saveAllEditorStates() {
+        let snapshots = controllers.values.map { $0.editorStateSnapshot }
+        AppState.shared.update { state in
+            for (noteId, cursor, scroll) in snapshots {
+                state.windows[noteId]?.cursorPosition = cursor
+                state.windows[noteId]?.scrollOffset = [scroll.x, scroll.y]
+            }
+        }
+    }
+
     func reloadWindows() {
         // Close windows for removed notes
         let currentIds = Set(noteStore.notes.map { $0.id })

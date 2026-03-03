@@ -126,6 +126,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        windowManager.saveAllEditorStates()
         noteStore.stopAccessingAllResources()
     }
 

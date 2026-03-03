@@ -109,7 +109,7 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
 
         // Switch to today's note if the date has changed while the window was hidden
         if note.periodicInfo != nil, isShowingToday {
-            navigateToToday()
+            navigateToTodayIfNeeded()
         }
 
         // Cancel in-flight fade-out
@@ -127,6 +127,10 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
             // Mid-fade-out: window is still visible, reset alpha for fade-in
             panel.alphaValue = 0
         }
+
+        // Always make key explicitly. showWindow(nil) calls orderFront (not
+        // makeKeyAndOrderFront) for floating panels, so becomeKey never fires.
+        panel.makeKeyAndOrderFront(nil)
 
         noteStore.setVisible(true, for: note)
 
@@ -184,6 +188,8 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
     func hide() {
         guard let panel = window as? NotePanel else { return }
 
+        saveEditorState()
+
         isFadingOut = true
         let token = fadeOutToken
         let targetTransparency = note.transparency
@@ -201,6 +207,19 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
                 panel.alphaValue = targetTransparency  // Restore for next show()
             }
         })
+    }
+
+    func saveEditorState() {
+        AppState.shared.updateEditorState(
+            for: note.id,
+            cursorPosition: contentModel.savedCursorLocation,
+            scrollOffset: contentModel.savedScrollOffset
+        )
+    }
+
+    /// Returns the current editor state for batch persistence.
+    var editorStateSnapshot: (noteId: String, cursorPosition: Int, scrollOffset: CGPoint) {
+        (note.id, contentModel.savedCursorLocation, contentModel.savedScrollOffset)
     }
 
     func toggle() {
@@ -377,11 +396,24 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
         navigateToFile(next)
     }
 
+    /// Navigate to today's periodic note only if the date has changed.
+    /// Skips model recreation when the path hasn't changed (preserves cursor/scroll).
+    private func navigateToTodayIfNeeded() {
+        resolveAndNavigateToToday(force: false)
+    }
+
     @objc func navigateToToday() {
+        resolveAndNavigateToToday(force: true)
+    }
+
+    private func resolveAndNavigateToToday(force: Bool) {
         guard let info = note.periodicInfo else { return }
         let config = NoteConfig(path: info.pathTemplate, template: info.templateFile?.path)
         let date = noteStore.logicalDate(rolloverDelay: info.rolloverDelay)
         guard let newNote = noteStore.resolvePeriodicNote(from: config, for: date) else { return }
+        if !force {
+            guard newNote.path.path != note.path.path else { return }
+        }
         navigateToFile(newNote.path)
         isShowingToday = true
         updateNavigationButtons()
@@ -478,9 +510,11 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
 
 /// Shared state between NoteWindowController and NoteContentView.
 @MainActor
-class NoteContentModel: ObservableObject {
+class NoteContentModel: ObservableObject, EditorStatePreservable {
     @Published var text: String = ""
     @Published var fontSize: CGFloat
+    nonisolated(unsafe) var savedCursorLocation: Int = 0
+    nonisolated(unsafe) var savedScrollOffset: CGPoint = .zero
     private let note: Note
     private var isSaving = false
     private var isReloading = false
@@ -492,6 +526,12 @@ class NoteContentModel: ObservableObject {
         let content = NoteStore.shared.readContent(of: note)
         text = content
         lastSavedContent = content
+
+        // Restore editor state from persisted window state
+        if let state = AppState.shared.windowState(for: note.id) {
+            savedCursorLocation = state.cursorPosition ?? 0
+            savedScrollOffset = state.scrollCGPoint ?? .zero
+        }
     }
 
     func save() {
@@ -533,6 +573,7 @@ struct NoteContentView: View {
             fontName: AppConfig.shared.config.font,
             noteURL: note?.path,
             attachmentsDir: note?.attachmentsDir,
+            editorState: model,
             onFontSizeChange: { newSize in
                 model.fontSize = newSize
             },
