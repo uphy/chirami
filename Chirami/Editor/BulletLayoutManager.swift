@@ -178,12 +178,14 @@ class BulletLayoutManager: NSLayoutManager {
         // Draw bullet markers (•)
         textStorage.enumerateAttribute(.bulletMarker, in: charRange, options: []) { value, range, _ in
             guard value != nil else { return }
+            guard textStorage.attribute(.foldedContent, at: range.location, effectiveRange: nil) == nil else { return }
             drawSymbol("•", at: range, origin: origin, color: NSColor.secondaryLabelColor, fontSize: baseFontSize)
         }
 
         // Draw task checkboxes using SF Symbols
         textStorage.enumerateAttribute(.taskCheckbox, in: charRange, options: []) { value, range, _ in
             guard let number = value as? NSNumber else { return }
+            guard textStorage.attribute(.foldedContent, at: range.location, effectiveRange: nil) == nil else { return }
             let checked = number.boolValue
             let symbolName = checked ? "checkmark.square.fill" : "square"
             let uncheckedColor = NSColor(name: nil) { appearance in
@@ -198,21 +200,13 @@ class BulletLayoutManager: NSLayoutManager {
         }
 
         // Clear rects only for the current character range being redrawn
-        let rangeToRedraw = charRange
-        drawnImageRects.keys.forEach { key in
-            if key >= rangeToRedraw.location && key < rangeToRedraw.location + rangeToRedraw.length {
-                drawnImageRects.removeValue(forKey: key)
-            }
-        }
-        drawnDeleteButtonRects.keys.forEach { key in
-            if key >= rangeToRedraw.location && key < rangeToRedraw.location + rangeToRedraw.length {
-                drawnDeleteButtonRects.removeValue(forKey: key)
-            }
-        }
+        clearDrawnRects(&drawnImageRects, in: charRange)
+        clearDrawnRects(&drawnDeleteButtonRects, in: charRange)
 
         // Draw inline images (or a placeholder icon while loading)
         textStorage.enumerateAttribute(.imageIcon, in: charRange, options: []) { value, range, _ in
             guard let urlString = value as? String else { return }
+            guard textStorage.attribute(.foldedContent, at: range.location, effectiveRange: nil) == nil else { return }
             let widthNumber = textStorage.attribute(.imageWidth, at: range.location, effectiveRange: nil) as? NSNumber
             let requestedWidth: CGFloat? = widthNumber.map { CGFloat($0.doubleValue) }
             if let image = ImageCache.shared.image(for: urlString) {
@@ -400,6 +394,10 @@ class BulletLayoutManager: NSLayoutManager {
         tinted.draw(in: NSRect(x: x, y: y, width: imageSize.width, height: imageSize.height))
     }
 
+    private func clearDrawnRects(_ dict: inout [Int: NSRect], in range: NSRange) {
+        dict = dict.filter { $0.key < range.location || $0.key >= range.location + range.length }
+    }
+
     private func drawSymbol(_ symbol: String, at range: NSRange, origin: NSPoint, color: NSColor, fontSize: CGFloat) {
         guard let pos = glyphPosition(at: range, origin: origin, fontSize: fontSize) else { return }
 
@@ -438,9 +436,12 @@ extension BulletLayoutManager: NSLayoutManagerDelegate {
     ) -> Bool {
         guard let textStorage = textStorage else { return false }
         let charRange = characterRange(forGlyphRange: glyphRange, actualGlyphRange: nil)
-        guard charRange.length > 0,
-              textStorage.attribute(.tableSeparatorRow, at: charRange.location, effectiveRange: nil) != nil
-        else { return false }
+        guard charRange.length > 0 else { return false }
+
+        let shouldCollapse =
+            textStorage.attribute(.tableSeparatorRow, at: charRange.location, effectiveRange: nil) != nil ||
+            textStorage.attribute(.foldedContent, at: charRange.location, effectiveRange: nil) != nil
+        guard shouldCollapse else { return false }
 
         lineFragmentRect.pointee.size.height = 0.01
         lineFragmentUsedRect.pointee.size.height = 0.01

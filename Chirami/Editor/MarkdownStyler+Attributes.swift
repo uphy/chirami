@@ -26,6 +26,8 @@ extension NSAttributedString.Key {
     static let tableOverlay = NSAttributedString.Key("chirami.tableOverlay")
     /// Marks a separator row (|---|---|) for layout-level height collapse by BulletLayoutManager.
     static let tableSeparatorRow = NSAttributedString.Key("chirami.tableSeparatorRow")
+    /// Marks a range as folded (hidden) content. BulletLayoutManager collapses these line fragments.
+    static let foldedContent = NSAttributedString.Key("chirami.foldedContent")
 }
 
 // MARK: - Shared code colors

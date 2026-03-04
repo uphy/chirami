@@ -242,11 +242,28 @@ struct AdhocProfile: Codable {
     }
 }
 
+// MARK: - Folding State
+
+struct FoldingState: Codable {
+    /// 1-based line numbers of folded foldable block starts (keyed by resolved file path).
+    var foldedLines: Set<Int> = []
+
+    enum CodingKeys: String, CodingKey {
+        case foldedLines = "folded_lines"
+    }
+}
+
 // MARK: - State (~/.local/state/chirami/state.yaml)
 
 struct ChiramiState: Codable {
     var windows: [String: WindowState] = [:]
     var bookmarks: [String: String] = [:]  // noteId -> Base64 bookmark data
+    var foldingStates: [String: FoldingState] = [:]  // resolved file path -> FoldingState
+
+    enum CodingKeys: String, CodingKey {
+        case windows, bookmarks
+        case foldingStates = "folding_states"
+    }
 }
 
 struct WindowState: Codable {

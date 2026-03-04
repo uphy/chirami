@@ -61,6 +61,40 @@ class AppState: YAMLStore<ChiramiState> {
         }
     }
 
+    // MARK: - Folding State
+
+    func foldingState(for notePath: String) -> FoldingState {
+        data.foldingStates[notePath] ?? FoldingState()
+    }
+
+    func updateFoldingState(for notePath: String, _ modify: (inout FoldingState) -> Void) {
+        update { state in
+            var fs = state.foldingStates[notePath] ?? FoldingState()
+            modify(&fs)
+            state.foldingStates[notePath] = fs
+        }
+    }
+
+    func toggleFoldedLine(_ line: Int, for notePath: String) {
+        updateFoldingState(for: notePath) { fs in
+            if fs.foldedLines.contains(line) {
+                fs.foldedLines.remove(line)
+            } else {
+                fs.foldedLines.insert(line)
+            }
+        }
+    }
+
+    func validateFoldingState(for notePath: String, validLines: Set<Int>) {
+        guard let fs = data.foldingStates[notePath], !fs.foldedLines.isEmpty else { return }
+        let cleaned = fs.foldedLines.filter { validLines.contains($0) }
+        if cleaned != fs.foldedLines {
+            updateFoldingState(for: notePath) { $0.foldedLines = cleaned }
+        }
+    }
+
+    // MARK: - Ad-hoc pruning
+
     /// Remove oldest ad-hoc state entries if the count exceeds the limit.
     func pruneAdhocEntries(limit: Int = 100) {
         update { state in

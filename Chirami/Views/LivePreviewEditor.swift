@@ -185,12 +185,26 @@ struct LivePreviewEditor: NSViewRepresentable {
         var fontName: String? {
             didSet { styler = MarkdownStyler(noteColor: noteColor, baseFontSize: fontSize, fontName: fontName) }
         }
-        var noteURL: URL?
+        var noteURL: URL? {
+            didSet {
+                if noteURL != oldValue, let path = noteURL?.path {
+                    foldedLines = AppState.shared.foldingState(for: path).foldedLines
+                }
+            }
+        }
         let isReadOnly: Bool
         var onFontSizeChange: ((CGFloat) -> Void)?
         private var styler: MarkdownStyler
         private var lastCursorLocation: Int = 0
         private var isRestoringEditorState = false
+        private var lastStyledText: String = ""
+
+        // MARK: - Fold state
+        var foldedLines: Set<Int> = []
+        private var foldButtons: [NSButton] = []
+        private var cachedFoldableStartLines: Set<Int> = []
+        private var foldButtonImageRight: NSImage?
+        private var foldButtonImageDown: NSImage?
 
         init(text: Binding<String>, noteColor: NoteColor, fontSize: CGFloat, fontName: String? = nil, noteURL: URL?, isReadOnly: Bool, onFontSizeChange: ((CGFloat) -> Void)?) {
             self.text = text
@@ -201,6 +215,9 @@ struct LivePreviewEditor: NSViewRepresentable {
             self.isReadOnly = isReadOnly
             self.onFontSizeChange = onFontSizeChange
             self.styler = MarkdownStyler(noteColor: noteColor, baseFontSize: fontSize, fontName: fontName)
+            if let path = noteURL?.path {
+                self.foldedLines = AppState.shared.foldingState(for: path).foldedLines
+            }
             super.init()
 
             NotificationCenter.default.addObserver(
@@ -219,6 +236,7 @@ struct LivePreviewEditor: NSViewRepresentable {
 
         deinit {
             overlayManager.removeAll()
+            foldButtons.forEach { $0.removeFromSuperview() }
             NotificationCenter.default.removeObserver(self)
         }
 
@@ -385,7 +403,17 @@ struct LivePreviewEditor: NSViewRepresentable {
             let cursorLocation = (isWindowFocused && !isReadOnly) ? textView.selectedRange().location : NSNotFound
             let safeLocation = (isWindowFocused && !isReadOnly) ? min(cursorLocation, text.utf16.count) : NSNotFound
 
-            let styled = styler.style(text, cursorLocation: safeLocation)
+            let styled = styler.style(text, cursorLocation: safeLocation, foldedLines: foldedLines)
+
+            // Refresh cached foldable blocks from the document already parsed by style()
+            if text != lastStyledText {
+                lastStyledText = text
+                cachedFoldableStartLines = Set(styler.lastFoldableBlocks.map { $0.startLine })
+                if !foldedLines.isEmpty, let notePath = noteURL?.path {
+                    AppState.shared.validateFoldingState(for: notePath, validLines: cachedFoldableStartLines)
+                    foldedLines = AppState.shared.foldingState(for: notePath).foldedLines
+                }
+            }
 
             // Preserve cursor/selection while applying attributes
             let savedRange = textView.selectedRange()
@@ -425,6 +453,137 @@ struct LivePreviewEditor: NSViewRepresentable {
             overlayManager.update(textView: textView, noteColor: noteColor, fontSize: fontSize)
             textView.needsDisplay = true
             textView.updateInsertionPointStateAndRestartTimer(true)
+
+            // Update fold buttons
+            let cursorLoc = min(safeLocation == NSNotFound ? 0 : safeLocation, text.utf16.count)
+            updateFoldButtons(in: textView, text: text, cursorLocation: cursorLoc, showCursorButton: !isReadOnly && isWindowFocused)
+        }
+
+        // MARK: - Fold buttons
+
+        private func updateFoldButtons(in textView: NSTextView, text: String, cursorLocation: Int, showCursorButton: Bool) {
+            guard let layoutManager = textView.layoutManager,
+                  !cachedFoldableStartLines.isEmpty else {
+                hideAllFoldButtons()
+                return
+            }
+
+            let nsText = text as NSString
+            // Build line-start offset table once; derive cursor line from it
+            let lineStarts = buildLineStarts(in: nsText)
+            let cursorLine = lineNumber(at: min(cursorLocation, nsText.length), from: lineStarts)
+
+            // Collect lines that need a button:
+            // 1. All folded lines (always visible)
+            // 2. Cursor line if it's a foldable block and showCursorButton is true
+            var linesToShow: [(line: Int, isFolded: Bool)] = []
+            for foldedLine in foldedLines where cachedFoldableStartLines.contains(foldedLine) {
+                linesToShow.append((foldedLine, true))
+            }
+            if showCursorButton,
+               cachedFoldableStartLines.contains(cursorLine),
+               !foldedLines.contains(cursorLine) {
+                linesToShow.append((cursorLine, false))
+            }
+            let inset = textView.textContainerInset
+            let buttonSize: CGFloat = 14
+            var visibleCount = 0
+
+            for entry in linesToShow {
+                guard entry.line - 1 < lineStarts.count else { continue }
+                let lineCharOffset = lineStarts[entry.line - 1]
+                let glyphIndex = layoutManager.glyphIndexForCharacter(at: lineCharOffset)
+                guard glyphIndex < layoutManager.numberOfGlyphs else { continue }
+                let lineRect = layoutManager.lineFragmentRect(forGlyphAt: glyphIndex, effectiveRange: nil)
+                guard lineRect.height > 1 else { continue }
+
+                let buttonX = max(0, inset.width - buttonSize - 2)
+                let buttonY = inset.height + lineRect.origin.y + (lineRect.height - buttonSize) / 2
+
+                let button = foldButton(at: visibleCount, in: textView)
+                button.frame = NSRect(x: buttonX, y: buttonY, width: buttonSize, height: buttonSize)
+                button.image = entry.isFolded ? foldButtonImage(folded: true) : foldButtonImage(folded: false)
+                button.contentTintColor = NSColor.tertiaryLabelColor
+                button.tag = entry.line
+                button.isHidden = false
+                visibleCount += 1
+            }
+
+            // Hide unused buttons
+            for i in visibleCount..<foldButtons.count {
+                foldButtons[i].isHidden = true
+            }
+        }
+
+        /// Returns 1-based line number for a character offset using pre-computed line starts.
+        private func lineNumber(at charOffset: Int, from lineStarts: [Int]) -> Int {
+            var lo = 0, hi = lineStarts.count - 1
+            while lo < hi {
+                let mid = (lo + hi + 1) / 2
+                if lineStarts[mid] <= charOffset {
+                    lo = mid
+                } else {
+                    hi = mid - 1
+                }
+            }
+            return lo + 1  // 1-based
+        }
+
+        /// Builds array of character offsets for line starts (0-indexed: index 0 = line 1).
+        private func buildLineStarts(in nsText: NSString) -> [Int] {
+            var starts = [0]
+            for i in 0..<nsText.length {
+                if nsText.character(at: i) == 0x0A, i + 1 <= nsText.length {
+                    starts.append(i + 1)
+                }
+            }
+            return starts
+        }
+
+        /// Returns a cached fold button image.
+        private func foldButtonImage(folded: Bool) -> NSImage? {
+            if folded {
+                if foldButtonImageRight == nil {
+                    let config = NSImage.SymbolConfiguration(pointSize: 9, weight: .medium)
+                    foldButtonImageRight = NSImage(systemSymbolName: "chevron.right", accessibilityDescription: nil)?
+                        .withSymbolConfiguration(config)
+                }
+                return foldButtonImageRight
+            } else {
+                if foldButtonImageDown == nil {
+                    let config = NSImage.SymbolConfiguration(pointSize: 9, weight: .medium)
+                    foldButtonImageDown = NSImage(systemSymbolName: "chevron.down", accessibilityDescription: nil)?
+                        .withSymbolConfiguration(config)
+                }
+                return foldButtonImageDown
+            }
+        }
+
+        /// Returns a reusable button from the pool, creating one if needed.
+        private func foldButton(at index: Int, in textView: NSTextView) -> NSButton {
+            if index < foldButtons.count {
+                return foldButtons[index]
+            }
+            let button = NSButton(frame: .zero)
+            button.bezelStyle = .inline
+            button.isBordered = false
+            button.imageScaling = .scaleProportionallyDown
+            button.target = self
+            button.action = #selector(foldToggleButtonClicked(_:))
+            textView.addSubview(button)
+            foldButtons.append(button)
+            return button
+        }
+
+        private func hideAllFoldButtons() {
+            foldButtons.forEach { $0.isHidden = true }
+        }
+
+        @objc private func foldToggleButtonClicked(_ sender: NSButton) {
+            guard let notePath = noteURL?.path, let textView = textView else { return }
+            AppState.shared.toggleFoldedLine(sender.tag, for: notePath)
+            foldedLines = AppState.shared.foldingState(for: notePath).foldedLines
+            applyStyling(to: textView)
         }
     }
 }

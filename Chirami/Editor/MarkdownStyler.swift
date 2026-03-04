@@ -82,14 +82,22 @@ class MarkdownStyler {
         return style(text, cursorLocation: -1)
     }
 
+    /// Foldable blocks from the last `style()` call. Available after `style()` returns.
+    private(set) var lastFoldableBlocks: [FoldableBlock] = []
+
     /// Style `text`, showing the block containing `cursorLocation` as raw Markdown.
-    func style(_ text: String, cursorLocation: Int) -> NSAttributedString {
-        guard !text.isEmpty else { return NSAttributedString(string: text) }
+    /// Pass `foldedLines` (1-based line numbers) to collapse those blocks' content.
+    func style(_ text: String, cursorLocation: Int, foldedLines: Set<Int> = []) -> NSAttributedString {
+        guard !text.isEmpty else {
+            lastFoldableBlocks = []
+            return NSAttributedString(string: text)
+        }
 
         lineStartCache = buildLineStarts(in: text)
         defer { lineStartCache = [] }
 
         let doc = Document(parsing: text)
+        lastFoldableBlocks = enumerateFoldableBlocks(from: doc)
         let result = NSMutableAttributedString(string: text, attributes: baseAttributes)
 
         let cursorRange = findCursorBlock(in: doc, text: text, cursorLocation: cursorLocation)
@@ -106,6 +114,11 @@ class MarkdownStyler {
             } else {
                 applyBlockStyle(for: block, to: result, range: range, in: text)
             }
+        }
+
+        // Overlay fold state on top of normal styling
+        if !foldedLines.isEmpty {
+            applyFoldState(to: result, doc: doc, text: text, foldedLines: foldedLines)
         }
 
         return result
