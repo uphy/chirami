@@ -12,6 +12,9 @@ class BulletLayoutManager: NSLayoutManager {
     /// Rects of drawn delete buttons keyed by character index (in view coordinates).
     private(set) var drawnDeleteButtonRects: [Int: NSRect] = [:]
 
+    /// Rects of drawn fold ellipsis badges keyed by character index (in view coordinates).
+    private(set) var drawnEllipsisRects: [Int: NSRect] = [:]
+
     /// Character index of the currently hovered image (set by MarkdownTextView).
     var hoveredImageCharIndex: Int?
 
@@ -202,6 +205,13 @@ class BulletLayoutManager: NSLayoutManager {
         // Clear rects only for the current character range being redrawn
         clearDrawnRects(&drawnImageRects, in: charRange)
         clearDrawnRects(&drawnDeleteButtonRects, in: charRange)
+
+        // Draw fold ellipsis indicators
+        clearDrawnRects(&drawnEllipsisRects, in: charRange)
+        textStorage.enumerateAttribute(.foldEllipsis, in: charRange, options: []) { value, range, _ in
+            guard value is Int else { return }
+            self.drawFoldEllipsis(at: range, origin: origin)
+        }
 
         // Draw inline images (or a placeholder icon while loading)
         textStorage.enumerateAttribute(.imageIcon, in: charRange, options: []) { value, range, _ in
@@ -396,6 +406,45 @@ class BulletLayoutManager: NSLayoutManager {
 
     private func clearDrawnRects(_ dict: inout [Int: NSRect], in range: NSRange) {
         dict = dict.filter { $0.key < range.location || $0.key >= range.location + range.length }
+    }
+
+    /// Draws a "…" badge at the end of a folded line's visible content.
+    private func drawFoldEllipsis(at range: NSRange, origin: NSPoint) {
+        let glyphIndex = glyphIndexForCharacter(at: range.location)
+        guard textContainer(forGlyphAt: glyphIndex, effectiveRange: nil) != nil else { return }
+
+        let lineRect = lineFragmentRect(forGlyphAt: glyphIndex, effectiveRange: nil)
+        let usedRect = lineFragmentUsedRect(forGlyphAt: glyphIndex, effectiveRange: nil)
+
+        let font = referenceFont(size: baseFontSize * 0.85)
+        let textColor = NSColor.secondaryLabelColor
+        let attrs: [NSAttributedString.Key: Any] = [
+            .font: font,
+            .foregroundColor: textColor
+        ]
+        let ellipsis = "…" as NSString
+        let textSize = ellipsis.size(withAttributes: attrs)
+
+        let hPadding: CGFloat = 4
+        let gap: CGFloat = 4
+        let textX = origin.x + usedRect.maxX + gap + hPadding
+        let textY = origin.y + lineRect.midY - textSize.height / 2
+
+        // Draw rounded background
+        let bgRect = NSRect(
+            x: textX - hPadding,
+            y: textY - 1,
+            width: textSize.width + hPadding * 2,
+            height: textSize.height + 2
+        )
+        NSColor.codeBackground.setFill()
+        NSBezierPath(roundedRect: bgRect, xRadius: 3, yRadius: 3).fill()
+
+        // Draw ellipsis text
+        ellipsis.draw(at: NSPoint(x: textX, y: textY), withAttributes: attrs)
+
+        // Record rect for hit-testing (keyed by character index for range-scoped clearing)
+        drawnEllipsisRects[range.location] = bgRect
     }
 
     private func drawSymbol(_ symbol: String, at range: NSRange, origin: NSPoint, color: NSColor, fontSize: CGFloat) {

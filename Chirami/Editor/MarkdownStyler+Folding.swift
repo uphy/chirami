@@ -87,6 +87,7 @@ extension MarkdownStyler {
                 if hiddenStart < sectionEnd {
                     applyFoldedAttributes(to: storage,
                                           range: NSRange(location: hiddenStart, length: sectionEnd - hiddenStart))
+                    applyFoldEllipsis(to: storage, lineRange: headingLineRange, line: startLine)
                 }
 
             } else if isList(block) {
@@ -120,6 +121,7 @@ extension MarkdownStyler {
                 if hiddenStart < hiddenEnd {
                     applyFoldedAttributes(to: storage,
                                           range: NSRange(location: hiddenStart, length: hiddenEnd - hiddenStart))
+                    applyFoldEllipsis(to: storage, lineRange: firstLineRange, line: startLine)
                 }
                 // Skip recursion — nested content is already hidden
                 continue
@@ -134,6 +136,14 @@ extension MarkdownStyler {
     }
 
     // MARK: - Helpers
+
+    /// Marks the newline at the end of a visible fold line with the `.foldEllipsis` attribute.
+    /// Value is the 1-based line number, used for hit-testing to determine which fold to toggle.
+    private func applyFoldEllipsis(to storage: NSMutableAttributedString, lineRange: NSRange, line: Int) {
+        let ellipsisPos = lineRange.location + lineRange.length - 1
+        guard ellipsisPos >= lineRange.location, ellipsisPos < storage.length else { return }
+        storage.addAttribute(.foldEllipsis, value: line, range: NSRange(location: ellipsisPos, length: 1))
+    }
 
     private func applyFoldedAttributes(to storage: NSMutableAttributedString, range: NSRange) {
         guard range.length > 0, range.location + range.length <= storage.length else { return }

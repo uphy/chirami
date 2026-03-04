@@ -28,6 +28,8 @@ extension NSAttributedString.Key {
     static let tableSeparatorRow = NSAttributedString.Key("chirami.tableSeparatorRow")
     /// Marks a range as folded (hidden) content. BulletLayoutManager collapses these line fragments.
     static let foldedContent = NSAttributedString.Key("chirami.foldedContent")
+    /// Marks the fold boundary (newline before hidden content). BulletLayoutManager draws "…" indicator.
+    static let foldEllipsis = NSAttributedString.Key("chirami.foldEllipsis")
 }
 
 // MARK: - Shared code colors

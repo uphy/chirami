@@ -66,6 +66,12 @@ struct LivePreviewEditor: NSViewRepresentable {
         textView.customMenuItems = customMenuItems
         textView.noteURL = noteURL
         textView.attachmentsDir = attachmentsDir
+        textView.onMouseHoverLineChanged = { [weak coordinator] line in
+            coordinator?.handleMouseHoverLineChanged(line)
+        }
+        textView.onUnfoldLine = { [weak coordinator] line in
+            coordinator?.toggleFold(line: line)
+        }
 
         let scrollView = NSScrollView()
         scrollView.documentView = textView
@@ -200,9 +206,15 @@ struct LivePreviewEditor: NSViewRepresentable {
         private var lastStyledText: String = ""
 
         // MARK: - Fold state
-        var foldedLines: Set<Int> = []
+        var foldedLines: Set<Int> = [] {
+            didSet {
+                (textView as? MarkdownTextView)?.foldedLines = foldedLines
+            }
+        }
         private var foldButtons: [NSButton] = []
         private var cachedFoldableStartLines: Set<Int> = []
+        private var cachedLineStarts: [Int] = [0]
+        private var hoveredLine: Int?
         private var foldButtonImageRight: NSImage?
         private var foldButtonImageDown: NSImage?
 
@@ -409,9 +421,14 @@ struct LivePreviewEditor: NSViewRepresentable {
             if text != lastStyledText {
                 lastStyledText = text
                 cachedFoldableStartLines = Set(styler.lastFoldableBlocks.map { $0.startLine })
+                cachedLineStarts = buildLineStarts(in: text as NSString)
                 if !foldedLines.isEmpty, let notePath = noteURL?.path {
                     AppState.shared.validateFoldingState(for: notePath, validLines: cachedFoldableStartLines)
                     foldedLines = AppState.shared.foldingState(for: notePath).foldedLines
+                }
+                // Sync line starts cache to textView for hover detection
+                if let mdTextView = textView as? MarkdownTextView {
+                    mdTextView.lineStartsForHover = cachedLineStarts
                 }
             }
 
@@ -455,44 +472,45 @@ struct LivePreviewEditor: NSViewRepresentable {
             textView.updateInsertionPointStateAndRestartTimer(true)
 
             // Update fold buttons
-            let cursorLoc = min(safeLocation == NSNotFound ? 0 : safeLocation, text.utf16.count)
-            updateFoldButtons(in: textView, text: text, cursorLocation: cursorLoc, showCursorButton: !isReadOnly && isWindowFocused)
+            updateFoldButtons(in: textView, text: text, hoveredLine: hoveredLine)
         }
 
         // MARK: - Fold buttons
 
-        private func updateFoldButtons(in textView: NSTextView, text: String, cursorLocation: Int, showCursorButton: Bool) {
+        private func updateFoldButtons(in textView: NSTextView, text: String, hoveredLine: Int?) {
             guard let layoutManager = textView.layoutManager,
                   !cachedFoldableStartLines.isEmpty else {
                 hideAllFoldButtons()
                 return
             }
 
-            let nsText = text as NSString
-            // Build line-start offset table once; derive cursor line from it
-            let lineStarts = buildLineStarts(in: nsText)
-            let cursorLine = lineNumber(at: min(cursorLocation, nsText.length), from: lineStarts)
+            let lineStarts = cachedLineStarts
 
             // Collect lines that need a button:
             // 1. All folded lines (always visible)
-            // 2. Cursor line if it's a foldable block and showCursorButton is true
+            // 2. Hovered line if it's a foldable block and not folded
             var linesToShow: [(line: Int, isFolded: Bool)] = []
             for foldedLine in foldedLines where cachedFoldableStartLines.contains(foldedLine) {
                 linesToShow.append((foldedLine, true))
             }
-            if showCursorButton,
-               cachedFoldableStartLines.contains(cursorLine),
-               !foldedLines.contains(cursorLine) {
-                linesToShow.append((cursorLine, false))
+            if let hoveredLine,
+               cachedFoldableStartLines.contains(hoveredLine),
+               !foldedLines.contains(hoveredLine) {
+                linesToShow.append((hoveredLine, false))
             }
             let inset = textView.textContainerInset
             let buttonSize: CGFloat = 14
             var visibleCount = 0
 
+            let nsLength = (text as NSString).length
             for entry in linesToShow {
                 guard entry.line - 1 < lineStarts.count else { continue }
                 let lineCharOffset = lineStarts[entry.line - 1]
-                let glyphIndex = layoutManager.glyphIndexForCharacter(at: lineCharOffset)
+                // Use a character from the middle of the line to avoid hidden prefix glyphs
+                // (list item prefixes like "- [ ] " have near-zero font size and may confuse layout queries)
+                let nextLineStart = entry.line < lineStarts.count ? lineStarts[entry.line] : nsLength
+                let midOffset = min(lineCharOffset + (nextLineStart - lineCharOffset) / 2, max(0, nsLength - 1))
+                let glyphIndex = layoutManager.glyphIndexForCharacter(at: midOffset)
                 guard glyphIndex < layoutManager.numberOfGlyphs else { continue }
                 let lineRect = layoutManager.lineFragmentRect(forGlyphAt: glyphIndex, effectiveRange: nil)
                 guard lineRect.height > 1 else { continue }
@@ -515,18 +533,13 @@ struct LivePreviewEditor: NSViewRepresentable {
             }
         }
 
-        /// Returns 1-based line number for a character offset using pre-computed line starts.
-        private func lineNumber(at charOffset: Int, from lineStarts: [Int]) -> Int {
-            var lo = 0, hi = lineStarts.count - 1
-            while lo < hi {
-                let mid = (lo + hi + 1) / 2
-                if lineStarts[mid] <= charOffset {
-                    lo = mid
-                } else {
-                    hi = mid - 1
-                }
-            }
-            return lo + 1  // 1-based
+        /// Handles mouse hover line changes from MarkdownTextView.
+        /// Only updates fold buttons (no full restyling).
+        func handleMouseHoverLineChanged(_ line: Int?) {
+            guard hoveredLine != line else { return }
+            hoveredLine = line
+            guard let textView = textView else { return }
+            updateFoldButtons(in: textView, text: textView.string, hoveredLine: hoveredLine)
         }
 
         /// Builds array of character offsets for line starts (0-indexed: index 0 = line 1).
@@ -580,8 +593,12 @@ struct LivePreviewEditor: NSViewRepresentable {
         }
 
         @objc private func foldToggleButtonClicked(_ sender: NSButton) {
+            toggleFold(line: sender.tag)
+        }
+
+        func toggleFold(line: Int) {
             guard let notePath = noteURL?.path, let textView = textView else { return }
-            AppState.shared.toggleFoldedLine(sender.tag, for: notePath)
+            AppState.shared.toggleFoldedLine(line, for: notePath)
             foldedLines = AppState.shared.foldingState(for: notePath).foldedLines
             applyStyling(to: textView)
         }

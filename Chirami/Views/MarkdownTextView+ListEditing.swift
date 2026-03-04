@@ -202,6 +202,12 @@ extension MarkdownTextView {
     // MARK: - List auto-continuation
 
     override func insertNewline(_ sender: Any?) {
+        // If the cursor is on a folded line, unfold it first, then continue with normal newline insertion
+        let cursorLine = Self.lineNumber(at: selectedRange().location, from: lineStartsForHover)
+        if foldedLines.contains(cursorLine) {
+            onUnfoldLine?(cursorLine)
+        }
+
         guard let cl = currentLine() else {
             super.insertNewline(sender)
             return

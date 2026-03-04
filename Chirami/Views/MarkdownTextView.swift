@@ -8,8 +8,12 @@ class MarkdownTextView: NSTextView {
     var onCheckboxClick: ((Int) -> Void)?
     var onFontSizeChange: ((CGFloat) -> Void)?
     var onTogglePin: (() -> Void)?
+    var onMouseHoverLineChanged: ((Int?) -> Void)?
     var customMenuItems: (() -> [NSMenuItem])?
     var currentFontSize: CGFloat = 14
+    var lineStartsForHover: [Int] = [0]
+    var foldedLines: Set<Int> = []
+    var onUnfoldLine: ((Int) -> Void)?
     private var isDragModifierHeld = false
     var isAdjustingCursorForHiddenPrefix = false
     var noteURL: URL?
@@ -51,6 +55,61 @@ class MarkdownTextView: NSTextView {
         addTrackingArea(area)
     }
 
+    // MARK: - Hover line detection
+
+    /// Returns 1-based line number for a character offset using pre-computed line starts.
+    static func lineNumber(at charOffset: Int, from lineStarts: [Int]) -> Int {
+        var lo = 0, hi = lineStarts.count - 1
+        while lo < hi {
+            let mid = (lo + hi + 1) / 2
+            if lineStarts[mid] <= charOffset {
+                lo = mid
+            } else {
+                hi = mid - 1
+            }
+        }
+        return lo + 1  // 1-based
+    }
+
+    /// Detects the line under the mouse cursor and fires onMouseHoverLineChanged if it changed.
+    private func updateHoverLine(at point: NSPoint) {
+        guard let storage = textStorage, storage.length > 0 else {
+            onMouseHoverLineChanged?(nil)
+            return
+        }
+        let charIndex = characterIndexForInsertion(at: point)
+        let clamped = min(charIndex, max(0, storage.length - 1))
+        let line = Self.lineNumber(at: clamped, from: lineStartsForHover)
+        onMouseHoverLineChanged?(line)
+    }
+
+    // MARK: - Rect hit-testing
+
+    /// Returns the key of the first entry in `rects` whose rect contains `point`, or nil.
+    private func hitTestRect(_ point: NSPoint, in rects: KeyPath<BulletLayoutManager, [Int: NSRect]>) -> Int? {
+        guard let bulletLM = layoutManager as? BulletLayoutManager else { return nil }
+        for (key, rect) in bulletLM[keyPath: rects] where rect.contains(point) {
+            return key
+        }
+        return nil
+    }
+
+    /// Returns the 1-based line number if `point` is inside a fold ellipsis badge, or nil.
+    private func ellipsisLineAtPoint(_ point: NSPoint) -> Int? {
+        guard let charIndex = hitTestRect(point, in: \.drawnEllipsisRects) else { return nil }
+        return Self.lineNumber(at: charIndex, from: lineStartsForHover)
+    }
+
+    /// Returns the char index of an image containing `point`, or nil.
+    private func imageContainingPoint(_ point: NSPoint) -> Int? {
+        hitTestRect(point, in: \.drawnImageRects)
+    }
+
+    /// Returns the char index of a delete button containing `point`, or nil.
+    private func deleteButtonAtPoint(_ point: NSPoint) -> Int? {
+        hitTestRect(point, in: \.drawnDeleteButtonRects)
+    }
+
     // MARK: - Image resize helpers
 
     /// Returns the char index and rect of an image whose right edge is near `point`.
@@ -61,26 +120,6 @@ class MarkdownTextView: NSTextView {
                 && point.y >= rect.minY && point.y <= rect.maxY {
                 return (charIndex, rect)
             }
-        }
-        return nil
-    }
-
-    // MARK: - Image hover / delete helpers
-
-    /// Returns the char index of an image containing `point`, or nil.
-    private func imageContainingPoint(_ point: NSPoint) -> Int? {
-        guard let bulletLM = layoutManager as? BulletLayoutManager else { return nil }
-        for (charIndex, rect) in bulletLM.drawnImageRects where rect.contains(point) {
-            return charIndex
-        }
-        return nil
-    }
-
-    /// Returns the char index of a delete button containing `point`, or nil.
-    private func deleteButtonAtPoint(_ point: NSPoint) -> Int? {
-        guard let bulletLM = layoutManager as? BulletLayoutManager else { return nil }
-        for (charIndex, rect) in bulletLM.drawnDeleteButtonRects where rect.contains(point) {
-            return charIndex
         }
         return nil
     }
@@ -104,17 +143,21 @@ class MarkdownTextView: NSTextView {
         updateImageHoverState(at: point)
         if deleteButtonAtPoint(point) != nil {
             NSCursor.pointingHand.set()
+            updateHoverLine(at: point)
             return
         }
         if imageAtRightEdge(at: point) != nil {
             NSCursor.resizeLeftRight.set()
+            updateHoverLine(at: point)
             return
         }
-        if charIndexOfCheckbox(at: point) != nil || linkURL(at: point) != nil {
+        if ellipsisLineAtPoint(point) != nil
+            || charIndexOfCheckbox(at: point) != nil || linkURL(at: point) != nil {
             NSCursor.pointingHand.set()
         } else {
             super.mouseMoved(with: event)
         }
+        updateHoverLine(at: point)
     }
 
     override func mouseExited(with event: NSEvent) {
@@ -122,6 +165,7 @@ class MarkdownTextView: NSTextView {
             bulletLM.hoveredImageCharIndex = nil
             needsDisplay = true
         }
+        onMouseHoverLineChanged?(nil)
         super.mouseExited(with: event)
     }
 
@@ -162,6 +206,10 @@ class MarkdownTextView: NSTextView {
         }
 
         let point = convert(event.locationInWindow, from: nil)
+        if let line = ellipsisLineAtPoint(point) {
+            onUnfoldLine?(line)
+            return
+        }
         if let charIndex = deleteButtonAtPoint(point) {
             deleteImage(at: charIndex)
             return
