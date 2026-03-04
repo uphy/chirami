@@ -16,14 +16,14 @@ class WindowManager: ObservableObject {
         var cascadePoint = CGPoint.zero
         for note in noteStore.notes {
             let hasSavedState = noteStore.windowState(for: note) != nil
-            openWindow(for: note, makeKey: false)
+            openWindow(for: note)
             if !hasSavedState, let window = controllers[note.id]?.window {
                 cascadePoint = window.cascadeTopLeft(from: cascadePoint)
             }
         }
     }
 
-    func openWindow(for note: Note, makeKey: Bool = true) {
+    func openWindow(for note: Note) {
         if let existing = controllers[note.id] {
             existing.showWindow(nil)
             return
@@ -41,7 +41,7 @@ class WindowManager: ObservableObject {
 
         if pinned {
             // Pinned notes always show on launch
-            controller.show(makeKey: makeKey)
+            controller.show()
         } else {
             controller.showIfNeeded()
         }
