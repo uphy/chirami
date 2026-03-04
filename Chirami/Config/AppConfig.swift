@@ -1,8 +1,10 @@
 import Foundation
+import os
 
 class AppConfig: YAMLStore<ChiramiConfig> {
     static let shared = AppConfig()
 
+    private let logger = Logger(subsystem: "com.uphy.Chirami", category: "AppConfig")
     var config: ChiramiConfig { data }
 
     private init() {
@@ -39,7 +41,7 @@ class AppConfig: YAMLStore<ChiramiConfig> {
 
             try configYAMLContent.write(to: configFile, atomically: true, encoding: .utf8)
         } catch {
-            print("AppConfig initialization error: \(error)")
+            Logger(subsystem: "com.uphy.Chirami", category: "AppConfig").error("AppConfig initialization error: \(error, privacy: .public)")
         }
     }
 

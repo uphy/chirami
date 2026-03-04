@@ -1,6 +1,8 @@
 import Foundation
+import os
 
 enum AttachmentCleanupService {
+    private static let logger = Logger(subsystem: "com.uphy.Chirami", category: "AttachmentCleanup")
     /// Scans all notes and deletes orphaned image files (image-*.png) from attachment directories.
     static func cleanupOrphanedAttachments(notes: [Note]) {
         let fm = FileManager.default
@@ -52,12 +54,12 @@ enum AttachmentCleanupService {
                         try fm.removeItem(at: imageFile)
                         deletedCount += 1
                     } catch {
-                        NSLog("[Chirami] Failed to delete orphaned image: \(imageFile.path), error: \(error)")
+                        logger.error("Failed to delete orphaned image: \(imageFile.path, privacy: .public), error: \(error, privacy: .public)")
                     }
                 }
             }
             if deletedCount > 0 {
-                NSLog("[Chirami] Cleaned up \(deletedCount) orphaned image(s) from \(attachmentsDir.path)")
+                logger.info("Cleaned up \(deletedCount, privacy: .public) orphaned image(s) from \(attachmentsDir.path, privacy: .public)")
             }
         }
     }

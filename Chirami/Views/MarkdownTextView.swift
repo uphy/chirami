@@ -1,4 +1,7 @@
 import AppKit
+import os
+
+private let logger = Logger(subsystem: "com.uphy.Chirami", category: "MarkdownTextView")
 
 /// NSTextView subclass that intercepts clicks on task checkboxes and handles list editing.
 class MarkdownTextView: NSTextView {
@@ -630,8 +633,6 @@ class MarkdownTextView: NSTextView {
         let textContent = pb.string(forType: .string)
         let hasText = textContent.map { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty } ?? false
 
-        NSLog("[Chirami] paste: types=\(types.map(\.rawValue)), hasImage=\(hasImage), hasText=\(hasText), noteURL=\(String(describing: noteURL)), attachmentsDir=\(String(describing: attachmentsDir))")
-
         // If there's meaningful text content, prefer text paste (existing behavior)
         if hasText {
             super.paste(sender)
@@ -647,7 +648,7 @@ class MarkdownTextView: NSTextView {
 
         // Extract image from pasteboard
         guard let image = NSImage(pasteboard: pb) else {
-            NSLog("[Chirami] paste: failed to create NSImage from pasteboard")
+            logger.error("paste: failed to create NSImage from pasteboard")
             super.paste(sender)
             return
         }
@@ -655,10 +656,10 @@ class MarkdownTextView: NSTextView {
         let service = ImagePasteService()
         switch service.save(image: image, to: attachmentsDir, noteURL: noteURL) {
         case .success(let result):
-            NSLog("[Chirami] paste: image saved to \(result.fileURL.path)")
+            logger.info("paste: image saved to \(result.fileURL.path, privacy: .public)")
             insertSmartPasteText(result.markdownText + "\n")
         case .failure(let error):
-            NSLog("[Chirami] paste: image save failed: \(error)")
+            logger.error("paste: image save failed: \(error, privacy: .public)")
             super.paste(sender)
         }
     }

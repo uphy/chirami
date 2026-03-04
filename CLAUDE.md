@@ -84,3 +84,44 @@ Obsidian 風の Live Preview を実現するコア部分:
 | HotKey | グローバルホットキー登録 |
 | Yams | YAML パーサー |
 | Highlightr | コードブロックの Syntax Highlighting |
+
+## ログ実装ルール
+
+- `NSLog` / `print` は使用禁止。必ず `os.Logger` を使用する
+- subsystem は `"com.uphy.Chirami"` で統一
+- category はクラス名・ファイル名に対応させる
+- 動的な値（パス・エラー・URL）は `privacy: .public` を指定する
+
+### Logger 定義場所
+
+- クラス内 instance property または `static let`（enum の場合）として定義する
+- NSTextView サブクラス / SwiftUI View でファイルスコープに置くと `self.` 不要になる場合がある
+
+### ログレベル指針
+
+| 状況 | レベル |
+|------|--------|
+| デバッグ情報（URL受信・処理開始など） | `.debug` |
+| 正常完了の記録（〇件削除、保存成功） | `.info` |
+| 設定ミス・リソース不存在の警告 | `.warning` |
+| 処理の失敗・エラー | `.error` |
+
+### ログ確認方法
+
+ターミナルで以下を実行してからアプリを起動する：
+
+```bash
+log stream --predicate 'subsystem == "com.uphy.Chirami"' --level debug
+```
+
+category で絞る場合：
+
+```bash
+log stream --predicate 'subsystem == "com.uphy.Chirami" AND category == "MarkdownTextView"' --level debug
+```
+
+エラーのみ確認する場合：
+
+```bash
+log stream --predicate 'subsystem == "com.uphy.Chirami"' --level error
+```

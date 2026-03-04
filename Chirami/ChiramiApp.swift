@@ -1,5 +1,6 @@
 import SwiftUI
 import Combine
+import os
 
 @main
 struct ChiramiApp: App {
@@ -19,6 +20,7 @@ struct ChiramiApp: App {
 
 @MainActor
 class AppDelegate: NSObject, NSApplicationDelegate {
+    private let logger = Logger(subsystem: "com.uphy.Chirami", category: "AppDelegate")
     private let windowManager = WindowManager.shared
     private let noteStore = NoteStore.shared
     private let hotkeyService = GlobalHotkeyService()
@@ -119,9 +121,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func application(_ application: NSApplication, open urls: [URL]) {
-        NSLog("[AppDelegate] application(_:open:) called with %d URL(s)", urls.count)
+        logger.debug("application(_:open:) called with \(urls.count, privacy: .public) URL(s)")
         for url in urls {
-            NSLog("[AppDelegate] URL: %@", url.absoluteString)
+            logger.debug("URL: \(url.absoluteString, privacy: .public)")
             guard url.scheme == "chirami" else { continue }
             if url.host == "display" {
                 // Ad-hoc Note: opened dynamically via chirami://display URI

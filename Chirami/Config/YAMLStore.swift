@@ -1,5 +1,6 @@
 import Darwin
 import Foundation
+import os
 import Yams
 
 extension FileManager {
@@ -14,6 +15,7 @@ extension FileManager {
 class YAMLStore<T: Codable>: ObservableObject {
     private let fileURL: URL
     private let label: String
+    private let logger: Logger
     @Published private(set) var data: T
 
     private var fileWatcher: FileWatcher?
@@ -23,6 +25,7 @@ class YAMLStore<T: Codable>: ObservableObject {
     init(directory: URL, fileName: String, label: String, defaultValue: T, watchForChanges: Bool = false) {
         self.fileURL = directory.appendingPathComponent(fileName)
         self.label = label
+        self.logger = Logger(subsystem: "com.uphy.Chirami", category: "YAMLStore")
         self.data = defaultValue
 
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
@@ -51,7 +54,7 @@ class YAMLStore<T: Codable>: ObservableObject {
         do {
             data = try YAMLDecoder().decode(T.self, from: yaml)
         } catch {
-            print("\(label) load error: \(error)")
+            logger.error("\(self.label, privacy: .public) load error: \(error, privacy: .public)")
         }
     }
 
@@ -61,7 +64,7 @@ class YAMLStore<T: Codable>: ObservableObject {
             let yaml = try YAMLEncoder().encode(data)
             try yaml.write(to: fileURL, atomically: true, encoding: .utf8)
         } catch {
-            print("\(label) save error: \(error)")
+            logger.error("\(self.label, privacy: .public) save error: \(error, privacy: .public)")
             isWriting = false
             return
         }

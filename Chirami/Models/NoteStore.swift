@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import os
 
 /// Manages Registered Notes — notes defined in config.yaml's `notes[]` array.
 /// Loads Static Notes and Periodic Notes from config, handles file I/O, and persists window state.
@@ -9,6 +10,7 @@ class NoteStore: ObservableObject {
 
     @Published private(set) var notes: [Note] = []
 
+    private let logger = Logger(subsystem: "com.uphy.Chirami", category: "NoteStore")
     private let appConfig = AppConfig.shared
     private let appState = AppState.shared
     private var cancellables = Set<AnyCancellable>()
@@ -95,7 +97,7 @@ class NoteStore: ObservableObject {
                 try? FileManager.default.copyItem(at: templateURL, to: url)
             } else {
                 if config.template != nil {
-                    print("[Chirami] Warning: template file not found: \(config.template!)")
+                    logger.warning("template file not found: \(config.template!, privacy: .public)")
                 }
                 try? "".write(to: url, atomically: true, encoding: .utf8)
             }

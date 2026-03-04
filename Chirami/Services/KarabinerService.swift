@@ -1,11 +1,13 @@
 import AppKit
 import Foundation
+import os
 
 /// Monitors NotePanel focus state and sets Karabiner-Elements variables via karabiner_cli.
 @MainActor
 class KarabinerService {
     static let shared = KarabinerService()
 
+    private let logger = Logger(subsystem: "com.uphy.Chirami", category: "KarabinerService")
     private static let cliPath = "/Library/Application Support/org.pqrs/Karabiner-Elements/bin/karabiner_cli"
 
     private var focusedPanelCount = 0
@@ -91,9 +93,10 @@ class KarabinerService {
 
         let cliPath = AppConfig.shared.config.karabiner?.cliPath ?? Self.cliPath
         let jsonFragment = value.jsonFragment
+        let logger = self.logger
         Task.detached {
             guard FileManager.default.fileExists(atPath: cliPath) else {
-                print("KarabinerService: karabiner_cli not found at \(cliPath)")
+                logger.warning("karabiner_cli not found at \(cliPath, privacy: .public)")
                 return
             }
 
@@ -112,10 +115,10 @@ class KarabinerService {
                 if process.terminationStatus != 0 {
                     let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
                     let errorMessage = String(data: errorData, encoding: .utf8) ?? ""
-                    print("KarabinerService: karabiner_cli failed (exit \(process.terminationStatus)): \(errorMessage)")
+                    logger.error("karabiner_cli failed (exit \(process.terminationStatus, privacy: .public)): \(errorMessage, privacy: .public)")
                 }
             } catch {
-                print("KarabinerService: failed to launch karabiner_cli: \(error)")
+                logger.error("failed to launch karabiner_cli: \(error, privacy: .public)")
             }
         }
     }

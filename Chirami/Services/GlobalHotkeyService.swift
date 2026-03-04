@@ -1,8 +1,10 @@
 import Foundation
 import HotKey
 import AppKit
+import os
 
 class GlobalHotkeyService {
+    private let logger = Logger(subsystem: "com.uphy.Chirami", category: "GlobalHotkeyService")
     private var hotKeys: [String: HotKey] = [:]
 
     func register(id: String, keyString: String, onToggle: @escaping () -> Void) {
@@ -11,7 +13,7 @@ class GlobalHotkeyService {
 
         let (key, modifiers) = parseKeyString(keyString)
         guard let key = key else {
-            print("GlobalHotkeyService: could not parse hotkey '\(keyString)'")
+            logger.warning("could not parse hotkey '\(keyString, privacy: .public)'")
             return
         }
 

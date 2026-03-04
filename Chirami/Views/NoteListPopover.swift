@@ -1,5 +1,8 @@
 import ServiceManagement
 import SwiftUI
+import os
+
+private let logger = Logger(subsystem: "com.uphy.Chirami", category: "NoteListPopover")
 
 struct NoteListView: View {
     @ObservedObject private var noteStore = NoteStore.shared
@@ -56,7 +59,7 @@ struct NoteListView: View {
                         try SMAppService.mainApp.unregister()
                     }
                 } catch {
-                    print("Failed to update login item: \(error)")
+                    logger.error("Failed to update login item: \(error, privacy: .public)")
                 }
             }
 
