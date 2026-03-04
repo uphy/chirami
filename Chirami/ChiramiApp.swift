@@ -41,6 +41,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Start Karabiner-Elements variable sync
         karabinerService.startObserving()
 
+        // Enable key focus after startup completes.
+        DispatchQueue.main.async {
+            NotePanel.startupMode = false
+        }
+
         // Clean up orphaned attachment images in the background
         let notesSnapshot = noteStore.notes
         Task.detached {

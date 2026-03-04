@@ -4,7 +4,12 @@ import AppKit
 
 /// A floating NSPanel with minimal chrome for displaying a note.
 class NotePanel: NSPanel {
-    override var canBecomeKey: Bool { true }
+    /// Set to false during app startup to prevent stealKeyFocus at the WindowServer level.
+    /// AppKit checks canBecomeKey before asking SkyLight to steal key focus, so this
+    /// prevents focus from being taken from the previously active app on launch.
+    static var startupMode = true
+
+    override var canBecomeKey: Bool { !Self.startupMode }
     override var canBecomeMain: Bool { true }
 
     private var closeButtonTrackingArea: NSTrackingArea?

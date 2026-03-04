@@ -104,7 +104,7 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
         }
     }
 
-    func show() {
+    func show(makeKey: Bool = true) {
         guard let panel = window as? NotePanel else { return }
 
         // Switch to today's note if the date has changed while the window was hidden
@@ -128,9 +128,14 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
             panel.alphaValue = 0
         }
 
-        // Always make key explicitly. showWindow(nil) calls orderFront (not
-        // makeKeyAndOrderFront) for floating panels, so becomeKey never fires.
-        panel.makeKeyAndOrderFront(nil)
+        if makeKey {
+            // Always make key explicitly. showWindow(nil) calls orderFront (not
+            // makeKeyAndOrderFront) for floating panels, so becomeKey never fires.
+            panel.makeKeyAndOrderFront(nil)
+        } else {
+            // Startup path: show without stealing keyboard focus.
+            panel.orderFront(nil)
+        }
 
         noteStore.setVisible(true, for: note)
 
