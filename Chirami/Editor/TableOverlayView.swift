@@ -130,6 +130,13 @@ class TableOverlayManager {
                                     in: storageRange) != nil
             else { continue }
 
+            // Skip tables inside folded sections
+            if storage.attribute(.foldedContent, at: location, effectiveRange: nil) != nil {
+                overlays[location]?.removeFromSuperview()
+                overlays.removeValue(forKey: location)
+                continue
+            }
+
             let glyphRange = layoutManager.glyphRange(forCharacterRange: effectiveRange, actualCharacterRange: nil)
 
             // Collect per-row rects, skipping separator rows
