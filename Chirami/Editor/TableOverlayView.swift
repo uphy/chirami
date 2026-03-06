@@ -1,5 +1,6 @@
 import AppKit
 import Markdown
+import os
 
 // MARK: - TableOverlayData
 
@@ -15,11 +16,11 @@ class TableOverlayData: NSObject {
     let bodyRows: [[CellData]]
     let columnCount: Int
     /// Character ranges for each data row (header first, then body rows in order).
-    /// TableOverlayManager uses these to combine all line fragments within each row
-    /// into a single rect, correctly handling rows that wrap to multiple line fragments.
-    let rowCharRanges: [NSRange]
+    /// `nil` means ranges were not computed; TableOverlayManager will use the legacy fallback.
+    /// Non-nil (even if empty) triggers the AST-based rect computation.
+    let rowCharRanges: [NSRange]?
 
-    init(headerCells: [CellData], bodyRows: [[CellData]], columnCount: Int, rowCharRanges: [NSRange] = []) {
+    init(headerCells: [CellData], bodyRows: [[CellData]], columnCount: Int, rowCharRanges: [NSRange]? = nil) {
         self.headerCells = headerCells
         self.bodyRows = bodyRows
         self.columnCount = columnCount
@@ -27,7 +28,7 @@ class TableOverlayData: NSObject {
     }
 
     static func from(table: Table, baseFontSize: CGFloat, noteColor: NoteColor, fontName: String? = nil,
-                     rowCharRanges: [NSRange] = []) -> TableOverlayData {
+                     rowCharRanges: [NSRange]? = nil) -> TableOverlayData {
         let alignments = table.columnAlignments.map { alignment -> NSTextAlignment in
             switch alignment {
             case .left: return .left
@@ -89,6 +90,7 @@ class TableOverlayData: NSObject {
 /// Manages creation, update, and removal of TableOverlayView instances over a text view.
 class TableOverlayManager {
     private var overlays: [Int: TableOverlayView] = [:]
+    private let logger = Logger(subsystem: "com.uphy.Chirami", category: "TableOverlayManager")
 
     func removeAll() {
         for overlay in overlays.values {
@@ -144,28 +146,29 @@ class TableOverlayManager {
                 continue
             }
 
-            let glyphRange = layoutManager.glyphRange(forCharacterRange: effectiveRange, actualCharacterRange: nil)
-
             // Compute per-row rects.
             // When AST row ranges are available, combine all line fragments within each row's
             // range into one unified rect. This correctly handles rows that wrap to multiple
             // line fragments when the window is narrow (avoids the "doubled rows" bug while
             // also preserving the wrapped row height for multi-line cell rendering).
             var rowRects: [NSRect] = []
-            if !data.rowCharRanges.isEmpty {
-                for rowRange in data.rowCharRanges {
+            if let rowCharRanges = data.rowCharRanges {
+                for rowRange in rowCharRanges {
                     let rowGlyphRange = layoutManager.glyphRange(forCharacterRange: rowRange,
                                                                  actualCharacterRange: nil)
-                    var combined: NSRect = .null
+                    var combined: NSRect?
                     layoutManager.enumerateLineFragments(forGlyphRange: rowGlyphRange) { lineRect, _, _, _, _ in
-                        combined = combined.isNull ? lineRect : combined.union(lineRect)
+                        combined = combined?.union(lineRect) ?? lineRect
                     }
-                    if !combined.isNull {
+                    if let combined {
                         rowRects.append(combined)
                     }
                 }
             } else {
-                // Fallback: enumerate non-separator line fragments
+                // Fallback path: rowCharRanges were not computed (should not happen in normal use).
+                logger.warning("TableOverlayManager: rowCharRanges missing, falling back to line fragment enumeration")
+                let glyphRange = layoutManager.glyphRange(forCharacterRange: effectiveRange,
+                                                          actualCharacterRange: nil)
                 layoutManager.enumerateLineFragments(forGlyphRange: glyphRange) { lineRect, _, _, lineGlyphRange, _ in
                     let lineCharRange = layoutManager.characterRange(forGlyphRange: lineGlyphRange,
                                                                      actualGlyphRange: nil)
@@ -204,11 +207,13 @@ class TableOverlayManager {
                 existing.noteColor = noteColor
                 existing.baseFontSize = fontSize
                 existing.rowRects = localRowRects
+                existing.naturalColumnWidths = naturalWidths
                 existing.needsDisplay = true
             } else {
                 let overlay = TableOverlayView(data: data, noteColor: noteColor, baseFontSize: fontSize)
                 overlay.frame = overlayFrame
                 overlay.rowRects = localRowRects
+                overlay.naturalColumnWidths = naturalWidths
                 textView.addSubview(overlay)
                 overlays[location] = overlay
             }
@@ -226,6 +231,9 @@ class TableOverlayView: NSView {
     var baseFontSize: CGFloat
     /// Per-row rects in local coordinates (y=0 at top), separator rows excluded.
     var rowRects: [NSRect] = []
+    /// Natural (unscaled) column widths; computed once in TableOverlayManager.update() and cached here
+    /// to avoid recomputing on every draw cycle.
+    var naturalColumnWidths: [CGFloat] = []
 
     init(data: TableOverlayData, noteColor: NoteColor, baseFontSize: CGFloat) {
         self.data = data
@@ -273,7 +281,9 @@ class TableOverlayView: NSView {
 
         let colCount = max(data.columnCount, 1)
         // Scale column widths proportionally when the table is wider than the overlay.
-        let naturalWidths = computeColumnWidths()
+        // naturalColumnWidths is pre-computed by TableOverlayManager to avoid re-measuring
+        // all cell text on every draw cycle.
+        let naturalWidths = naturalColumnWidths.isEmpty ? computeColumnWidths() : naturalColumnWidths
         let totalNatural = naturalWidths.reduce(0, +)
         let scale: CGFloat = totalNatural > bounds.width && totalNatural > 0
             ? bounds.width / totalNatural : 1.0
