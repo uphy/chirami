@@ -92,6 +92,8 @@ class TableOverlayManager {
     private var overlays: [Int: TableOverlayView] = [:]
     private let logger = Logger(subsystem: "com.uphy.Chirami", category: "TableOverlayManager")
 
+    var hasOverlays: Bool { !overlays.isEmpty }
+
     func removeAll() {
         for overlay in overlays.values {
             overlay.removeFromSuperview()

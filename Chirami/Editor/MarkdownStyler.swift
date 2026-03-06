@@ -85,11 +85,15 @@ class MarkdownStyler {
     /// Foldable blocks from the last `style()` call. Available after `style()` returns.
     private(set) var lastFoldableBlocks: [FoldableBlock] = []
 
+    /// Whether the last `style()` call contained at least one Table block.
+    private(set) var lastHadTable = false
+
     /// Style `text`, showing the block containing `cursorLocation` as raw Markdown.
     /// Pass `foldedLines` (1-based line numbers) to collapse those blocks' content.
     func style(_ text: String, cursorLocation: Int, foldedLines: Set<Int> = []) -> NSAttributedString {
         guard !text.isEmpty else {
             lastFoldableBlocks = []
+            lastHadTable = false
             return NSAttributedString(string: text)
         }
 
@@ -98,6 +102,7 @@ class MarkdownStyler {
 
         let doc = Document(parsing: text)
         lastFoldableBlocks = enumerateFoldableBlocks(from: doc)
+        lastHadTable = false
         let result = NSMutableAttributedString(string: text, attributes: baseAttributes)
 
         let cursorRange = findCursorBlock(in: doc, text: text, cursorLocation: cursorLocation)
@@ -105,6 +110,7 @@ class MarkdownStyler {
         // Apply styling per top-level block
         for block in doc.children {
             guard let range = nsRange(for: block, in: text) else { continue }
+            if block is Table { lastHadTable = true }
 
             if isList(block) {
                 let ordered = block is OrderedList

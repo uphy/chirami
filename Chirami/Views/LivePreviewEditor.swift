@@ -204,6 +204,7 @@ struct LivePreviewEditor: NSViewRepresentable {
         private var lastCursorLocation: Int = 0
         private var isRestoringEditorState = false
         private var lastStyledText: String = ""
+        private var lastContainerWidth: CGFloat = 0
 
         // MARK: - Fold state
         var foldedLines: Set<Int> = [] {
@@ -272,7 +273,13 @@ struct LivePreviewEditor: NSViewRepresentable {
         @objc func textViewFrameDidChange(_ notification: Notification) {
             guard let textView = textView else { return }
             overlayManager.update(textView: textView, noteColor: noteColor, fontSize: fontSize)
-            applyStyling(to: textView)
+            // Only restyle when the container width changes (e.g. window resize).
+            // Height changes happen during typing and are already handled by textDidChange.
+            let currentWidth = textView.textContainer?.size.width ?? 0
+            if currentWidth != lastContainerWidth {
+                lastContainerWidth = currentWidth
+                applyStyling(to: textView)
+            }
         }
 
         @objc func scrollViewDidScroll(_ notification: Notification) {
@@ -467,8 +474,9 @@ struct LivePreviewEditor: NSViewRepresentable {
             }
 
             isApplyingStyling = false
-            overlayManager.update(textView: textView, noteColor: noteColor, fontSize: fontSize)
-            textView.needsDisplay = true
+            if styler.lastHadTable || overlayManager.hasOverlays {
+                overlayManager.update(textView: textView, noteColor: noteColor, fontSize: fontSize)
+            }
             textView.updateInsertionPointStateAndRestartTimer(true)
 
             // Update fold buttons
