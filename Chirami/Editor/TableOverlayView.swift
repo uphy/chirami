@@ -14,14 +14,20 @@ class TableOverlayData: NSObject {
     let headerCells: [CellData]
     let bodyRows: [[CellData]]
     let columnCount: Int
+    /// Character ranges for each data row (header first, then body rows in order).
+    /// TableOverlayManager uses these to combine all line fragments within each row
+    /// into a single rect, correctly handling rows that wrap to multiple line fragments.
+    let rowCharRanges: [NSRange]
 
-    init(headerCells: [CellData], bodyRows: [[CellData]], columnCount: Int) {
+    init(headerCells: [CellData], bodyRows: [[CellData]], columnCount: Int, rowCharRanges: [NSRange] = []) {
         self.headerCells = headerCells
         self.bodyRows = bodyRows
         self.columnCount = columnCount
+        self.rowCharRanges = rowCharRanges
     }
 
-    static func from(table: Table, baseFontSize: CGFloat, noteColor: NoteColor, fontName: String? = nil) -> TableOverlayData {
+    static func from(table: Table, baseFontSize: CGFloat, noteColor: NoteColor, fontName: String? = nil,
+                     rowCharRanges: [NSRange] = []) -> TableOverlayData {
         let alignments = table.columnAlignments.map { alignment -> NSTextAlignment in
             switch alignment {
             case .left: return .left
@@ -63,7 +69,8 @@ class TableOverlayData: NSObject {
         }
 
         let columnCount = max(headerCells.count, bodyRows.map { $0.count }.max() ?? 0)
-        return TableOverlayData(headerCells: headerCells, bodyRows: bodyRows, columnCount: columnCount)
+        return TableOverlayData(headerCells: headerCells, bodyRows: bodyRows, columnCount: columnCount,
+                                rowCharRanges: rowCharRanges)
     }
 
     // MARK: - AST -> NSAttributedString
@@ -139,15 +146,36 @@ class TableOverlayManager {
 
             let glyphRange = layoutManager.glyphRange(forCharacterRange: effectiveRange, actualCharacterRange: nil)
 
-            // Collect per-row rects, skipping separator rows
+            // Compute per-row rects.
+            // When AST row ranges are available, combine all line fragments within each row's
+            // range into one unified rect. This correctly handles rows that wrap to multiple
+            // line fragments when the window is narrow (avoids the "doubled rows" bug while
+            // also preserving the wrapped row height for multi-line cell rendering).
             var rowRects: [NSRect] = []
-            layoutManager.enumerateLineFragments(forGlyphRange: glyphRange) { lineRect, _, _, lineGlyphRange, _ in
-                let lineCharRange = layoutManager.characterRange(forGlyphRange: lineGlyphRange, actualGlyphRange: nil)
-                if lineCharRange.length > 0,
-                   storage.attribute(.tableSeparatorRow, at: lineCharRange.location, effectiveRange: nil) != nil {
-                    return  // skip separator
+            if !data.rowCharRanges.isEmpty {
+                for rowRange in data.rowCharRanges {
+                    let rowGlyphRange = layoutManager.glyphRange(forCharacterRange: rowRange,
+                                                                 actualCharacterRange: nil)
+                    var combined: NSRect = .null
+                    layoutManager.enumerateLineFragments(forGlyphRange: rowGlyphRange) { lineRect, _, _, _, _ in
+                        combined = combined.isNull ? lineRect : combined.union(lineRect)
+                    }
+                    if !combined.isNull {
+                        rowRects.append(combined)
+                    }
                 }
-                rowRects.append(lineRect)
+            } else {
+                // Fallback: enumerate non-separator line fragments
+                layoutManager.enumerateLineFragments(forGlyphRange: glyphRange) { lineRect, _, _, lineGlyphRange, _ in
+                    let lineCharRange = layoutManager.characterRange(forGlyphRange: lineGlyphRange,
+                                                                     actualGlyphRange: nil)
+                    if lineCharRange.length > 0,
+                       storage.attribute(.tableSeparatorRow, at: lineCharRange.location,
+                                         effectiveRange: nil) != nil {
+                        return  // skip separator
+                    }
+                    rowRects.append(lineRect)
+                }
             }
 
             guard let firstRect = rowRects.first, let lastRect = rowRects.last else { continue }
@@ -244,7 +272,12 @@ class TableOverlayView: NSView {
         guard bounds.height > 0, bounds.width > 0, !rowRects.isEmpty else { return }
 
         let colCount = max(data.columnCount, 1)
-        let colWidths = computeColumnWidths()
+        // Scale column widths proportionally when the table is wider than the overlay.
+        let naturalWidths = computeColumnWidths()
+        let totalNatural = naturalWidths.reduce(0, +)
+        let scale: CGFloat = totalNatural > bounds.width && totalNatural > 0
+            ? bounds.width / totalNatural : 1.0
+        let colWidths = naturalWidths.map { $0 * scale }
 
         // Header row background (rowRects[0] is the header)
         NSColor.labelColor.withAlphaComponent(0.06).setFill()
@@ -280,13 +313,14 @@ class TableOverlayView: NSView {
         let mutable = NSMutableAttributedString(attributedString: attributedText)
         let paraStyle = NSMutableParagraphStyle()
         paraStyle.alignment = alignment
-        paraStyle.lineBreakMode = .byTruncatingTail
+        paraStyle.lineBreakMode = .byWordWrapping
         let fullRange = NSRange(location: 0, length: mutable.length)
         mutable.addAttribute(.paragraphStyle, value: paraStyle, range: fullRange)
 
-        let textSize = mutable.size()
-        let textY = rowRect.minY + (rowRect.height - textSize.height) / 2
-        let drawRect = NSRect(x: x + 8, y: textY, width: w - 16, height: textSize.height)
+        let vPad: CGFloat = 4
+        let hPad: CGFloat = 8
+        let drawRect = NSRect(x: x + hPad, y: rowRect.minY + vPad,
+                              width: w - hPad * 2, height: rowRect.height - vPad * 2)
 
         // Draw inline code backgrounds using a temporary layout stack
         var hasCodeBackground = false

@@ -14,7 +14,6 @@ extension MarkdownStyler {
         )
 
         // Mark separator rows for layout-level collapse by BulletLayoutManager delegate.
-        // Avoid paragraphStyle/font overrides — they interfere with adjacent row heights.
         enumerateLines(in: text, range: range) { line, lineStart, _, isLast in
             guard isSeparatorLine(line) else { return }
             let lineLen = (line as NSString).length
@@ -24,7 +23,20 @@ extension MarkdownStyler {
                                  range: NSRange(location: lineStart, length: length))
         }
 
-        let overlayData = TableOverlayData.from(table: table, baseFontSize: baseFontSize, noteColor: noteColor, fontName: fontName)
+        // Compute per-row character ranges from the AST so TableOverlayManager can
+        // build one combined rect per row even when rows wrap across multiple line fragments.
+        var rowCharRanges: [NSRange] = []
+        if let headerRange = nsRange(for: table.head, in: text) {
+            rowCharRanges.append(headerRange)
+        }
+        for row in table.body.rows {
+            if let rowRange = nsRange(for: row, in: text) {
+                rowCharRanges.append(rowRange)
+            }
+        }
+
+        let overlayData = TableOverlayData.from(table: table, baseFontSize: baseFontSize, noteColor: noteColor,
+                                                fontName: fontName, rowCharRanges: rowCharRanges)
         storage.addAttribute(.tableOverlay, value: overlayData, range: range)
     }
 
