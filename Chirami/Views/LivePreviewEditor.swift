@@ -443,11 +443,38 @@ struct LivePreviewEditor: NSViewRepresentable {
             let savedRange = textView.selectedRange()
 
             isApplyingStyling = true
-            storage.beginEditing()
-            styled.enumerateAttributes(in: NSRange(location: 0, length: styled.length)) { attrs, range, _ in
-                storage.setAttributes(attrs, range: range)
+            if styled.length != storage.length {
+                // Fallback: lengths differ (should not happen in practice)
+                storage.beginEditing()
+                styled.enumerateAttributes(in: NSRange(location: 0, length: styled.length)) { attrs, range, _ in
+                    storage.setAttributes(attrs, range: range)
+                }
+                storage.endEditing()
+            } else {
+                // Two-pointer diff: only apply changed attribute runs
+                var pos = 0
+                let len = styled.length
+                var editingStarted = false
+                while pos < len {
+                    var styledEffectiveRange = NSRange()
+                    var storageEffectiveRange = NSRange()
+                    let styledAttrs = styled.attributes(at: pos, effectiveRange: &styledEffectiveRange) as NSDictionary
+                    let storageAttrs = storage.attributes(at: pos, effectiveRange: &storageEffectiveRange) as NSDictionary
+                    let overlapEnd = min(NSMaxRange(styledEffectiveRange), NSMaxRange(storageEffectiveRange))
+                    let overlapRange = NSRange(location: pos, length: overlapEnd - pos)
+                    if !styledAttrs.isEqual(storageAttrs) {
+                        if !editingStarted {
+                            storage.beginEditing()
+                            editingStarted = true
+                        }
+                        storage.setAttributes(styledAttrs as? [NSAttributedString.Key: Any] ?? [:], range: overlapRange)
+                    }
+                    pos = overlapEnd
+                }
+                if editingStarted {
+                    storage.endEditing()
+                }
             }
-            storage.endEditing()
 
             // Restore selection (setSelectedRange may fire textViewDidChangeSelection,
             // which is suppressed by isApplyingStyling)
