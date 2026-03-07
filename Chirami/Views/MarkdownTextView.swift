@@ -14,6 +14,7 @@ class MarkdownTextView: NSTextView {
     var lineStartsForHover: [Int] = [0]
     var foldedLines: Set<Int> = []
     var onUnfoldLine: ((Int) -> Void)?
+    var onNeedsImmediateStyling: (() -> Void)?
     private var isDragModifierHeld = false
     var isAdjustingCursorForHiddenPrefix = false
     var noteURL: URL?

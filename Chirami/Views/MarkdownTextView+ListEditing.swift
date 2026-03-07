@@ -33,6 +33,13 @@ extension MarkdownTextView {
     )
     // swiftlint:enable force_try
 
+    /// Calls didChangeText() and immediately bypasses the styling debounce.
+    /// Use this instead of bare didChangeText() for all structural edits (list continuation, indent/dedent, task toggle).
+    func didChangeTextImmediately() {
+        didChangeText()
+        onNeedsImmediateStyling?()
+    }
+
     func toggleTaskList() {
         guard let cl = currentLine() else { return }
         let storage = cl.storage
@@ -80,7 +87,7 @@ extension MarkdownTextView {
             storage.replaceCharacters(in: replaceRange, with: replacement)
             let newCursor = max(lineRange.location, min(cursorLocation + lengthDiff, lineRange.location + (replacement as NSString).length))
             setSelectedRange(NSRange(location: newCursor, length: 0))
-            didChangeText()
+            didChangeTextImmediately()
         }
     }
 
@@ -111,7 +118,7 @@ extension MarkdownTextView {
             cl.storage.replaceCharacters(in: insertRange, with: indent)
             let newCursor = cl.cursorLocation + (indent as NSString).length
             setSelectedRange(NSRange(location: newCursor, length: 0))
-            didChangeText()
+            didChangeTextImmediately()
         }
     }
 
@@ -135,7 +142,7 @@ extension MarkdownTextView {
             cl.storage.replaceCharacters(in: removeRange, with: "")
             let newCursor = max(cl.lineRange.location, cl.cursorLocation - indentLen)
             setSelectedRange(NSRange(location: newCursor, length: 0))
-            didChangeText()
+            didChangeTextImmediately()
         }
     }
 
@@ -164,7 +171,7 @@ extension MarkdownTextView {
             let newLen = (replacement as NSString).length
             let selLen = replacement.hasSuffix("\n") ? newLen - 1 : newLen
             setSelectedRange(NSRange(location: linesRange.location, length: selLen))
-            didChangeText()
+            didChangeTextImmediately()
         }
     }
 
@@ -195,7 +202,7 @@ extension MarkdownTextView {
             let newLen = (replacement as NSString).length
             let selLen = replacement.hasSuffix("\n") ? newLen - 1 : newLen
             setSelectedRange(NSRange(location: linesRange.location, length: selLen))
-            didChangeText()
+            didChangeTextImmediately()
         }
     }
 
@@ -226,7 +233,7 @@ extension MarkdownTextView {
             if shouldChangeText(in: insertRange, replacementString: "\n") {
                 storage.replaceCharacters(in: insertRange, with: "\n")
                 setSelectedRange(NSRange(location: endOfLine + 1, length: 0))
-                didChangeText()
+                didChangeTextImmediately()
             }
             return
         }
@@ -250,7 +257,7 @@ extension MarkdownTextView {
                 if shouldChangeText(in: lineRange, replacementString: "") {
                     storage.replaceCharacters(in: lineRange, with: "")
                     setSelectedRange(NSRange(location: lineRange.location, length: 0))
-                    didChangeText()
+                    didChangeTextImmediately()
                 }
                 return
             }
@@ -267,7 +274,7 @@ extension MarkdownTextView {
             if shouldChangeText(in: insertRange, replacementString: insertText) {
                 storage.replaceCharacters(in: insertRange, with: insertText)
                 setSelectedRange(NSRange(location: cursorLocation + (insertText as NSString).length, length: 0))
-                didChangeText()
+                didChangeTextImmediately()
             }
             return
         }
@@ -283,7 +290,7 @@ extension MarkdownTextView {
                 if shouldChangeText(in: lineRange, replacementString: "") {
                     storage.replaceCharacters(in: lineRange, with: "")
                     setSelectedRange(NSRange(location: lineRange.location, length: 0))
-                    didChangeText()
+                    didChangeTextImmediately()
                 }
                 return
             }
@@ -295,7 +302,7 @@ extension MarkdownTextView {
             if shouldChangeText(in: insertRange, replacementString: insertText) {
                 storage.replaceCharacters(in: insertRange, with: insertText)
                 setSelectedRange(NSRange(location: cursorLocation + (insertText as NSString).length, length: 0))
-                didChangeText()
+                didChangeTextImmediately()
             }
             return
         }

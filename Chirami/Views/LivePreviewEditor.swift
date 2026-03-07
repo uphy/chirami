@@ -72,6 +72,9 @@ struct LivePreviewEditor: NSViewRepresentable {
         textView.onUnfoldLine = { [weak coordinator] line in
             coordinator?.toggleFold(line: line)
         }
+        textView.onNeedsImmediateStyling = { [weak coordinator] in
+            coordinator?.applyImmediateStyling()
+        }
 
         let scrollView = NSScrollView()
         scrollView.documentView = textView
@@ -341,6 +344,16 @@ struct LivePreviewEditor: NSViewRepresentable {
                 overlayManager.repositionExisting(textView: textView)
             }
             scheduleTextStyling()
+        }
+
+        /// Bypasses the debounce and applies styling immediately.
+        /// Called after structural edits (list continuation, indent/dedent, task toggle).
+        func applyImmediateStyling() {
+            pendingStylingItem?.cancel()
+            pendingStylingItem = nil
+            isTextChangePending = false
+            guard let textView = textView else { return }
+            applyStyling(to: textView)
         }
 
         /// Schedules applyStyling with a 50 ms debounce for text changes.
