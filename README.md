@@ -30,9 +30,12 @@ See [Features](docs/features.md) for the full feature guide and keyboard shortcu
 brew install --cask uphy/tap/chirami
 ```
 
-> **Note:** Chirami is not code-signed. The cask removes the quarantine attribute automatically after install.
-
 **Install manually:** Download the latest `Chirami-*-macOS.zip` from [Releases](https://github.com/uphy/chirami/releases), unzip it, and move `Chirami.app` to `~/Applications`.
+
+> **Note:** Chirami is not code-signed. If macOS blocks the app on first launch, run:
+> ```bash
+> xattr -dr com.apple.quarantine /Applications/Chirami.app
+> ```
 
 **Create a minimal config** at `~/.config/chirami/config.yaml`:
 
