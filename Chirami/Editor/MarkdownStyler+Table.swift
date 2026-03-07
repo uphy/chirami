@@ -25,13 +25,18 @@ extension MarkdownStyler {
 
         // Compute per-row character ranges from the AST so TableOverlayManager can
         // build one combined rect per row even when rows wrap across multiple line fragments.
+        // Stored as offsets relative to range.location so they remain valid when text is
+        // inserted before the table (NSTextStorage shifts the attribute range but not the
+        // values stored inside TableOverlayData).
         var rowCharRanges: [NSRange] = []
         if let headerRange = nsRange(for: table.head, in: text) {
-            rowCharRanges.append(headerRange)
+            rowCharRanges.append(NSRange(location: headerRange.location - range.location,
+                                         length: headerRange.length))
         }
         for row in table.body.rows {
             if let rowRange = nsRange(for: row, in: text) {
-                rowCharRanges.append(rowRange)
+                rowCharRanges.append(NSRange(location: rowRange.location - range.location,
+                                              length: rowRange.length))
             }
         }
 

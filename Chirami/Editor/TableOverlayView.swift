@@ -16,8 +16,11 @@ class TableOverlayData: NSObject {
     let bodyRows: [[CellData]]
     let columnCount: Int
     /// Character ranges for each data row (header first, then body rows in order).
-    /// `nil` means ranges were not computed; TableOverlayManager will use the legacy fallback.
-    /// Non-nil (even if empty) triggers the AST-based rect computation.
+    /// **Stored as offsets relative to the table's own start character**, not absolute document
+    /// positions. Consumers must add the table's current `effectiveRange.location` before use.
+    /// Relative storage ensures validity even when text is inserted before the table
+    /// (NSTextStorage shifts the attribute range but cannot update values inside this object).
+    /// `nil` means ranges were not computed; TableOverlayManager will use the fallback path.
     let rowCharRanges: [NSRange]?
 
     init(headerCells: [CellData], bodyRows: [[CellData]], columnCount: Int, rowCharRanges: [NSRange]? = nil) {
@@ -90,6 +93,8 @@ class TableOverlayData: NSObject {
 /// Manages creation, update, and removal of TableOverlayView instances over a text view.
 class TableOverlayManager {
     private var overlays: [Int: TableOverlayView] = [:]
+    /// Lookup by data object identity — stable even when the attribute's character range shifts.
+    private var overlaysByDataID: [ObjectIdentifier: TableOverlayView] = [:]
     private let logger = Logger(subsystem: "com.uphy.Chirami", category: "TableOverlayManager")
 
     var hasOverlays: Bool { !overlays.isEmpty }
@@ -99,6 +104,70 @@ class TableOverlayManager {
             overlay.removeFromSuperview()
         }
         overlays.removeAll()
+        overlaysByDataID.removeAll()
+    }
+
+    /// Computes per-row layout rects from AST-relative rowCharRanges.
+    /// `tableStart` is the absolute character position of the table's first character.
+    private func computeRowRects(for data: TableOverlayData, tableStart: Int,
+                                 layoutManager: NSLayoutManager) -> [NSRect] {
+        guard let rowCharRanges = data.rowCharRanges else { return [] }
+        var rects: [NSRect] = []
+        for relativeRange in rowCharRanges {
+            // rowCharRanges are stored as offsets relative to the table start;
+            // add tableStart to get the current absolute position.
+            let absRange = NSRange(location: tableStart + relativeRange.location,
+                                   length: relativeRange.length)
+            let glyphRange = layoutManager.glyphRange(forCharacterRange: absRange,
+                                                      actualCharacterRange: nil)
+            var combined: NSRect?
+            layoutManager.enumerateLineFragments(forGlyphRange: glyphRange) { lineRect, _, _, _, _ in
+                combined = combined?.union(lineRect) ?? lineRect
+            }
+            if let combined { rects.append(combined) }
+        }
+        return rects
+    }
+
+    /// Repositions existing overlays without full recreation.
+    /// rowCharRanges are stored as relative offsets from the table start, so adding
+    /// the current effectiveRange.location (which NSTextStorage keeps correct after
+    /// any insertion) always gives the right absolute position.
+    func repositionExisting(textView: NSTextView) {
+        guard hasOverlays,
+              let storage = textView.textStorage,
+              let layoutManager = textView.layoutManager,
+              let textContainer = textView.textContainer else { return }
+
+        layoutManager.ensureLayout(for: textContainer)
+
+        let storageRange = NSRange(location: 0, length: storage.length)
+        let containerOrigin = textView.textContainerOrigin
+        let containerWidth = textContainer.size.width
+
+        storage.enumerateAttribute(.tableOverlay, in: storageRange, options: []) { value, range, _ in
+            guard let data = value as? TableOverlayData,
+                  let overlay = overlaysByDataID[ObjectIdentifier(data)] else { return }
+
+            var effectiveRange = NSRange()
+            _ = storage.attribute(.tableOverlay, at: range.location,
+                                  longestEffectiveRange: &effectiveRange, in: storageRange)
+
+            let rowRects = self.computeRowRects(for: data, tableStart: effectiveRange.location,
+                                                layoutManager: layoutManager)
+            guard let firstRect = rowRects.first, let lastRect = rowRects.last else { return }
+            let minY = firstRect.minY
+            let maxY = lastRect.maxY
+            guard minY < maxY else { return }
+
+            overlay.frame = NSRect(x: containerOrigin.x, y: containerOrigin.y + minY,
+                                   width: min(overlay.frame.width, containerWidth),
+                                   height: maxY - minY)
+            overlay.rowRects = rowRects.map { rect in
+                NSRect(x: 0, y: rect.minY - minY, width: overlay.frame.width, height: rect.height)
+            }
+            overlay.needsDisplay = true
+        }
     }
 
     func update(textView: NSTextView, noteColor: NoteColor, fontSize: CGFloat) {
@@ -126,7 +195,10 @@ class TableOverlayManager {
         let existingKeys = Set(overlays.keys)
         let foundKeys = Set(found.keys)
         for key in existingKeys.subtracting(foundKeys) {
-            overlays[key]?.removeFromSuperview()
+            if let removed = overlays[key] {
+                overlaysByDataID.removeValue(forKey: ObjectIdentifier(removed.data))
+                removed.removeFromSuperview()
+            }
             overlays.removeValue(forKey: key)
         }
 
@@ -154,18 +226,9 @@ class TableOverlayManager {
             // line fragments when the window is narrow (avoids the "doubled rows" bug while
             // also preserving the wrapped row height for multi-line cell rendering).
             var rowRects: [NSRect] = []
-            if let rowCharRanges = data.rowCharRanges {
-                for rowRange in rowCharRanges {
-                    let rowGlyphRange = layoutManager.glyphRange(forCharacterRange: rowRange,
-                                                                 actualCharacterRange: nil)
-                    var combined: NSRect?
-                    layoutManager.enumerateLineFragments(forGlyphRange: rowGlyphRange) { lineRect, _, _, _, _ in
-                        combined = combined?.union(lineRect) ?? lineRect
-                    }
-                    if let combined {
-                        rowRects.append(combined)
-                    }
-                }
+            if data.rowCharRanges != nil {
+                rowRects = computeRowRects(for: data, tableStart: effectiveRange.location,
+                                           layoutManager: layoutManager)
             } else {
                 // Fallback path: rowCharRanges were not computed (should not happen in normal use).
                 logger.warning("TableOverlayManager: rowCharRanges missing, falling back to line fragment enumeration")
@@ -204,6 +267,7 @@ class TableOverlayManager {
             }
 
             if let existing = overlays[location] {
+                overlaysByDataID.removeValue(forKey: ObjectIdentifier(existing.data))
                 existing.frame = overlayFrame
                 existing.data = data
                 existing.noteColor = noteColor
@@ -211,6 +275,7 @@ class TableOverlayManager {
                 existing.rowRects = localRowRects
                 existing.naturalColumnWidths = naturalWidths
                 existing.needsDisplay = true
+                overlaysByDataID[ObjectIdentifier(data)] = existing
             } else {
                 let overlay = TableOverlayView(data: data, noteColor: noteColor, baseFontSize: fontSize)
                 overlay.frame = overlayFrame
@@ -218,6 +283,7 @@ class TableOverlayManager {
                 overlay.naturalColumnWidths = naturalWidths
                 textView.addSubview(overlay)
                 overlays[location] = overlay
+                overlaysByDataID[ObjectIdentifier(data)] = overlay
             }
         }
     }
