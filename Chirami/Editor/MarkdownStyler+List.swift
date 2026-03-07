@@ -158,18 +158,9 @@ extension MarkdownStyler {
             let ownRange = NSRange(location: itemRange.location, length: max(0, ownContentEnd - itemRange.location))
             let editing = cursorRange.map { overlaps(ownRange, $0) } ?? false
 
-            let ownLength = ownContentEnd - itemRange.location
-            // Exclude trailing newline when checking for actual content beyond the marker.
-            // effectiveListItemRange may include a trailing '\n', which should not count as content.
-            let ownLengthNoNewline: Int
-            if ownLength > 0,
-               (text as NSString).substring(with: NSRange(location: itemRange.location + ownLength - 1, length: 1)) == "\n" {
-                ownLengthNoNewline = ownLength - 1
-            } else {
-                ownLengthNoNewline = ownLength
-            }
-            let hasContent = ownLengthNoNewline > contentStart
-            let cursorInPrefix = editing && hasContent && cursorLocation < itemRange.location + contentStart
+            // Raw style applies whenever the cursor is in the prefix region, including empty
+            // items: hidden marker chars + firstLineHeadIndent would shift the cursor visually.
+            let cursorInPrefix = editing && cursorLocation < itemRange.location + contentStart
             if cursorInPrefix {
                 applyListItemRawStyle(
                     to: storage, itemRange: itemRange, contentStart: contentStart,

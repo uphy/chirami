@@ -502,13 +502,8 @@ class MarkdownTextView: NSTextView {
         let lineNS = lineText as NSString
         let fullRange = NSRange(location: 0, length: lineNS.length)
 
-        // 1) Task line with rendered checkbox (existing behavior)
-        var hasRenderedCheckbox = false
-        storage.enumerateAttribute(.taskCheckbox, in: lineRange, options: []) { value, _, stop in
-            if value != nil { hasRenderedCheckbox = true; stop.pointee = true }
-        }
-        if hasRenderedCheckbox,
-           let match = Self.taskLinePrefixPattern.firstMatch(in: lineText, range: fullRange) {
+        // 1) Task line: match in both raw and rendered mode.
+        if let match = Self.taskLinePrefixPattern.firstMatch(in: lineText, range: fullRange) {
             return (lineStart: lineRange.location,
                     contentStart: lineRange.location + NSMaxRange(match.range))
         }
