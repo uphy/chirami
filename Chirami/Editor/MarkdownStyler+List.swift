@@ -226,7 +226,7 @@ extension MarkdownStyler {
         let nsText = text as NSString
         let lineRange = nsText.lineRange(for: itemRange)
         let paragraphStyle = NSMutableParagraphStyle()
-        paragraphStyle.paragraphSpacing = 6
+        paragraphStyle.paragraphSpacing = 0
         paragraphStyle.defaultTabInterval = 20
         storage.addAttributes([.paragraphStyle: paragraphStyle], range: lineRange)
 
@@ -527,7 +527,7 @@ extension MarkdownStyler {
         let paragraphStyle = NSMutableParagraphStyle()
         paragraphStyle.tabStops = []
         paragraphStyle.defaultTabInterval = 0.001
-        paragraphStyle.paragraphSpacing = 6
+        paragraphStyle.paragraphSpacing = 0
         paragraphStyle.minimumLineHeight = ceil(font.ascender - font.descender + font.leading)
         paragraphStyle.headIndent = levelIndent
         if ordered {
