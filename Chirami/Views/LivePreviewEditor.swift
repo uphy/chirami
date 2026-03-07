@@ -483,14 +483,7 @@ struct LivePreviewEditor: NSViewRepresentable {
             let savedRange = textView.selectedRange()
 
             isApplyingStyling = true
-            if styled.length != storage.length {
-                // Fallback: lengths differ (should not happen in practice)
-                storage.beginEditing()
-                styled.enumerateAttributes(in: NSRange(location: 0, length: styled.length)) { attrs, range, _ in
-                    storage.setAttributes(attrs, range: range)
-                }
-                storage.endEditing()
-            } else {
+            if styled.length == storage.length {
                 // Two-pointer diff: only apply changed attribute runs
                 var pos = 0
                 let len = styled.length
@@ -514,6 +507,13 @@ struct LivePreviewEditor: NSViewRepresentable {
                 if editingStarted {
                     storage.endEditing()
                 }
+            } else {
+                // Fallback: lengths differ (should not happen in practice)
+                storage.beginEditing()
+                styled.enumerateAttributes(in: NSRange(location: 0, length: styled.length)) { attrs, range, _ in
+                    storage.setAttributes(attrs, range: range)
+                }
+                storage.endEditing()
             }
 
             // Restore selection (setSelectedRange may fire textViewDidChangeSelection,

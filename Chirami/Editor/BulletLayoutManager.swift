@@ -263,8 +263,49 @@ class BulletLayoutManager: NSLayoutManager {
         guard textContainer(forGlyphAt: glyphIndex, effectiveRange: nil) != nil else { return nil }
         let lineRect = lineFragmentRect(forGlyphAt: glyphIndex, effectiveRange: nil)
         let level = nestingLevel(at: range.location)
-        let baselineY = origin.y + lineRect.origin.y + baselineOffset(forGlyphAt: glyphIndex, fontSize: fontSize)
+        // Prefer the actual baseline from the first visible content character in the line.
+        // Hidden marker characters (0.001pt font) cause location(forGlyphAt:) to return an
+        // incorrect baseline; for non-empty items a content character gives the true value.
+        let baselineFromTop = contentCharBaselineOffset(near: range.location, lineRect: lineRect)
+            ?? baselineOffset(forGlyphAt: glyphIndex, fontSize: fontSize)
+        let baselineY = origin.y + lineRect.origin.y + baselineFromTop
         return GlyphPosition(glyphIndex: glyphIndex, lineRect: lineRect, level: level, baselineY: baselineY)
+    }
+
+    /// Scans forward from `charLocation` to find the first content character (non-hidden font)
+    /// in the same line fragment and returns its glyph location y, which equals the actual
+    /// baseline offset from the line fragment's top as used by NSLayoutManager.
+    /// Returns nil when no content character exists in the line (e.g., empty list items).
+    private func contentCharBaselineOffset(near charLocation: Int, lineRect: NSRect) -> CGFloat? {
+        guard let textStorage = textStorage else { return nil }
+        let str = textStorage.string as NSString
+        let startLoc = charLocation + 1
+        let totalLength = str.length
+        guard startLoc < totalLength else { return nil }
+
+        // Compute the search range bounded to the current line (excluding trailing newline).
+        // This lets enumerateAttribute skip entire hidden-font runs atomically instead of
+        // checking each character, avoiding per-character attribute lookups in the hot path.
+        let lineRange = str.lineRange(for: NSRange(location: charLocation, length: 0))
+        let searchEnd = (lineRange.length > 0 && str.character(at: lineRange.upperBound - 1) == 0x0A)
+            ? lineRange.upperBound - 1
+            : lineRange.upperBound
+        guard startLoc < searchEnd else { return nil }
+        let searchRange = NSRange(location: startLoc, length: searchEnd - startLoc)
+
+        var result: CGFloat?
+        textStorage.enumerateAttribute(.font, in: searchRange, options: []) { value, runRange, stop in
+            guard let font = value as? NSFont, font.pointSize >= 1.0 else { return }
+            let contentGlyphIndex = glyphIndexForCharacter(at: runRange.location)
+            let contentLineRect = lineFragmentRect(forGlyphAt: contentGlyphIndex, effectiveRange: nil)
+            guard abs(contentLineRect.origin.y - lineRect.origin.y) < 1.0 else {
+                stop.pointee = true
+                return
+            }
+            result = location(forGlyphAt: contentGlyphIndex).y
+            stop.pointee = true
+        }
+        return result
     }
 
     private func drawSFSymbol(_ name: String, at range: NSRange, origin: NSPoint, color: NSColor, size: CGFloat) {
