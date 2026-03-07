@@ -35,7 +35,7 @@ struct LivePreviewEditor: NSViewRepresentable {
         textView.isAutomaticSpellingCorrectionEnabled = false
         textView.isAutomaticQuoteSubstitutionEnabled = false
         textView.isAutomaticDashSubstitutionEnabled = false
-        textView.textContainerInset = NSSize(width: 8, height: 10)
+        textView.textContainerInset = NSSize(width: 16, height: 10)
         if let fontName, let customFont = NSFont(name: fontName, size: fontSize) {
             textView.font = customFont
         } else {
