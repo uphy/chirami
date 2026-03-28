@@ -1,30 +1,27 @@
+---
+title: Getting Started
+---
+
 # Getting Started
 
-## Prerequisites
+## Requirements
 
 - macOS 14.0 (Sonoma) or later
-- [xcodegen](https://github.com/yonaskolb/XcodeGen) — `brew install xcodegen`
-- [mise](https://mise.jdx.dev/) (recommended) or Xcode
 
-## Build & Install
+## Install
 
-**Using mise (recommended):**
+**Via Homebrew (recommended):**
 
 ```bash
-mise run build && mise run apply
+brew install --cask uphy/tap/chirami
 ```
 
-This builds a Release `.app` bundle and installs it to `~/Applications`.
+**Manual install:** Download the latest `Chirami-*-macOS.zip` from [Releases](https://github.com/uphy/chirami/releases), unzip it, and move `Chirami.app` to `~/Applications`.
 
-**Using Xcode:**
-
-```bash
-cd /path/to/chirami
-xcodegen generate
-open Chirami.xcodeproj
-```
-
-Build and run with Cmd+R. SPM dependencies are resolved automatically on first build.
+> **Note:** Chirami is not code-signed. If macOS blocks the app on first launch, run:
+> ```bash
+> xattr -dr com.apple.quarantine ~/Applications/Chirami.app
+> ```
 
 ## Minimal Configuration
 
@@ -33,9 +30,10 @@ Create `~/.config/chirami/config.yaml`:
 ```yaml
 notes:
   - path: ~/Notes/todo.md
+    hotkey: cmd+shift+t
 ```
 
-That's it. Chirami will display the file as a floating sticky note.
+That's it. Press `Cmd+Shift+T` to toggle the note from any application.
 
 ## Basic Usage
 

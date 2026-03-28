@@ -1,3 +1,7 @@
+---
+title: Configuration
+---
+
 # Configuration
 
 Chirami uses two files:

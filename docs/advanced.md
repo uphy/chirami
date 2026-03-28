@@ -1,3 +1,7 @@
+---
+title: Advanced
+---
+
 # Advanced Features
 
 ## Periodic Notes
@@ -215,40 +219,9 @@ On app startup, Chirami automatically deletes image files that are no longer ref
 - Scans the Markdown content of all notes to identify referenced images
 - For periodic notes, checks image references across all files matching the template pattern
 
-## CLI Usage (Ad-hoc Notes)
+## CLI
 
-The `chirami` command-line tool opens Markdown content as an Ad-hoc Note — a floating Chirami window created dynamically from the terminal.
-
-### Install
-
-The CLI binary is bundled inside `Chirami.app`. Add it to your PATH:
-
-```bash
-export PATH="$PATH:~/Applications/Chirami.app/Contents/MacOS"
-```
-
-### Examples
-
-```bash
-# Show a quick note
-chirami display "## Meeting Notes"
-
-# Open a file for editing
-chirami display --file ~/project/TODO.md
-
-# Pipe command output
-git diff --stat | chirami display
-
-# Wait for the window to close before continuing
-chirami display --wait --file ~/Notes/scratch.md
-```
-
-### Options
-
-| Flag | Description |
-|------|-------------|
-| `--file <path>` | Path to a Markdown file to display (editable) |
-| `--wait` | Block until the window is closed |
+See [CLI](cli.md) for usage details.
 
 ## Tips
 
@@ -270,4 +243,4 @@ notes:
 
 ### Tiling Window Manager Coexistence
 
-Chirami uses `NSPanel` windows, which tiling window managers like [aerospace](https://github.com/nikitabobko/AeroSpace) ignore by default. Chirami notes float independently without disrupting your tiled layout — no extra configuration needed.
+Chirami note windows are ignored by tiling window managers like [aerospace](https://github.com/nikitabobko/AeroSpace) by default. Notes float independently without disrupting your tiled layout — no extra configuration needed.

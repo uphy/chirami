@@ -1,3 +1,7 @@
+---
+title: Features
+---
+
 # Features
 
 ## Markdown Live Preview
@@ -62,32 +66,7 @@ Chirami renders Markdown in an Obsidian-style Live Preview: the block containing
 
 ## Keyboard Shortcuts
 
-| Shortcut | Action |
-|----------|--------|
-| Cmd+L | Toggle task list on current line |
-| Cmd+B | Bold selection (`**text**`) |
-| Cmd+I | Italic selection (`*text*`) |
-| Cmd+F | Open find bar |
-| Cmd+= / Cmd++ | Increase font size |
-| Cmd+- | Decrease font size |
-| Cmd+V | Smart Paste |
-| Cmd+Shift+V | Plain text paste |
-| Tab (on list item) | Indent list item |
-| Shift+Tab (on list item) | Dedent list item |
-| Tab (with selection) | Indent all selected lines |
-| Shift+Tab (with selection) | Dedent all selected lines |
-| Enter (on list item) | Continue list with next marker |
-| Enter (on empty list item) | End list |
-| Cmd+Enter (on link) | Open link at caret |
-| Option+Enter (on link) | Open link at caret |
-| Ctrl+A | Move cursor to content start (press again for line start) |
-| ESC / Cmd+W | Close note |
-| Ctrl+Option+H / Ctrl+Option+← | Warp window left |
-| Ctrl+Option+L / Ctrl+Option+→ | Warp window right |
-| Ctrl+Option+K / Ctrl+Option+↑ | Warp window up |
-| Ctrl+Option+J / Ctrl+Option+↓ | Warp window down |
-
-Per-note and global hotkeys (configured in config.yaml) toggle note visibility from any application.
+See [Keyboard Shortcuts](shortcuts.md) for the full reference.
 
 ## Menu Bar
 
@@ -101,28 +80,8 @@ Chirami lives in the macOS menu bar. Click the icon to open the popover:
 
 ## CLI
 
-The `chirami` CLI lets you display Markdown content in a floating window from the terminal.
-
-```bash
-# Display inline text
-chirami display "# Hello World"
-
-# Display a file (editable)
-chirami display --file ~/Notes/todo.md
-
-# Pipe from stdin
-cat README.md | chirami display
-
-# Block until the window is closed
-chirami display --wait --file ~/Notes/todo.md
-```
-
-**Content sources** (priority order): positional argument > `--file` > stdin.
-
-- Positional argument and stdin content are read-only.
-- `--file` opens the file for editing.
-- `--wait` blocks the CLI process until the window is closed.
+See [CLI](cli.md) for usage details.
 
 ## External Editor Sync
 
-Chirami watches note files for changes using `DispatchSource`. Edits made in Obsidian, VS Code, or any other editor are reflected immediately in the Chirami window.
+Chirami watches note files for changes. Edits made in Obsidian, VS Code, or any other editor are reflected immediately in the Chirami window.
