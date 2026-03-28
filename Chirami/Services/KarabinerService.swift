@@ -7,7 +7,7 @@ import os
 class KarabinerService {
     static let shared = KarabinerService()
 
-    private let logger = Logger(subsystem: "com.uphy.Chirami", category: "KarabinerService")
+    private let logger = Logger(subsystem: "io.github.uphy.Chirami", category: "KarabinerService")
     private static let cliPath = "/Library/Application Support/org.pqrs/Karabiner-Elements/bin/karabiner_cli"
 
     private var focusedPanelCount = 0

@@ -95,7 +95,7 @@ class TableOverlayManager {
     private var overlays: [Int: TableOverlayView] = [:]
     /// Lookup by data object identity — stable even when the attribute's character range shifts.
     private var overlaysByDataID: [ObjectIdentifier: TableOverlayView] = [:]
-    private let logger = Logger(subsystem: "com.uphy.Chirami", category: "TableOverlayManager")
+    private let logger = Logger(subsystem: "io.github.uphy.Chirami", category: "TableOverlayManager")
 
     var hasOverlays: Bool { !overlays.isEmpty }
 

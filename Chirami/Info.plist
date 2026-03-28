@@ -22,7 +22,7 @@
 	<array>
 		<dict>
 			<key>CFBundleURLName</key>
-			<string>com.uphy.Chirami</string>
+			<string>io.github.uphy.Chirami</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>chirami</string>

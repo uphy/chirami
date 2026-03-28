@@ -1,7 +1,7 @@
 import AppKit
 import os
 
-private let logger = Logger(subsystem: "com.uphy.Chirami", category: "MarkdownTextView")
+private let logger = Logger(subsystem: "io.github.uphy.Chirami", category: "MarkdownTextView")
 
 /// NSTextView subclass that intercepts clicks on task checkboxes and handles list editing.
 class MarkdownTextView: NSTextView {
@@ -260,11 +260,17 @@ class MarkdownTextView: NSTextView {
 
         isResizingImage = false
         resizingImageCharIndex = nil
+
+        // Commit the new width first (keeps dragOverrideWidths active).
+        commitImageWidth(Int(finalWidth.rounded()), at: charIndex)
+
+        // Apply styling immediately so the new requestedWidth attribute is set before
+        // dragOverrideWidths is cleared, preventing a one-frame flash at the old size.
+        onNeedsImmediateStyling?()
+
         if let bulletLM = layoutManager as? BulletLayoutManager {
             bulletLM.dragOverrideWidths.removeAll()
         }
-
-        commitImageWidth(Int(finalWidth.rounded()), at: charIndex)
     }
 
     /// Updates the markdown text to set the image width at the given character index.

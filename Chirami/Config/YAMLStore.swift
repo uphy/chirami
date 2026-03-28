@@ -25,7 +25,7 @@ class YAMLStore<T: Codable>: ObservableObject {
     init(directory: URL, fileName: String, label: String, defaultValue: T, watchForChanges: Bool = false) {
         self.fileURL = directory.appendingPathComponent(fileName)
         self.label = label
-        self.logger = Logger(subsystem: "com.uphy.Chirami", category: "YAMLStore")
+        self.logger = Logger(subsystem: "io.github.uphy.Chirami", category: "YAMLStore")
         self.data = defaultValue
 
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)

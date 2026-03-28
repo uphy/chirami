@@ -2,7 +2,7 @@ import ServiceManagement
 import SwiftUI
 import os
 
-private let logger = Logger(subsystem: "com.uphy.Chirami", category: "NoteListPopover")
+private let logger = Logger(subsystem: "io.github.uphy.Chirami", category: "NoteListPopover")
 
 struct NoteListView: View {
     @ObservedObject private var noteStore = NoteStore.shared

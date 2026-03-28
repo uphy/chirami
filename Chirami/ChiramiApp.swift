@@ -20,7 +20,7 @@ struct ChiramiApp: App {
 
 @MainActor
 class AppDelegate: NSObject, NSApplicationDelegate {
-    private let logger = Logger(subsystem: "com.uphy.Chirami", category: "AppDelegate")
+    private let logger = Logger(subsystem: "io.github.uphy.Chirami", category: "AppDelegate")
     private let windowManager = WindowManager.shared
     private let noteStore = NoteStore.shared
     private let hotkeyService = GlobalHotkeyService()

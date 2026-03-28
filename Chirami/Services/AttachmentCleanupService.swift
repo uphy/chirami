@@ -2,7 +2,7 @@ import Foundation
 import os
 
 enum AttachmentCleanupService {
-    private static let logger = Logger(subsystem: "com.uphy.Chirami", category: "AttachmentCleanup")
+    private static let logger = Logger(subsystem: "io.github.uphy.Chirami", category: "AttachmentCleanup")
     /// Scans all notes and deletes orphaned image files (image-*.png) from attachment directories.
     static func cleanupOrphanedAttachments(notes: [Note]) {
         let fm = FileManager.default

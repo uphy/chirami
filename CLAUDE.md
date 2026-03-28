@@ -88,7 +88,7 @@ Obsidian 風の Live Preview を実現するコア部分:
 ## ログ実装ルール
 
 - `NSLog` / `print` は使用禁止。必ず `os.Logger` を使用する
-- subsystem は `"com.uphy.Chirami"` で統一
+- subsystem は `"io.github.uphy.Chirami"` で統一
 - category はクラス名・ファイル名に対応させる
 - 動的な値（パス・エラー・URL）は `privacy: .public` を指定する
 
@@ -111,17 +111,17 @@ Obsidian 風の Live Preview を実現するコア部分:
 ターミナルで以下を実行してからアプリを起動する：
 
 ```bash
-log stream --predicate 'subsystem == "com.uphy.Chirami"' --level debug
+log stream --predicate 'subsystem == "io.github.uphy.Chirami"' --level debug
 ```
 
 category で絞る場合：
 
 ```bash
-log stream --predicate 'subsystem == "com.uphy.Chirami" AND category == "MarkdownTextView"' --level debug
+log stream --predicate 'subsystem == "io.github.uphy.Chirami" AND category == "MarkdownTextView"' --level debug
 ```
 
 エラーのみ確認する場合：
 
 ```bash
-log stream --predicate 'subsystem == "com.uphy.Chirami"' --level error
+log stream --predicate 'subsystem == "io.github.uphy.Chirami"' --level error
 ```

@@ -42,7 +42,7 @@ jobs:
           sed \
             -e 's/$(DEVELOPMENT_LANGUAGE)/en/' \
             -e 's/$(EXECUTABLE_NAME)/Chirami/' \
-            -e 's/$(PRODUCT_BUNDLE_IDENTIFIER)/com.uphy.Chirami/' \
+            -e 's/$(PRODUCT_BUNDLE_IDENTIFIER)/io.github.uphy.Chirami/' \
             -e "s/\$(MARKETING_VERSION)/$version/" \
             -e "s/\$(CURRENT_PROJECT_VERSION)/$version/" \
             -e 's/$(MACOSX_DEPLOYMENT_TARGET)/14.0/' \

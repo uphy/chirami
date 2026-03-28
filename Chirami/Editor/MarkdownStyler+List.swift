@@ -528,6 +528,7 @@ extension MarkdownStyler {
         paragraphStyle.tabStops = []
         paragraphStyle.defaultTabInterval = 0.001
         paragraphStyle.paragraphSpacing = 0
+        paragraphStyle.lineSpacing = 6
         paragraphStyle.minimumLineHeight = ceil(font.ascender - font.descender + font.leading)
         paragraphStyle.headIndent = levelIndent
         if ordered {

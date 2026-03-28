@@ -10,7 +10,7 @@ class NoteStore: ObservableObject {
 
     @Published private(set) var notes: [Note] = []
 
-    private let logger = Logger(subsystem: "com.uphy.Chirami", category: "NoteStore")
+    private let logger = Logger(subsystem: "io.github.uphy.Chirami", category: "NoteStore")
     private let appConfig = AppConfig.shared
     private let appState = AppState.shared
     private var cancellables = Set<AnyCancellable>()

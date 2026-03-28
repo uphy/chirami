@@ -4,7 +4,7 @@ import AppKit
 import os
 
 class GlobalHotkeyService {
-    private let logger = Logger(subsystem: "com.uphy.Chirami", category: "GlobalHotkeyService")
+    private let logger = Logger(subsystem: "io.github.uphy.Chirami", category: "GlobalHotkeyService")
     private var hotKeys: [String: HotKey] = [:]
 
     func register(id: String, keyString: String, onToggle: @escaping () -> Void) {

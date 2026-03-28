@@ -352,10 +352,12 @@ class BulletLayoutManager: NSLayoutManager {
         }
         let isDragOverride = dragOverrideWidths[range.location] != nil
         let scale: CGFloat
-        if isDragOverride {
-            // During drag, ignore line height constraint so the image can grow beyond the original size
+        if effectiveWidth != nil {
+            // Explicit width (from alt text or drag): scale to the requested width directly.
+            // Line height was reserved based on the same scale, so no additional constraint needed.
             scale = maxWidth / imageSize.width
         } else {
+            // No explicit width: fit within the line fragment height to avoid overflow.
             scale = min(maxWidth / imageSize.width, lineRect.height / imageSize.height)
         }
         let drawWidth = (imageSize.width * scale).rounded()

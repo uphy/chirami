@@ -249,7 +249,8 @@ extension MarkdownStyler {
     }
 
     /// Returns the display height for `urlString` given the current container width.
-    /// When `requestedWidth` is specified, uses that width (clamped to container) instead.
+    /// When `requestedWidth` is specified, scales to that width (clamped to container) without a height cap.
+    /// When no width is specified, scales to fill the container with a maxHeight=400 cap.
     /// Uses a placeholder if the image is not yet cached.
     private func scaledImageHeight(for urlString: String, requestedWidth: CGFloat? = nil) -> CGFloat {
         guard let image = ImageCache.shared.image(for: urlString) else {
@@ -258,15 +259,16 @@ extension MarkdownStyler {
         let size = image.size
         guard size.width > 0, size.height > 0 else { return 100 }
         let maxWidth = max(containerWidth - 20, 50)
-        let maxHeight: CGFloat = 400
-        let displayWidth: CGFloat
         if let requested = requestedWidth {
-            displayWidth = min(requested, maxWidth)
+            // Honor the explicit width; derive height from aspect ratio (no maxHeight cap)
+            let displayWidth = min(requested, maxWidth)
+            let scale = displayWidth / size.width
+            return (size.height * scale).rounded()
         } else {
-            displayWidth = maxWidth
+            let maxHeight: CGFloat = 400
+            let scale = min(maxWidth / size.width, maxHeight / size.height)
+            return (size.height * scale).rounded()
         }
-        let scale = min(displayWidth / size.width, maxHeight / size.height)
-        return (size.height * scale).rounded()
     }
 
     // MARK: - Image pattern (raw/editing)

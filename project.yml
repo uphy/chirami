@@ -1,7 +1,7 @@
 name: Chirami
 
 options:
-  bundleIdPrefix: com.uphy
+  bundleIdPrefix: io.github.uphy
   deploymentTarget:
     macOS: "14.0"
   createIntermediateGroups: true
@@ -49,14 +49,14 @@ targets:
         NSDocumentsFolderUsageDescription: "Chirami needs access to Documents to read and write your note files."
         NSDownloadsFolderUsageDescription: "Chirami needs access to Downloads to read and write your note files."
         CFBundleURLTypes:
-          - CFBundleURLName: com.uphy.Chirami
+          - CFBundleURLName: io.github.uphy.Chirami
             CFBundleURLSchemes:
               - chirami
     settings:
       base:
         SWIFT_VERSION: "5.9"
         MACOSX_DEPLOYMENT_TARGET: "14.0"
-        PRODUCT_BUNDLE_IDENTIFIER: com.uphy.Chirami
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.uphy.Chirami
         ENABLE_HARDENED_RUNTIME: YES
         CODE_SIGN_ENTITLEMENTS: Chirami/Chirami.entitlements
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
