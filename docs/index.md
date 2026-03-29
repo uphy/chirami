@@ -5,6 +5,9 @@ hero:
   name: Chirami
   text: Sticky-note Markdown for macOS
   tagline: Access your notes as floating windows — without breaking your flow.
+  image:
+    src: /logo.png
+    alt: Chirami
   actions:
     - theme: brand
       text: Get Started

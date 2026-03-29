@@ -10,7 +10,12 @@ struct ChiramiApp: App {
         MenuBarExtra {
             NoteListView()
         } label: {
-            Image(systemName: "note.text")
+            Image(nsImage: {
+                let img = Bundle.main.image(forResource: "MenuBarIcon")
+                    ?? NSImage(systemSymbolName: "note.text", accessibilityDescription: nil)!
+                img.isTemplate = true
+                return img
+            }())
         }
         .menuBarExtraStyle(.window)
     }

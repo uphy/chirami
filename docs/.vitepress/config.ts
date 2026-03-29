@@ -5,7 +5,13 @@ export default defineConfig({
   description: 'A macOS sticky-note Markdown app. Access your notes as floating windows — without breaking your flow.',
   base: '/chirami/',
 
+  head: [
+    ['link', { rel: 'icon', type: 'image/png', href: '/chirami/favicon.png' }]
+  ],
+
   themeConfig: {
+    logo: '/logo.png',
+
     nav: [
       { text: 'Guide', link: '/getting-started' },
       { text: 'Reference', link: '/configuration' },
