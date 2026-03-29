@@ -562,7 +562,6 @@ struct NoteContentView: View {
     @ObservedObject var model: NoteContentModel
     let noteId: String
     var onTogglePin: (() -> Void)?
-    @State private var showColorPicker = false
     @EnvironmentObject private var noteStore: NoteStore
 
     private var note: Note? {
@@ -582,119 +581,11 @@ struct NoteContentView: View {
             onFontSizeChange: { newSize in
                 model.fontSize = newSize
             },
-            onTogglePin: onTogglePin,
-            customMenuItems: { [weak noteStore] in
-                var items: [NSMenuItem] = []
-                guard let noteStore, let note = noteStore.notes.first(where: { $0.id == noteId }) else {
-                    return items
-                }
-                let isOnTop = note.alwaysOnTop
-                let alwaysOnTopItem = NSMenuItem(
-                    title: "Always on Top",
-                    action: #selector(NoteMenuActions.toggleAlwaysOnTop(_:)),
-                    keyEquivalent: ""
-                )
-                alwaysOnTopItem.state = isOnTop ? .on : .off
-                alwaysOnTopItem.representedObject = note
-                alwaysOnTopItem.target = NoteMenuActions.shared
-                items.append(alwaysOnTopItem)
-
-                let colorItem = NSMenuItem(
-                    title: "Change Color...",
-                    action: #selector(NoteMenuActions.changeColor(_:)),
-                    keyEquivalent: ""
-                )
-                colorItem.representedObject = NoteMenuContext(noteId: noteId, showColorPicker: $showColorPicker)
-                colorItem.target = NoteMenuActions.shared
-                items.append(colorItem)
-                return items
-            }
+            onTogglePin: onTogglePin
         )
         .onChange(of: model.text) { _, _ in
             model.save()
         }
-        .popover(isPresented: $showColorPicker) {
-            if let note {
-                ColorPickerView(note: note)
-            }
-        }
         .background((note?.color.nsColor ?? NoteColor.yellow.nsColor).swiftUI)
-    }
-}
-
-// MARK: - ColorPickerView
-
-struct ColorPickerView: View {
-    let note: Note
-    @Environment(\.dismiss) private var dismiss
-    @State private var transparency: Double
-
-    init(note: Note) {
-        self.note = note
-        self._transparency = State(initialValue: note.transparency)
-    }
-
-    var body: some View {
-        VStack(spacing: 8) {
-            Text("Note Color")
-                .font(.headline)
-            HStack(spacing: 8) {
-                ForEach(NoteColor.allCases, id: \.rawValue) { color in
-                    Button {
-                        NoteStore.shared.updateColor(color, for: note)
-                        dismiss()
-                    } label: {
-                        RoundedRectangle(cornerRadius: 4)
-                            .fill(color.nsColor.swiftUI)
-                            .frame(width: 24, height: 24)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 4)
-                                    .stroke(Color.secondary, lineWidth: note.color == color ? 2 : 0.5)
-                            )
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-
-            Divider()
-
-            VStack(spacing: 4) {
-                Text("Transparency")
-                    .font(.subheadline)
-                HStack {
-                    Slider(value: $transparency, in: 0.3...1.0, step: 0.05)
-                        .frame(width: 150)
-                    Text("\(Int(transparency * 100))%")
-                        .font(.caption)
-                        .monospacedDigit()
-                        .frame(width: 36, alignment: .trailing)
-                }
-            }
-            .onChange(of: transparency) { _, newValue in
-                NoteStore.shared.updateTransparency(newValue, for: note)
-            }
-        }
-        .padding()
-    }
-}
-
-// MARK: - Context Menu Actions
-
-struct NoteMenuContext {
-    let noteId: String
-    let showColorPicker: Binding<Bool>
-}
-
-class NoteMenuActions: NSObject {
-    static let shared = NoteMenuActions()
-
-    @MainActor @objc func toggleAlwaysOnTop(_ sender: NSMenuItem) {
-        guard let note = sender.representedObject as? Note else { return }
-        NoteStore.shared.updateAlwaysOnTop(!note.alwaysOnTop, for: note)
-    }
-
-    @MainActor @objc func changeColor(_ sender: NSMenuItem) {
-        guard let context = sender.representedObject as? NoteMenuContext else { return }
-        context.showColorPicker.wrappedValue = true
     }
 }

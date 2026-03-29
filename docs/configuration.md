@@ -76,6 +76,7 @@ Each entry in `notes` configures one Registered Note — a sticky note window ma
 | `font_size` | integer | `14` | no | Font size in points. Range: 8–32. |
 | `hotkey` | string | — | no | Global hotkey to toggle this note (e.g. `cmd+shift+m`). |
 | `position` | string | `fixed` | no | `fixed` (remembers last position) or `cursor` (appears at mouse cursor). |
+| `always_on_top` | boolean | `true` | no | Whether the note window floats above all other windows. |
 | `rollover_delay` | string | — | no | Delay before date rollover for periodic notes (e.g. `2h`, `30m`). |
 | `template` | string | — | no | Template file path for periodic notes. Copied when creating a new day's file. |
 | `attachment.dir` | string | — | no | Attachment directory for images. See [Images](advanced.md#images). |
@@ -109,7 +110,7 @@ Six preset colors are available: `yellow`, `blue`, `green`, `pink`, `purple`, `g
 
 ## state.yaml
 
-`~/.local/state/chirami/state.yaml` stores runtime state (window positions, sizes, visibility, always-on-top). Chirami manages this file automatically — there is no need to edit it by hand.
+`~/.local/state/chirami/state.yaml` stores runtime state (window positions, sizes, visibility). Chirami manages this file automatically — there is no need to edit it by hand.
 
 ```yaml
 windows:
@@ -117,7 +118,6 @@ windows:
     position: [100, 200]
     size: [300, 400]
     visible: true
-    always_on_top: true
 
 bookmarks:
   a1b2c3: <Base64 encoded security-scoped bookmark>

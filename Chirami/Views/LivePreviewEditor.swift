@@ -14,7 +14,6 @@ struct LivePreviewEditor: NSViewRepresentable {
     var editorState: EditorStatePreservable?
     var onFontSizeChange: ((CGFloat) -> Void)?
     var onTogglePin: (() -> Void)?
-    var customMenuItems: (() -> [NSMenuItem])?
 
     func makeNSView(context: Context) -> NSScrollView {
         // Build MarkdownTextView manually instead of NSTextView.scrollableTextView()
@@ -63,7 +62,6 @@ struct LivePreviewEditor: NSViewRepresentable {
             coordinator?.handleFontSizeChange(newSize)
         }
         textView.onTogglePin = onTogglePin
-        textView.customMenuItems = customMenuItems
         textView.noteURL = noteURL
         textView.attachmentsDir = attachmentsDir
         textView.onMouseHoverLineChanged = { [weak coordinator] line in

@@ -28,11 +28,11 @@ Chirami renders Markdown in an Obsidian-style Live Preview: the block containing
 
 ## Window Operations
 
-**Always on Top** — Note windows float above all other windows by default. Toggle via the right-click context menu.
+**Always on Top** — Note windows float above all other windows by default. Set `always_on_top: false` in config.yaml to disable.
 
 **Dragging** — Hold the drag modifier key (default: Cmd) and drag anywhere in the note window to move it. The modifier can be changed with `drag_modifier` in config.yaml.
 
-**Color** — Right-click the note and pick a color from the context menu. Six presets: yellow, blue, green, pink, purple, gray.
+**Color** — Configured per note in config.yaml (`color: yellow/blue/green/pink/purple/gray`).
 
 **Transparency** — Configured per note in config.yaml (`transparency: 0.0–1.0`).
 

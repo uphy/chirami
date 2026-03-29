@@ -6,7 +6,7 @@ class DisplayPanel: NotePanel {
     private var callbackPipeFd: Int32 = -1
     var didNotifyClosed = false
 
-    init(callbackPipePath: String?, isReadOnly: Bool, color: NoteColor = .yellow, transparency: Double = 0.9, customTitle: String? = nil) {
+    init(callbackPipePath: String?, isReadOnly: Bool, color: NoteColor = .yellow, transparency: Double = 0.9, customTitle: String? = nil, alwaysOnTop: Bool = true) {
         let frame = NSRect(x: 0, y: 0, width: 400, height: 500)
         super.init(
             contentRect: frame,
@@ -20,7 +20,7 @@ class DisplayPanel: NotePanel {
         titlebarAppearsTransparent = true
         isMovableByWindowBackground = true
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
-        level = .floating
+        level = alwaysOnTop ? .floating : .normal
         isRestorable = false
         backgroundColor = color.nsColor
         alphaValue = transparency

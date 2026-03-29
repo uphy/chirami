@@ -51,7 +51,7 @@ class NoteStore: ObservableObject {
             let transparency = noteConfig.resolveTransparency()
             let fontSize = noteConfig.resolveFontSize()
 
-            let alwaysOnTop = appState.windowState(for: id)?.alwaysOnTop ?? true
+            let alwaysOnTop = noteConfig.resolveAlwaysOnTop()
 
             let notePosition = noteConfig.resolvePosition()
 
@@ -115,7 +115,7 @@ class NoteStore: ObservableObject {
         let color = config.resolveColor()
         let transparency = config.resolveTransparency()
         let fontSize = config.resolveFontSize()
-        let alwaysOnTop = appState.windowState(for: id)?.alwaysOnTop ?? true
+        let alwaysOnTop = config.resolveAlwaysOnTop()
         let notePosition = config.resolvePosition()
 
         let rolloverDelay = DurationParser.parse(config.rolloverDelay)
@@ -207,13 +207,6 @@ class NoteStore: ObservableObject {
 
     func setPinned(_ value: Bool, for note: Note) {
         appState.setPinned(value, for: note.id)
-    }
-
-    func updateAlwaysOnTop(_ value: Bool, for note: Note) {
-        appState.setAlwaysOnTop(value, for: note.id)
-        if let idx = notes.firstIndex(where: { $0.id == note.id }) {
-            notes[idx].alwaysOnTop = value
-        }
     }
 
     // MARK: - Security-Scoped Bookmarks

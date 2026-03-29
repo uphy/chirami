@@ -46,10 +46,6 @@ class AppState: YAMLStore<ChiramiState> {
         updateWindowState(for: noteId) { $0.pinned = value }
     }
 
-    func setAlwaysOnTop(_ value: Bool, for noteId: String) {
-        updateWindowState(for: noteId) { $0.alwaysOnTop = value }
-    }
-
     func setVisible(_ visible: Bool, for noteId: String) {
         updateWindowState(for: noteId) { $0.visible = visible }
     }

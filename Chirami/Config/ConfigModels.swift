@@ -10,6 +10,7 @@ protocol NoteAppearanceResolvable {
     var transparency: Double? { get }
     var fontSize: Int? { get }
     var position: String? { get }
+    var alwaysOnTop: Bool? { get }
 }
 
 extension NoteAppearanceResolvable {
@@ -28,6 +29,10 @@ extension NoteAppearanceResolvable {
 
     func resolvePosition() -> NotePosition {
         position == "cursor" ? .cursor : .fixed
+    }
+
+    func resolveAlwaysOnTop() -> Bool {
+        alwaysOnTop ?? true
     }
 }
 
@@ -154,6 +159,7 @@ struct NoteConfig: Codable, NoteAppearanceResolvable {
     var fontSize: Int?
     var hotkey: String?
     var position: String?
+    var alwaysOnTop: Bool?
     var rolloverDelay: String?
     var template: String?
     var attachment: AttachmentConfig?
@@ -178,6 +184,7 @@ struct NoteConfig: Codable, NoteAppearanceResolvable {
     enum CodingKeys: String, CodingKey {
         case path, title, color, transparency, hotkey, position, template, attachment
         case fontSize = "font_size"
+        case alwaysOnTop = "always_on_top"
         case rolloverDelay = "rollover_delay"
     }
 
@@ -227,11 +234,13 @@ struct AdhocProfile: Codable, NoteAppearanceResolvable {
     var transparency: Double?
     var fontSize: Int?
     var position: String?       // "cursor" | nil
+    var alwaysOnTop: Bool?
     var hotkey: String?
 
     enum CodingKeys: String, CodingKey {
         case title, color, transparency, position, hotkey
         case fontSize = "font_size"
+        case alwaysOnTop = "always_on_top"
     }
 
 }
@@ -264,7 +273,6 @@ struct WindowState: Codable {
     var position: [Double]
     var size: [Double]
     var visible: Bool
-    var alwaysOnTop: Bool?
     var pinned: Bool?
     var lastUsed: Date?
     var cursorPosition: Int?
@@ -272,17 +280,15 @@ struct WindowState: Codable {
 
     enum CodingKeys: String, CodingKey {
         case position, size, visible, pinned
-        case alwaysOnTop = "always_on_top"
         case lastUsed = "last_used"
         case cursorPosition = "cursor_position"
         case scrollOffset = "scroll_offset"
     }
 
-    init(position: CGPoint, size: CGSize, visible: Bool, alwaysOnTop: Bool? = nil, pinned: Bool? = nil) {
+    init(position: CGPoint, size: CGSize, visible: Bool, pinned: Bool? = nil) {
         self.position = [position.x, position.y]
         self.size = [size.width, size.height]
         self.visible = visible
-        self.alwaysOnTop = alwaysOnTop
         self.pinned = pinned
     }
 

@@ -9,7 +9,6 @@ class MarkdownTextView: NSTextView {
     var onFontSizeChange: ((CGFloat) -> Void)?
     var onTogglePin: (() -> Void)?
     var onMouseHoverLineChanged: ((Int?) -> Void)?
-    var customMenuItems: (() -> [NSMenuItem])?
     var currentFontSize: CGFloat = 14
     var lineStartsForHover: [Int] = [0]
     var foldedLines: Set<Int> = []
@@ -29,17 +28,6 @@ class MarkdownTextView: NSTextView {
 
     private var dragModifierFlags: NSEvent.ModifierFlags {
         AppConfig.shared.data.dragModifierFlags
-    }
-
-    override func menu(for event: NSEvent) -> NSMenu? {
-        let menu = super.menu(for: event) ?? NSMenu()
-        if let items = customMenuItems?(), !items.isEmpty {
-            menu.addItem(.separator())
-            for item in items {
-                menu.addItem(item)
-            }
-        }
-        return menu
     }
 
     override func updateTrackingAreas() {

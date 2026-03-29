@@ -191,6 +191,7 @@ class DisplayWindowManager {
         let transparency = profile?.resolveTransparency() ?? 0.9
         let fontSize = profile?.resolveFontSize() ?? 14
         let position = profile?.resolvePosition() ?? .fixed
+        let alwaysOnTop = profile?.resolveAlwaysOnTop() ?? true
         let customTitle = profile?.title
 
         // Validate callback_pipe: only allow paths under /tmp/ or $TMPDIR
@@ -223,7 +224,7 @@ class DisplayWindowManager {
         }
 
         let isPinned = position != .cursor
-        let panel = DisplayPanel(callbackPipePath: validPipe, isReadOnly: readOnly, color: color, transparency: transparency, customTitle: customTitle)
+        let panel = DisplayPanel(callbackPipePath: validPipe, isReadOnly: readOnly, color: color, transparency: transparency, customTitle: customTitle, alwaysOnTop: alwaysOnTop)
         panel.centerTitle()
         panel.setupCloseButtonHover()
         let contentModel = DisplayContentModel(content: displayContent, fileURL: fileURL)
