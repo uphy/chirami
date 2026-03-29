@@ -1,3 +1,4 @@
+import ServiceManagement
 import SwiftUI
 import Combine
 import os
@@ -36,6 +37,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Apply appearance mode from config
         applyAppearance()
 
+        // Apply launch-at-login from config
+        applyLaunchAtLogin()
+
         // Prune stale Ad-hoc Note state entries
         AppState.shared.pruneAdhocEntries()
 
@@ -71,15 +75,32 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
             .store(in: &cancellables)
 
-        // Re-register profile hotkeys when config changes
+        // Re-apply all config-driven settings when config changes
         AppConfig.shared.$data
             .dropFirst()
             .sink { [weak self] _ in
                 Task { @MainActor in
+                    self?.applyAppearance()
                     self?.registerAllHotkeys()
+                    self?.applyLaunchAtLogin()
                 }
             }
             .store(in: &cancellables)
+    }
+
+    func applyLaunchAtLogin() {
+        let enabled = AppConfig.shared.config.launchAtLogin ?? false
+        let currentlyEnabled = SMAppService.mainApp.status == .enabled
+        guard enabled != currentlyEnabled else { return }
+        do {
+            if enabled {
+                try SMAppService.mainApp.register()
+            } else {
+                try SMAppService.mainApp.unregister()
+            }
+        } catch {
+            logger.error("Failed to \(enabled ? "register" : "unregister") login item: \(error, privacy: .public)")
+        }
     }
 
     func applyAppearance() {

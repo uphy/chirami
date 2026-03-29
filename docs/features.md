@@ -75,7 +75,6 @@ Chirami lives in the macOS menu bar. Click the icon to open the popover:
 - **Note list** — Each note is shown with its color indicator and title. Click to toggle visibility. A checkmark indicates the note is currently visible.
 - **Show All / Hide All** — Toggle all notes at once.
 - **Edit Config** — Open `~/.config/chirami/config.yaml` in your default editor.
-- **Launch at Login** — Toggle auto-launch on macOS startup.
 - **Quit Chirami** — Exit the application.
 
 ## CLI

@@ -1,8 +1,4 @@
-import ServiceManagement
 import SwiftUI
-import os
-
-private let logger = Logger(subsystem: "io.github.uphy.Chirami", category: "NoteListPopover")
 
 struct NoteListView: View {
     @ObservedObject private var noteStore = NoteStore.shared
@@ -43,23 +39,6 @@ struct NoteListView: View {
                 }
                 MenuButton(title: "Edit Config") {
                     openConfig()
-                }
-            }
-
-            Divider()
-
-            MenuToggleButton(
-                title: "Launch at Login",
-                isOn: SMAppService.mainApp.status == .enabled
-            ) { enabled in
-                do {
-                    if enabled {
-                        try SMAppService.mainApp.register()
-                    } else {
-                        try SMAppService.mainApp.unregister()
-                    }
-                } catch {
-                    logger.error("Failed to update login item: \(error, privacy: .public)")
                 }
             }
 
@@ -141,36 +120,6 @@ struct MenuButton: View {
                 .contentShape(Rectangle())
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
-        }
-        .buttonStyle(.plain)
-        .hoverEffect()
-    }
-}
-
-// MARK: - MenuToggleButton
-
-struct MenuToggleButton: View {
-    let title: String
-    let isOn: Bool
-    let onToggle: (Bool) -> Void
-
-    var body: some View {
-        Button {
-            onToggle(!isOn)
-        } label: {
-            HStack {
-                Text(title)
-                    .font(.system(size: 13))
-                Spacer()
-                if isOn {
-                    Image(systemName: "checkmark")
-                        .font(.system(size: 11))
-                        .foregroundColor(.secondary)
-                }
-            }
-            .contentShape(Rectangle())
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
         }
         .buttonStyle(.plain)
         .hoverEffect()
