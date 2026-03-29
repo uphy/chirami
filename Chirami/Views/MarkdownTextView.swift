@@ -340,7 +340,7 @@ class MarkdownTextView: NSTextView {
         return storage.attribute(.link, at: charIndex, effectiveRange: nil) as? URL
     }
 
-    /// Returns the URL of the markdown link at the current caret position, or nil.
+    /// Returns the URL of the markdown link or bare URL at the current caret position, or nil.
     /// Uses regex parsing because the `.link` attribute is not set when the caret is inside a link (raw mode).
     private func linkURLAtCaret() -> URL? {
         guard let storage = textStorage else { return nil }
@@ -349,18 +349,38 @@ class MarkdownTextView: NSTextView {
         let lineRange = nsString.lineRange(for: NSRange(location: caretLocation, length: 0))
         let lineText = nsString.substring(with: lineRange)
         let lineNS = lineText as NSString
-        let regex = MarkdownStyler.linkPattern
-        let matches = regex.matches(in: lineText, range: NSRange(location: 0, length: lineNS.length))
-        for match in matches {
+
+        // Check Markdown link pattern first: [text](url)
+        let linkMatches = MarkdownStyler.linkPattern.matches(in: lineText, range: NSRange(location: 0, length: lineNS.length))
+        for match in linkMatches {
             let matchStart = lineRange.location + match.range.location
             let matchEnd = matchStart + match.range.length
-            // Include the character right after the closing parenthesis
             guard caretLocation >= matchStart && caretLocation <= matchEnd else { continue }
             let urlString = lineNS.substring(with: match.range(at: 2))
             if let url = URL(string: urlString) {
                 return url
             }
         }
+
+        // Fall back to bare URL pattern: https://...
+        let bareMatches = MarkdownStyler.bareURLPattern.matches(in: lineText, range: NSRange(location: 0, length: lineNS.length))
+        for match in bareMatches {
+            var urlRange = match.range
+            var urlString = lineNS.substring(with: urlRange)
+            let trailingPunctuation = CharacterSet(charactersIn: ".,;:!?)>")
+            while let last = urlString.unicodeScalars.last, trailingPunctuation.contains(last) {
+                urlString = String(urlString.dropLast())
+                urlRange.length -= 1
+            }
+            guard urlRange.length > 0 else { continue }
+            let matchStart = lineRange.location + urlRange.location
+            let matchEnd = matchStart + urlRange.length
+            guard caretLocation >= matchStart && caretLocation <= matchEnd else { continue }
+            if let url = URL(string: urlString) {
+                return url
+            }
+        }
+
         return nil
     }
 

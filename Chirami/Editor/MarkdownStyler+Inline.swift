@@ -12,6 +12,8 @@ extension MarkdownStyler {
     // Negative lookbehind (?<!!) prevents matching image syntax ![alt](url)
     static let linkPattern = try! NSRegularExpression(pattern: #"(?<!!)\[(.+?)\]\((.+?)\)"#)
     static let imagePattern = try! NSRegularExpression(pattern: #"!\[([^\]]*)\]\(([^\)]+)\)"#)
+    // Matches bare URLs (https://... or http://...), excluding surrounding whitespace and brackets
+    static let bareURLPattern = try! NSRegularExpression(pattern: #"https?://[^\s\[\]()<>]+"#)
     // swiftlint:enable force_try
 
     // MARK: - Rendered inline styles
@@ -42,6 +44,7 @@ extension MarkdownStyler {
 
         applyLinkPattern(to: storage, in: text, offset: offset, cursorLocation: cursorLocation)
         applyImagePattern(to: storage, in: text, offset: offset)
+        applyBareURLPattern(to: storage, in: text, offset: offset, cursorLocation: cursorLocation)
     }
 
     // MARK: - Raw (editing) inline styles
@@ -61,6 +64,7 @@ extension MarkdownStyler {
 
         applyLinkPattern(to: storage, in: text, offset: offset, cursorLocation: cursorLocation)
         applyRawImagePattern(to: storage, in: text, offset: offset)
+        applyBareURLPattern(to: storage, in: text, offset: offset, cursorLocation: cursorLocation)
     }
 
     // MARK: - Pattern application helpers
@@ -176,6 +180,44 @@ extension MarkdownStyler {
                     )
                     storage.addAttributes(Self.hiddenAttributes, range: afterText)
                 }
+            }
+        }
+    }
+
+    // MARK: - Bare URL pattern
+
+    /// Applies link styling to bare URLs (https://... or http://...) that are not already
+    /// inside a Markdown link or image syntax (those already have a `.link` attribute set).
+    private func applyBareURLPattern(to storage: NSMutableAttributedString, in text: String, offset: Int, cursorLocation: Int? = nil) {
+        let nsText = text as NSString
+        let matches = Self.bareURLPattern.matches(in: text, range: NSRange(location: 0, length: nsText.length))
+        for match in matches {
+            var urlRange = match.range
+            // Trim trailing punctuation characters that are unlikely to be part of the URL
+            var urlString = nsText.substring(with: urlRange)
+            let trailingPunctuation = CharacterSet(charactersIn: ".,;:!?)>")
+            while let last = urlString.unicodeScalars.last, trailingPunctuation.contains(last) {
+                urlString = String(urlString.dropLast())
+                urlRange.length -= 1
+            }
+            guard urlRange.length > 0, let url = URL(string: urlString) else { continue }
+
+            let absoluteRange = NSRange(location: urlRange.location + offset, length: urlRange.length)
+
+            // Skip if already covered by a Markdown link (`.link` attribute already set)
+            if storage.attribute(.link, at: absoluteRange.location, effectiveRange: nil) != nil { continue }
+
+            let cursorInURL = cursorLocation.map { NSLocationInRange($0, absoluteRange) } ?? false
+
+            if cursorInURL {
+                // Raw mode: show URL with link color but no .link attribute (keyboard shortcut still works)
+                storage.addAttributes([.foregroundColor: noteColor.linkColor], range: absoluteRange)
+            } else {
+                // Rendered mode: make it a clickable link
+                storage.addAttributes([
+                    .link: url,
+                    .foregroundColor: noteColor.linkColor
+                ], range: absoluteRange)
             }
         }
     }
