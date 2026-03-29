@@ -24,7 +24,10 @@ let package = Package(
             exclude: [
                 "Info.plist",
                 "Chirami.entitlements",
-                "Resources"
+                "Resources/Assets.xcassets"
+            ],
+            resources: [
+                .copy("Resources/themes.yaml")
             ]
         ),
         .testTarget(
