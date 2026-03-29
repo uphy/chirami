@@ -3,6 +3,34 @@ import CryptoKit
 
 // MARK: - Config (~/.config/chirami/config.yaml)
 
+// MARK: - NoteAppearanceResolvable
+
+protocol NoteAppearanceResolvable {
+    var color: String? { get }
+    var transparency: Double? { get }
+    var fontSize: Int? { get }
+    var position: String? { get }
+}
+
+extension NoteAppearanceResolvable {
+    func resolveColor() -> NoteColor {
+        if let c = color, let color = NoteColor(rawValue: c) { return color }
+        return .yellow
+    }
+
+    func resolveTransparency() -> Double {
+        transparency ?? 0.9
+    }
+
+    func resolveFontSize() -> CGFloat {
+        CGFloat(fontSize ?? 14)
+    }
+
+    func resolvePosition() -> NotePosition {
+        position == "cursor" ? .cursor : .fixed
+    }
+}
+
 struct AttachmentConfig: Codable {
     var dir: String?
 }
@@ -11,10 +39,16 @@ enum AppearanceMode: String, Codable {
     case auto
     case light
     case dark
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let raw = try container.decode(String.self)
+        self = AppearanceMode(rawValue: raw) ?? .auto
+    }
 }
 
 struct ChiramiConfig: Codable {
-    var appearance: String?
+    var appearance: AppearanceMode?
     var font: String?
     var hotkey: String?
     var notes: [NoteConfig] = []
@@ -29,13 +63,6 @@ struct ChiramiConfig: Codable {
         case smartPaste = "smart_paste"
         case dragModifier = "drag_modifier"
         case warpModifier = "warp_modifier"
-    }
-
-    var resolvedAppearanceMode: AppearanceMode {
-        guard let appearance, let mode = AppearanceMode(rawValue: appearance) else {
-            return .auto
-        }
-        return mode
     }
 }
 
@@ -119,7 +146,7 @@ enum KarabinerValue: Codable, Equatable {
     }
 }
 
-struct NoteConfig: Codable {
+struct NoteConfig: Codable, NoteAppearanceResolvable {
     var path: String
     var title: String?
     var color: String?
@@ -152,23 +179,6 @@ struct NoteConfig: Codable {
         case path, title, color, transparency, hotkey, position, template, attachment
         case fontSize = "font_size"
         case rolloverDelay = "rollover_delay"
-    }
-
-    func resolveColor() -> NoteColor {
-        if let c = color, let color = NoteColor(rawValue: c) { return color }
-        return .yellow
-    }
-
-    func resolveTransparency() -> Double {
-        transparency ?? 0.9
-    }
-
-    func resolveFontSize() -> CGFloat {
-        CGFloat(fontSize ?? 14)
-    }
-
-    func resolvePosition() -> NotePosition {
-        position == "cursor" ? .cursor : .fixed
     }
 
     func resolveAttachmentsDir(noteURL: URL, isPeriodicNote: Bool, pathTemplate: String?) -> URL {
@@ -211,7 +221,7 @@ struct AdhocConfig: Codable {
     var profiles: [String: AdhocProfile]?
 }
 
-struct AdhocProfile: Codable {
+struct AdhocProfile: Codable, NoteAppearanceResolvable {
     var title: String?
     var color: String?
     var transparency: Double?
@@ -224,22 +234,6 @@ struct AdhocProfile: Codable {
         case fontSize = "font_size"
     }
 
-    func resolveColor() -> NoteColor {
-        if let c = color, let color = NoteColor(rawValue: c) { return color }
-        return .yellow
-    }
-
-    func resolveTransparency() -> Double {
-        transparency ?? 0.9
-    }
-
-    func resolveFontSize() -> CGFloat {
-        CGFloat(fontSize ?? 14)
-    }
-
-    func resolvePosition() -> NotePosition {
-        position == "cursor" ? .cursor : .fixed
-    }
 }
 
 // MARK: - Folding State

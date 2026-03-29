@@ -23,7 +23,7 @@ extension MarkdownStyler {
 
         // Mark entire range for custom background drawing by BulletLayoutManager
         storage.addAttributes([
-            .codeBlockBackground: NSColor.codeBackground
+            .codeBlockBackground: NoteColor.codeBackgroundColor
         ], range: range)
 
         let nsText = text as NSString
@@ -77,7 +77,7 @@ extension MarkdownStyler {
                 let lineRange = NSRange(location: lineStart, length: lineLen)
                 storage.addAttributes([.font: monoFont], range: lineRange)
                 if highlightColors == nil {
-                    storage.addAttributes([.foregroundColor: NSColor.codeGreen], range: lineRange)
+                    storage.addAttributes([.foregroundColor: noteColor.codeColor], range: lineRange)
                 }
             }
         }

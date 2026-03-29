@@ -480,7 +480,7 @@ class BulletLayoutManager: NSLayoutManager {
             width: textSize.width + hPadding * 2,
             height: textSize.height + 2
         )
-        NSColor.codeBackground.setFill()
+        NoteColor.codeBackgroundColor.setFill()
         NSBezierPath(roundedRect: bgRect, xRadius: 3, yRadius: 3).fill()
 
         // Draw ellipsis text

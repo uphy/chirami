@@ -37,7 +37,7 @@ extension MarkdownStyler {
                      hideMarkers: true, markerLength: 2)
 
         applyPattern(Self.inlineCodePattern, to: storage, in: text, offset: offset,
-                     attributes: InlineMarkupRenderer.inlineCodeAttributes(fontSize: size, fontName: fontName),
+                     attributes: InlineMarkupRenderer.inlineCodeAttributes(fontSize: size, fontName: fontName, noteColor: noteColor),
                      hideMarkers: true, markerLength: 1)
 
         applyLinkPattern(to: storage, in: text, offset: offset, cursorLocation: cursorLocation)
@@ -57,7 +57,7 @@ extension MarkdownStyler {
                         contentAttributes: [.strikethroughStyle: NSUnderlineStyle.single.rawValue, .foregroundColor: noteColor.textColor])
 
         applyRawPattern(Self.inlineCodePattern, to: storage, in: text, offset: offset,
-                        contentAttributes: InlineMarkupRenderer.inlineCodeAttributes(fontSize: baseFontSize, fontName: fontName))
+                        contentAttributes: InlineMarkupRenderer.inlineCodeAttributes(fontSize: baseFontSize, fontName: fontName, noteColor: noteColor))
 
         applyLinkPattern(to: storage, in: text, offset: offset, cursorLocation: cursorLocation)
         applyRawImagePattern(to: storage, in: text, offset: offset)

@@ -210,7 +210,7 @@ class MarkdownStyler {
                 } else {
                     storage.addAttributes([
                         .font: monoFont(size: (baseFontSize * 0.86).rounded()),
-                        .foregroundColor: NSColor.codeGreen
+                        .foregroundColor: noteColor.codeColor
                     ], range: lineRange)
                 }
             }

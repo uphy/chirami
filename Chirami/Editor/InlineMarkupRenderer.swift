@@ -7,7 +7,7 @@ enum InlineMarkupRenderer {
 
     // MARK: - Centralized inline code styling
 
-    static func inlineCodeAttributes(fontSize: CGFloat, fontName: String? = nil) -> [NSAttributedString.Key: Any] {
+    static func inlineCodeAttributes(fontSize: CGFloat, fontName: String? = nil, noteColor: NoteColor) -> [NSAttributedString.Key: Any] {
         let font: NSFont
         if let fontName, let customFont = NSFont(name: fontName, size: fontSize - 1) {
             font = customFont
@@ -16,8 +16,8 @@ enum InlineMarkupRenderer {
         }
         return [
             .font: font,
-            .foregroundColor: NSColor.codeGreen,
-            .inlineCodeBackground: NSColor.codeBackground
+            .foregroundColor: noteColor.codeColor,
+            .inlineCodeBackground: NoteColor.codeBackgroundColor
         ]
     }
 
@@ -58,7 +58,7 @@ enum InlineMarkupRenderer {
         }
 
         if let code = node as? InlineCode {
-            return NSAttributedString(string: code.code, attributes: inlineCodeAttributes(fontSize: font.pointSize))
+            return NSAttributedString(string: code.code, attributes: inlineCodeAttributes(fontSize: font.pointSize, noteColor: noteColor))
         }
 
         if let link = node as? Link {
