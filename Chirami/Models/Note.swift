@@ -65,8 +65,35 @@ struct NoteColorDef {
     let code: ColorSet
 }
 
-enum NoteColor: String, CaseIterable, Codable {
-    case yellow, blue, green, pink, purple, gray
+struct NoteColor: Codable, Equatable, Hashable {
+    let name: String
+
+    init(_ name: String) {
+        self.name = name
+    }
+
+    init?(rawValue: String) {
+        self.name = rawValue
+    }
+
+    var rawValue: String { name }
+
+    static let yellow = NoteColor("yellow")
+    static let blue   = NoteColor("blue")
+    static let green  = NoteColor("green")
+    static let pink   = NoteColor("pink")
+    static let purple = NoteColor("purple")
+    static let gray   = NoteColor("gray")
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        self.name = try container.decode(String.self)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(name)
+    }
 
     private var def: NoteColorDef {
         ThemeRegistry.shared.definition(for: self)

@@ -32,6 +32,10 @@ class NoteStore: ObservableObject {
 
         let config = appConfig.config
 
+        if let userThemes = config.themes {
+            ThemeRegistry.shared.loadUserThemes(userThemes)
+        }
+
         notes = config.notes.compactMap { noteConfig in
             if noteConfig.isPeriodicNote {
                 let rolloverDelay = DurationParser.parse(noteConfig.rolloverDelay)

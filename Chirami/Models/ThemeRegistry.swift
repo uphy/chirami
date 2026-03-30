@@ -24,7 +24,13 @@ private struct ThemeAppearanceColors: Decodable {
 final class ThemeRegistry {
     static let shared = ThemeRegistry()
 
-    private let definitions: [String: NoteColorDef]
+    private var definitions: [String: NoteColorDef]
+    private var builtInDefinitions: [String: NoteColorDef] = [:]
+
+    private static let builtInNames = [
+        NoteColor.yellow, NoteColor.blue, NoteColor.green,
+        NoteColor.pink, NoteColor.purple, NoteColor.gray
+    ].map { $0.name }
 
     private init() {
         guard
@@ -44,17 +50,29 @@ final class ThemeRegistry {
                 code: makeColorSet(entry.dark.code, entry.light.code)
             )
         }
-        self.definitions = defs
-
-        for color in NoteColor.allCases {
-            guard definitions[color.rawValue] != nil else {
-                fatalError("Missing theme definition for '\(color.rawValue)' in themes.yaml")
+        for name in Self.builtInNames {
+            guard defs[name] != nil else {
+                fatalError("Missing theme definition for '\(name)' in themes.yaml")
             }
         }
+        self.builtInDefinitions = defs
+        self.definitions = defs
     }
 
     func definition(for color: NoteColor) -> NoteColorDef {
-        definitions[color.rawValue]!
+        definitions[color.name] ?? definitions["yellow"]!
+    }
+
+    func loadUserThemes(_ themes: [String: ThemeConfig]) {
+        definitions = builtInDefinitions
+        for (name, config) in themes {
+            definitions[name] = NoteColorDef(
+                background: makeColorSet(config.dark.background.map { CGFloat($0) }, config.light.background.map { CGFloat($0) }),
+                text: makeColorSet(config.dark.text.map { CGFloat($0) }, config.light.text.map { CGFloat($0) }),
+                link: makeColorSet(config.dark.link.map { CGFloat($0) }, config.light.link.map { CGFloat($0) }),
+                code: makeColorSet(config.dark.code.map { CGFloat($0) }, config.light.code.map { CGFloat($0) })
+            )
+        }
     }
 }
 

@@ -52,12 +52,25 @@ enum AppearanceMode: String, Codable {
     }
 }
 
+struct ThemeVariantConfig: Codable {
+    let background: [Double]
+    let text: [Double]
+    let link: [Double]
+    let code: [Double]
+}
+
+struct ThemeConfig: Codable {
+    let dark: ThemeVariantConfig
+    let light: ThemeVariantConfig
+}
+
 struct ChiramiConfig: Codable {
     var appearance: AppearanceMode?
     var font: String?
     var hotkey: String?
     var launchAtLogin: Bool?
     var showMenuBarIcon: Bool?
+    var themes: [String: ThemeConfig]?
     var notes: [NoteConfig] = []
     var adhoc: AdhocConfig?
     var karabiner: KarabinerConfig?
@@ -66,7 +79,7 @@ struct ChiramiConfig: Codable {
     var warpModifier: String?
 
     enum CodingKeys: String, CodingKey {
-        case appearance, font, hotkey, notes, adhoc, karabiner
+        case appearance, font, hotkey, themes, notes, adhoc, karabiner
         case launchAtLogin = "launch_at_login"
         case showMenuBarIcon = "show_menu_bar_icon"
         case smartPaste = "smart_paste"
