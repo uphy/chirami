@@ -51,7 +51,7 @@ Chirami works with plain `.md` files — no metadata, no front matter. Point a n
 notes:
   - path: ~/Obsidian/Vault/Daily/todo.md
     title: TODO
-    color: blue
+    color_scheme: blue
 ```
 
 - Chirami watches the file for external changes, so edits made in Obsidian appear instantly.

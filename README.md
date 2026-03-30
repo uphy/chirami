@@ -56,12 +56,12 @@ Config file: **`~/.config/chirami/config.yaml`**
 notes:
   - path: ~/Notes/todo.md
     title: TODO
-    color: blue
+    color_scheme: blue
     hotkey: cmd+shift+t
 
   - path: ~/Notes/daily/{yyyy-MM-dd}.md
     title: Daily
-    color: green
+    color_scheme: green
     hotkey: cmd+shift+d
     rollover_delay: 2h
 
