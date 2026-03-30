@@ -6,9 +6,13 @@ import os
 @main
 struct ChiramiApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+    @ObservedObject private var appConfig = AppConfig.shared
 
     var body: some Scene {
-        MenuBarExtra {
+        MenuBarExtra(isInserted: Binding(
+            get: { appConfig.config.showMenuBarIcon ?? true },
+            set: { _ in }
+        )) {
             NoteListView()
         } label: {
             Image(nsImage: {

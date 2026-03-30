@@ -57,6 +57,7 @@ struct ChiramiConfig: Codable {
     var font: String?
     var hotkey: String?
     var launchAtLogin: Bool?
+    var showMenuBarIcon: Bool?
     var notes: [NoteConfig] = []
     var adhoc: AdhocConfig?
     var karabiner: KarabinerConfig?
@@ -67,6 +68,7 @@ struct ChiramiConfig: Codable {
     enum CodingKeys: String, CodingKey {
         case appearance, font, hotkey, notes, adhoc, karabiner
         case launchAtLogin = "launch_at_login"
+        case showMenuBarIcon = "show_menu_bar_icon"
         case smartPaste = "smart_paste"
         case dragModifier = "drag_modifier"
         case warpModifier = "warp_modifier"

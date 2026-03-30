@@ -72,6 +72,8 @@ See [Keyboard Shortcuts](shortcuts.md) for the full reference.
 
 Chirami lives in the macOS menu bar. Click the icon to open the popover:
 
+> Set `show_menu_bar_icon: false` in config.yaml to hide the menu bar icon. In that case, use the global hotkey to toggle notes.
+
 - **Note list** — Each note is shown with its color indicator and title. Click to toggle visibility. A checkmark indicates the note is currently visible.
 - **Show All / Hide All** — Toggle all notes at once.
 - **Edit Config** — Open `~/.config/chirami/config.yaml` in your default editor.
