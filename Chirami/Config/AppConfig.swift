@@ -51,17 +51,17 @@ class AppConfig: YAMLStore<ChiramiConfig> {
     notes:
       - path: ~/.config/chirami/sample-notes/welcome.md
         title: Welcome
-        color: yellow
+        color_scheme: yellow
 
       - path: ~/.config/chirami/sample-notes/quick-memo.md
         title: Quick Memo
-        color: blue
+        color_scheme: blue
         position: cursor
         hotkey: cmd+shift+m
 
       - path: ~/.config/chirami/sample-notes/daily/{yyyy-MM-dd}.md
         title: Daily Note
-        color: green
+        color_scheme: green
         template: ~/.config/chirami/sample-notes/daily/template.md
     """
 

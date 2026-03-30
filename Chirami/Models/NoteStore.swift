@@ -32,8 +32,8 @@ class NoteStore: ObservableObject {
 
         let config = appConfig.config
 
-        if let userThemes = config.themes {
-            ThemeRegistry.shared.loadUserThemes(userThemes)
+        if let userColorSchemes = config.colorSchemes {
+            ColorSchemeRegistry.shared.loadUserColorSchemes(userColorSchemes)
         }
 
         notes = config.notes.compactMap { noteConfig in
@@ -51,7 +51,7 @@ class NoteStore: ObservableObject {
             let title = noteConfig.title
                 ?? URL(fileURLWithPath: noteConfig.resolvedPath)
                     .deletingPathExtension().lastPathComponent
-            let color = noteConfig.resolveColor()
+            let color = noteConfig.resolveNoteColorScheme()
             let transparency = noteConfig.resolveTransparency()
             let fontSize = noteConfig.resolveFontSize()
 
@@ -65,7 +65,7 @@ class NoteStore: ObservableObject {
             )
 
             return Note(
-                id: id, path: url, title: title, color: color,
+                id: id, path: url, title: title, colorScheme: color,
                 transparency: transparency, fontSize: fontSize,
                 alwaysOnTop: alwaysOnTop, hotkey: noteConfig.hotkey,
                 position: notePosition,
@@ -116,7 +116,7 @@ class NoteStore: ObservableObject {
             title = fileName
         }
 
-        let color = config.resolveColor()
+        let color = config.resolveNoteColorScheme()
         let transparency = config.resolveTransparency()
         let fontSize = config.resolveFontSize()
         let alwaysOnTop = config.resolveAlwaysOnTop()
@@ -138,7 +138,7 @@ class NoteStore: ObservableObject {
         )
 
         return Note(
-            id: id, path: url, title: title, color: color,
+            id: id, path: url, title: title, colorScheme: color,
             transparency: transparency, fontSize: fontSize,
             alwaysOnTop: alwaysOnTop, hotkey: config.hotkey,
             position: notePosition,
@@ -183,10 +183,10 @@ class NoteStore: ObservableObject {
         appState.windowState(for: note.id)?.visible ?? true
     }
 
-    func updateColor(_ color: NoteColor, for note: Note) {
+    func updateNoteColorScheme(_ colorScheme: NoteColorScheme, for note: Note) {
         appConfig.update { config in
             if let idx = config.notes.firstIndex(where: { $0.noteId == note.id }) {
-                config.notes[idx].color = color.rawValue
+                config.notes[idx].colorScheme = colorScheme.rawValue
             }
         }
         loadFromConfig()

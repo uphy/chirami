@@ -187,7 +187,7 @@ class DisplayWindowManager {
 
         // Resolve profile settings
         let profile = profileName.flatMap { AppConfig.shared.config.adhoc?.profiles?[$0] }
-        let color = profile?.resolveColor() ?? .yellow
+        let color = profile?.resolveNoteColorScheme() ?? .yellow
         let transparency = profile?.resolveTransparency() ?? 0.9
         let fontSize = profile?.resolveFontSize() ?? 14
         let position = profile?.resolvePosition() ?? .fixed
@@ -228,7 +228,7 @@ class DisplayWindowManager {
         panel.centerTitle()
         panel.setupCloseButtonHover()
         let contentModel = DisplayContentModel(content: displayContent, fileURL: fileURL)
-        let contentView = DisplayContentView(model: contentModel, isReadOnly: readOnly, noteColor: color, fontSize: fontSize, fontName: AppConfig.shared.config.font)
+        let contentView = DisplayContentView(model: contentModel, isReadOnly: readOnly, colorScheme: color, fontSize: fontSize, fontName: AppConfig.shared.config.font)
         panel.contentView = NSHostingView(rootView: contentView)
 
         let controller = DisplayWindowController(

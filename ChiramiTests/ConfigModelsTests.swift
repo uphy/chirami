@@ -120,22 +120,22 @@ struct NoteConfigResolveTests {
         #expect(config.resolvePosition() == .fixed)
     }
 
-    @Test("color: returns note-level value")
-    func resolveColorFromNote() {
-        let config = NoteConfig(path: "~/a.md", color: "blue")
-        #expect(config.resolveColor() == .blue)
+    @Test("color_scheme: returns note-level value")
+    func resolveColorSchemeFromNote() {
+        let config = NoteConfig(path: "~/a.md", colorScheme: "blue")
+        #expect(config.resolveNoteColorScheme() == .blue)
     }
 
-    @Test("color: defaults to yellow when unset")
-    func resolveColorDefaultsToYellow() {
+    @Test("color_scheme: defaults to yellow when unset")
+    func resolveColorSchemeDefaultsToYellow() {
         let config = NoteConfig(path: "~/a.md")
-        #expect(config.resolveColor() == .yellow)
+        #expect(config.resolveNoteColorScheme() == .yellow)
     }
 
-    @Test("color: falls back to yellow for invalid value")
-    func resolveColorInvalidFallsBack() {
-        let config = NoteConfig(path: "~/a.md", color: "invalid_color")
-        #expect(config.resolveColor() == .yellow)
+    @Test("color_scheme: falls back to yellow for invalid value")
+    func resolveColorSchemeInvalidFallsBack() {
+        let config = NoteConfig(path: "~/a.md", colorScheme: "invalid_color")
+        #expect(config.resolveNoteColorScheme() == .yellow)
     }
 
     @Test("transparency: returns note-level value")

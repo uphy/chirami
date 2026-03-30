@@ -7,7 +7,7 @@ enum InlineMarkupRenderer {
 
     // MARK: - Centralized inline code styling
 
-    static func inlineCodeAttributes(fontSize: CGFloat, fontName: String? = nil, noteColor: NoteColor) -> [NSAttributedString.Key: Any] {
+    static func inlineCodeAttributes(fontSize: CGFloat, fontName: String? = nil, colorScheme: NoteColorScheme) -> [NSAttributedString.Key: Any] {
         let font: NSFont
         if let fontName, let customFont = NSFont(name: fontName, size: fontSize - 1) {
             font = customFont
@@ -16,26 +16,26 @@ enum InlineMarkupRenderer {
         }
         return [
             .font: font,
-            .foregroundColor: noteColor.codeColor,
-            .inlineCodeBackground: NoteColor.codeBackgroundColor
+            .foregroundColor: colorScheme.codeColor,
+            .inlineCodeBackground: NoteColorScheme.codeBackgroundColor
         ]
     }
 
     // MARK: - AST → NSAttributedString
 
     /// Recursively builds an NSAttributedString from an inline AST node.
-    static func attributedText(of node: any Markup, font: NSFont, noteColor: NoteColor) -> NSAttributedString {
+    static func attributedText(of node: any Markup, font: NSFont, colorScheme: NoteColorScheme) -> NSAttributedString {
         if let textNode = node as? Text {
             return NSAttributedString(string: textNode.string, attributes: [
                 .font: font,
-                .foregroundColor: noteColor.textColor
+                .foregroundColor: colorScheme.textColor
             ])
         }
 
         if node is SoftBreak || node is LineBreak {
             return NSAttributedString(string: " ", attributes: [
                 .font: font,
-                .foregroundColor: noteColor.textColor
+                .foregroundColor: colorScheme.textColor
             ])
         }
 
@@ -43,7 +43,7 @@ enum InlineMarkupRenderer {
             let boldFont = NSFont.systemFont(ofSize: font.pointSize, weight: .bold)
             let result = NSMutableAttributedString()
             for child in node.children {
-                result.append(attributedText(of: child, font: boldFont, noteColor: noteColor))
+                result.append(attributedText(of: child, font: boldFont, colorScheme: colorScheme))
             }
             return result
         }
@@ -52,21 +52,21 @@ enum InlineMarkupRenderer {
             let italicFont = NSFontManager.shared.convert(font, toHaveTrait: .italicFontMask)
             let result = NSMutableAttributedString()
             for child in node.children {
-                result.append(attributedText(of: child, font: italicFont, noteColor: noteColor))
+                result.append(attributedText(of: child, font: italicFont, colorScheme: colorScheme))
             }
             return result
         }
 
         if let code = node as? InlineCode {
-            return NSAttributedString(string: code.code, attributes: inlineCodeAttributes(fontSize: font.pointSize, noteColor: noteColor))
+            return NSAttributedString(string: code.code, attributes: inlineCodeAttributes(fontSize: font.pointSize, colorScheme: colorScheme))
         }
 
         if let link = node as? Link {
             let result = NSMutableAttributedString()
             for child in link.children {
-                result.append(attributedText(of: child, font: font, noteColor: noteColor))
+                result.append(attributedText(of: child, font: font, colorScheme: colorScheme))
             }
-            var attrs: [NSAttributedString.Key: Any] = [.foregroundColor: noteColor.linkColor]
+            var attrs: [NSAttributedString.Key: Any] = [.foregroundColor: colorScheme.linkColor]
             if let dest = link.destination, let url = URL(string: dest) {
                 attrs[.link] = url
             }
@@ -77,7 +77,7 @@ enum InlineMarkupRenderer {
         if node is Strikethrough {
             let result = NSMutableAttributedString()
             for child in node.children {
-                result.append(attributedText(of: child, font: font, noteColor: noteColor))
+                result.append(attributedText(of: child, font: font, colorScheme: colorScheme))
             }
             result.addAttribute(
                 .strikethroughStyle, value: NSUnderlineStyle.single.rawValue,
@@ -88,7 +88,7 @@ enum InlineMarkupRenderer {
         // Default: recurse over children (handles Table.Cell and unknown containers)
         let result = NSMutableAttributedString()
         for child in node.children {
-            result.append(attributedText(of: child, font: font, noteColor: noteColor))
+            result.append(attributedText(of: child, font: font, colorScheme: colorScheme))
         }
         return result
     }

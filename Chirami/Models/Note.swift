@@ -21,7 +21,7 @@ struct Note: Identifiable, Equatable {
     let id: String
     var path: URL
     var title: String
-    var color: NoteColor
+    var colorScheme: NoteColorScheme
     var transparency: Double = 0.9
     var fontSize: CGFloat = 14
     var alwaysOnTop: Bool = true
@@ -31,7 +31,7 @@ struct Note: Identifiable, Equatable {
     var attachmentsDir: URL?
 
     static func == (lhs: Note, rhs: Note) -> Bool {
-        lhs.id == rhs.id && lhs.color == rhs.color && lhs.transparency == rhs.transparency
+        lhs.id == rhs.id && lhs.colorScheme == rhs.colorScheme && lhs.transparency == rhs.transparency
             && lhs.title == rhs.title && lhs.path == rhs.path && lhs.alwaysOnTop == rhs.alwaysOnTop
             && lhs.hotkey == rhs.hotkey && lhs.fontSize == rhs.fontSize
             && lhs.position == rhs.position
@@ -40,7 +40,7 @@ struct Note: Identifiable, Equatable {
     }
 }
 
-// MARK: - NoteColor
+// MARK: - NoteColorScheme
 
 struct ColorSet {
     let dark: (r: CGFloat, g: CGFloat, b: CGFloat)
@@ -58,14 +58,14 @@ struct ColorSet {
     }
 }
 
-struct NoteColorDef {
+struct NoteColorSchemeDef {
     let background: ColorSet
     let text: ColorSet
     let link: ColorSet
     let code: ColorSet
 }
 
-struct NoteColor: Codable, Equatable, Hashable {
+struct NoteColorScheme: Codable, Equatable, Hashable {
     let name: String
 
     init(_ name: String) {
@@ -78,12 +78,12 @@ struct NoteColor: Codable, Equatable, Hashable {
 
     var rawValue: String { name }
 
-    static let yellow = NoteColor("yellow")
-    static let blue   = NoteColor("blue")
-    static let green  = NoteColor("green")
-    static let pink   = NoteColor("pink")
-    static let purple = NoteColor("purple")
-    static let gray   = NoteColor("gray")
+    static let yellow = NoteColorScheme("yellow")
+    static let blue   = NoteColorScheme("blue")
+    static let green  = NoteColorScheme("green")
+    static let pink   = NoteColorScheme("pink")
+    static let purple = NoteColorScheme("purple")
+    static let gray   = NoteColorScheme("gray")
 
     init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
@@ -95,8 +95,8 @@ struct NoteColor: Codable, Equatable, Hashable {
         try container.encode(name)
     }
 
-    private var def: NoteColorDef {
-        ThemeRegistry.shared.definition(for: self)
+    private var def: NoteColorSchemeDef {
+        ColorSchemeRegistry.shared.definition(for: self)
     }
 
     var nsColor: NSColor { def.background.nsColor }

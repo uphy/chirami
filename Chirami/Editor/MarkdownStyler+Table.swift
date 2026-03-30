@@ -40,7 +40,7 @@ extension MarkdownStyler {
             }
         }
 
-        let overlayData = TableOverlayData.from(table: table, baseFontSize: baseFontSize, noteColor: noteColor,
+        let overlayData = TableOverlayData.from(table: table, baseFontSize: baseFontSize, colorScheme: colorScheme,
                                                 fontName: fontName, rowCharRanges: rowCharRanges)
         storage.addAttribute(.tableOverlay, value: overlayData, range: range)
     }

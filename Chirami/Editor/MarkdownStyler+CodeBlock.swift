@@ -11,8 +11,7 @@ extension MarkdownStyler {
     }()
 
     var highlightThemeName: String {
-        NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-            ? "github-dark" : "github"
+        NSApp.effectiveAppearance.isDark ? "github-dark" : "github"
     }
 
     static let codeBlockVerticalPadding: CGFloat = 6
@@ -23,7 +22,7 @@ extension MarkdownStyler {
 
         // Mark entire range for custom background drawing by BulletLayoutManager
         storage.addAttributes([
-            .codeBlockBackground: NoteColor.codeBackgroundColor
+            .codeBlockBackground: NoteColorScheme.codeBackgroundColor
         ], range: range)
 
         let nsText = text as NSString
@@ -77,7 +76,7 @@ extension MarkdownStyler {
                 let lineRange = NSRange(location: lineStart, length: lineLen)
                 storage.addAttributes([.font: monoFont], range: lineRange)
                 if highlightColors == nil {
-                    storage.addAttributes([.foregroundColor: noteColor.codeColor], range: lineRange)
+                    storage.addAttributes([.foregroundColor: colorScheme.codeColor], range: lineRange)
                 }
             }
         }

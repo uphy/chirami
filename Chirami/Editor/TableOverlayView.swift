@@ -30,7 +30,7 @@ class TableOverlayData: NSObject {
         self.rowCharRanges = rowCharRanges
     }
 
-    static func from(table: Table, baseFontSize: CGFloat, noteColor: NoteColor, fontName: String? = nil,
+    static func from(table: Table, baseFontSize: CGFloat, colorScheme: NoteColorScheme, fontName: String? = nil,
                      rowCharRanges: [NSRange]? = nil) -> TableOverlayData {
         let alignments = table.columnAlignments.map { alignment -> NSTextAlignment in
             switch alignment {
@@ -58,7 +58,7 @@ class TableOverlayData: NSObject {
 
         var headerCells: [CellData] = []
         for (i, cell) in table.head.cells.enumerated() {
-            let attrText = attributedText(of: cell, font: headerFont, noteColor: noteColor)
+            let attrText = attributedText(of: cell, font: headerFont, colorScheme: colorScheme)
             headerCells.append(CellData(attributedText: attrText, alignment: cellAlignment(at: i)))
         }
 
@@ -66,7 +66,7 @@ class TableOverlayData: NSObject {
         for row in table.body.rows {
             var rowCells: [CellData] = []
             for (i, cell) in row.cells.enumerated() {
-                let attrText = attributedText(of: cell, font: bodyFont, noteColor: noteColor)
+                let attrText = attributedText(of: cell, font: bodyFont, colorScheme: colorScheme)
                 rowCells.append(CellData(attributedText: attrText, alignment: cellAlignment(at: i)))
             }
             bodyRows.append(rowCells)
@@ -79,10 +79,10 @@ class TableOverlayData: NSObject {
 
     // MARK: - AST -> NSAttributedString
 
-    private static func attributedText(of cell: Table.Cell, font: NSFont, noteColor: NoteColor) -> NSAttributedString {
+    private static func attributedText(of cell: Table.Cell, font: NSFont, colorScheme: NoteColorScheme) -> NSAttributedString {
         let result = NSMutableAttributedString()
         for child in cell.children {
-            result.append(InlineMarkupRenderer.attributedText(of: child, font: font, noteColor: noteColor))
+            result.append(InlineMarkupRenderer.attributedText(of: child, font: font, colorScheme: colorScheme))
         }
         return result
     }
@@ -170,7 +170,7 @@ class TableOverlayManager {
         }
     }
 
-    func update(textView: NSTextView, noteColor: NoteColor, fontSize: CGFloat) {
+    func update(textView: NSTextView, colorScheme: NoteColorScheme, fontSize: CGFloat) {
         guard let storage = textView.textStorage,
               let layoutManager = textView.layoutManager,
               let textContainer = textView.textContainer else { return }
@@ -270,14 +270,14 @@ class TableOverlayManager {
                 overlaysByDataID.removeValue(forKey: ObjectIdentifier(existing.data))
                 existing.frame = overlayFrame
                 existing.data = data
-                existing.noteColor = noteColor
+                existing.colorScheme = colorScheme
                 existing.baseFontSize = fontSize
                 existing.rowRects = localRowRects
                 existing.naturalColumnWidths = naturalWidths
                 existing.needsDisplay = true
                 overlaysByDataID[ObjectIdentifier(data)] = existing
             } else {
-                let overlay = TableOverlayView(data: data, noteColor: noteColor, baseFontSize: fontSize)
+                let overlay = TableOverlayView(data: data, colorScheme: colorScheme, baseFontSize: fontSize)
                 overlay.frame = overlayFrame
                 overlay.rowRects = localRowRects
                 overlay.naturalColumnWidths = naturalWidths
@@ -295,7 +295,7 @@ class TableOverlayManager {
 /// Clicks pass through to the underlying NSTextView so the cursor enters raw mode.
 class TableOverlayView: NSView {
     var data: TableOverlayData
-    var noteColor: NoteColor
+    var colorScheme: NoteColorScheme
     var baseFontSize: CGFloat
     /// Per-row rects in local coordinates (y=0 at top), separator rows excluded.
     var rowRects: [NSRect] = []
@@ -303,9 +303,9 @@ class TableOverlayView: NSView {
     /// to avoid recomputing on every draw cycle.
     var naturalColumnWidths: [CGFloat] = []
 
-    init(data: TableOverlayData, noteColor: NoteColor, baseFontSize: CGFloat) {
+    init(data: TableOverlayData, colorScheme: NoteColorScheme, baseFontSize: CGFloat) {
         self.data = data
-        self.noteColor = noteColor
+        self.colorScheme = colorScheme
         self.baseFontSize = baseFontSize
         super.init(frame: .zero)
         wantsLayer = true

@@ -4,15 +4,15 @@ import SwiftUI
 struct DisplayContentView: View {
     @ObservedObject var model: DisplayContentModel
     let isReadOnly: Bool
-    let noteColor: NoteColor
+    let colorScheme: NoteColorScheme
     let fontSize: CGFloat
     let fontName: String?
 
     var body: some View {
         LivePreviewEditor(
             text: $model.text,
-            backgroundColor: noteColor.nsColor,
-            noteColor: noteColor,
+            backgroundColor: colorScheme.nsColor,
+            colorScheme: colorScheme,
             fontSize: fontSize,
             fontName: fontName,
             noteURL: model.fileURL,

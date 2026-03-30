@@ -44,7 +44,7 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panel.level = note.alwaysOnTop ? .floating : .normal
         panel.alphaValue = note.transparency
-        panel.backgroundColor = note.color.nsColor
+        panel.backgroundColor = note.colorScheme.nsColor
         panel.isRestorable = false
 
         panel.standardWindowButton(.miniaturizeButton)?.isHidden = true
@@ -243,7 +243,7 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
 
     private func applyNoteUpdate(_ updated: Note) {
         guard let panel = window as? NotePanel else { return }
-        panel.backgroundColor = updated.color.nsColor
+        panel.backgroundColor = updated.colorScheme.nsColor
         // Skip alpha update during fade-out to avoid interrupting animation
         if !isFadingOut {
             panel.alphaValue = updated.transparency
@@ -571,8 +571,8 @@ struct NoteContentView: View {
     var body: some View {
         LivePreviewEditor(
             text: $model.text,
-            backgroundColor: note?.color.nsColor ?? NoteColor.yellow.nsColor,
-            noteColor: note?.color ?? .yellow,
+            backgroundColor: note?.colorScheme.nsColor ?? NoteColorScheme.yellow.nsColor,
+            colorScheme: note?.colorScheme ?? .yellow,
             fontSize: model.fontSize,
             fontName: AppConfig.shared.config.font,
             noteURL: note?.path,
@@ -586,6 +586,6 @@ struct NoteContentView: View {
         .onChange(of: model.text) { _, _ in
             model.save()
         }
-        .background((note?.color.nsColor ?? NoteColor.yellow.nsColor).swiftUI)
+        .background((note?.colorScheme.nsColor ?? NoteColorScheme.yellow.nsColor).swiftUI)
     }
 }

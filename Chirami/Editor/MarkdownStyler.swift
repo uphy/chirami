@@ -15,7 +15,7 @@ import Markdown
 /// - `MarkdownStyler+Table.swift` — GFM table styling
 class MarkdownStyler {
 
-    let noteColor: NoteColor
+    let colorScheme: NoteColorScheme
     let baseFontSize: CGFloat
     let fontName: String?
 
@@ -36,8 +36,8 @@ class MarkdownStyler {
     /// Pre-computed line-start indices for the current style pass. Populated by style(_:cursorLocation:).
     var lineStartCache: [String.Index] = []
 
-    init(noteColor: NoteColor = .yellow, baseFontSize: CGFloat = 14, fontName: String? = nil) {
-        self.noteColor = noteColor
+    init(colorScheme: NoteColorScheme = .yellow, baseFontSize: CGFloat = 14, fontName: String? = nil) {
+        self.colorScheme = colorScheme
         self.baseFontSize = baseFontSize
         self.fontName = fontName
     }
@@ -195,7 +195,7 @@ class MarkdownStyler {
                 let contentRange = NSRange(location: range.location + prefixLen, length: range.length - prefixLen)
                 storage.addAttributes([
                     .font: boldFont(size: headingFontSize(for: heading.level)),
-                    .foregroundColor: noteColor.textColor
+                    .foregroundColor: colorScheme.textColor
                 ], range: contentRange)
             }
 
@@ -210,7 +210,7 @@ class MarkdownStyler {
                 } else {
                     storage.addAttributes([
                         .font: monoFont(size: (baseFontSize * 0.86).rounded()),
-                        .foregroundColor: noteColor.codeColor
+                        .foregroundColor: colorScheme.codeColor
                     ], range: lineRange)
                 }
             }
@@ -273,7 +273,7 @@ class MarkdownStyler {
         paragraphStyle.lineSpacing = 6
         return [
             .font: bodyFont(size: baseFontSize),
-            .foregroundColor: noteColor.textColor,
+            .foregroundColor: colorScheme.textColor,
             .paragraphStyle: paragraphStyle
         ]
     }()

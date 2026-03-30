@@ -12,7 +12,7 @@ extension MarkdownStyler {
 
         // Mark entire range for left border drawing by BulletLayoutManager
         storage.addAttributes([
-            .blockQuoteBorder: noteColor.textColor.withAlphaComponent(0.25),
+            .blockQuoteBorder: colorScheme.textColor.withAlphaComponent(0.25),
             .foregroundColor: NSColor.secondaryLabelColor
         ], range: range)
 

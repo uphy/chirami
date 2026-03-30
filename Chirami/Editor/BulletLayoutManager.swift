@@ -192,11 +192,9 @@ class BulletLayoutManager: NSLayoutManager {
             let checked = number.boolValue
             let symbolName = checked ? "checkmark.square.fill" : "square"
             let uncheckedColor = NSColor(name: nil) { appearance in
-                if appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua {
-                    return NSColor(white: 0.5, alpha: 1.0)
-                } else {
-                    return NSColor(white: 0.62, alpha: 1.0)
-                }
+                appearance.isDark
+                    ? NSColor(white: 0.5, alpha: 1.0)
+                    : NSColor(white: 0.62, alpha: 1.0)
             }
             let color = checked ? NSColor.controlAccentColor : uncheckedColor
             drawSFSymbol(symbolName, at: range, origin: origin, color: color, size: baseFontSize)
@@ -480,7 +478,7 @@ class BulletLayoutManager: NSLayoutManager {
             width: textSize.width + hPadding * 2,
             height: textSize.height + 2
         )
-        NoteColor.codeBackgroundColor.setFill()
+        NoteColorScheme.codeBackgroundColor.setFill()
         NSBezierPath(roundedRect: bgRect, xRadius: 3, yRadius: 3).fill()
 
         // Draw ellipsis text

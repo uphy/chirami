@@ -39,7 +39,7 @@ extension MarkdownStyler {
                      hideMarkers: true, markerLength: 2)
 
         applyPattern(Self.inlineCodePattern, to: storage, in: text, offset: offset,
-                     attributes: InlineMarkupRenderer.inlineCodeAttributes(fontSize: size, fontName: fontName, noteColor: noteColor),
+                     attributes: InlineMarkupRenderer.inlineCodeAttributes(fontSize: size, fontName: fontName, colorScheme: colorScheme),
                      hideMarkers: true, markerLength: 1)
 
         applyLinkPattern(to: storage, in: text, offset: offset, cursorLocation: cursorLocation)
@@ -51,16 +51,16 @@ extension MarkdownStyler {
 
     func applyRawInlinePatterns(to storage: NSMutableAttributedString, in text: String, offset: Int, cursorLocation: Int? = nil) {
         applyRawPattern(Self.boldPattern, to: storage, in: text, offset: offset,
-                        contentAttributes: [.font: boldFont(size: baseFontSize), .foregroundColor: noteColor.textColor])
+                        contentAttributes: [.font: boldFont(size: baseFontSize), .foregroundColor: colorScheme.textColor])
 
         applyRawPattern(Self.italicPattern, to: storage, in: text, offset: offset,
-                        contentAttributes: [.font: italicFont(size: baseFontSize), .foregroundColor: noteColor.textColor])
+                        contentAttributes: [.font: italicFont(size: baseFontSize), .foregroundColor: colorScheme.textColor])
 
         applyRawPattern(Self.strikethroughPattern, to: storage, in: text, offset: offset,
-                        contentAttributes: [.strikethroughStyle: NSUnderlineStyle.single.rawValue, .foregroundColor: noteColor.textColor])
+                        contentAttributes: [.strikethroughStyle: NSUnderlineStyle.single.rawValue, .foregroundColor: colorScheme.textColor])
 
         applyRawPattern(Self.inlineCodePattern, to: storage, in: text, offset: offset,
-                        contentAttributes: InlineMarkupRenderer.inlineCodeAttributes(fontSize: baseFontSize, fontName: fontName, noteColor: noteColor))
+                        contentAttributes: InlineMarkupRenderer.inlineCodeAttributes(fontSize: baseFontSize, fontName: fontName, colorScheme: colorScheme))
 
         applyLinkPattern(to: storage, in: text, offset: offset, cursorLocation: cursorLocation)
         applyRawImagePattern(to: storage, in: text, offset: offset)
@@ -154,7 +154,7 @@ extension MarkdownStyler {
                 let textRange = match.range(at: 1)
                 if textRange.location != NSNotFound {
                     let adjustedRange = NSRange(location: textRange.location + offset, length: textRange.length)
-                    storage.addAttributes([.foregroundColor: noteColor.linkColor], range: adjustedRange)
+                    storage.addAttributes([.foregroundColor: colorScheme.linkColor], range: adjustedRange)
                 }
             } else {
                 // Rendered styling: apply link and hide syntax
@@ -167,7 +167,7 @@ extension MarkdownStyler {
                         // Apply .link only to visible text to prevent underline extending to line start
                         storage.addAttributes([
                             .link: url,
-                            .foregroundColor: noteColor.linkColor
+                            .foregroundColor: colorScheme.linkColor
                         ], range: adjustedTextRange)
                     }
 
@@ -211,12 +211,12 @@ extension MarkdownStyler {
 
             if cursorInURL {
                 // Raw mode: show URL with link color but no .link attribute (keyboard shortcut still works)
-                storage.addAttributes([.foregroundColor: noteColor.linkColor], range: absoluteRange)
+                storage.addAttributes([.foregroundColor: colorScheme.linkColor], range: absoluteRange)
             } else {
                 // Rendered mode: make it a clickable link
                 storage.addAttributes([
                     .link: url,
-                    .foregroundColor: noteColor.linkColor
+                    .foregroundColor: colorScheme.linkColor
                 ], range: absoluteRange)
             }
         }
@@ -325,7 +325,7 @@ extension MarkdownStyler {
             let altRange = match.range(at: 1)
             if altRange.location != NSNotFound && altRange.length > 0 {
                 let adjustedAlt = NSRange(location: altRange.location + offset, length: altRange.length)
-                storage.addAttributes([.foregroundColor: noteColor.linkColor], range: adjustedAlt)
+                storage.addAttributes([.foregroundColor: colorScheme.linkColor], range: adjustedAlt)
             }
         }
     }

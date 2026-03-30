@@ -6,7 +6,7 @@ import CryptoKit
 // MARK: - NoteAppearanceResolvable
 
 protocol NoteAppearanceResolvable {
-    var color: String? { get }
+    var colorScheme: String? { get }
     var transparency: Double? { get }
     var fontSize: Int? { get }
     var position: String? { get }
@@ -14,8 +14,8 @@ protocol NoteAppearanceResolvable {
 }
 
 extension NoteAppearanceResolvable {
-    func resolveColor() -> NoteColor {
-        if let c = color, let color = NoteColor(rawValue: c) { return color }
+    func resolveNoteColorScheme() -> NoteColorScheme {
+        if let c = colorScheme, let scheme = NoteColorScheme(rawValue: c) { return scheme }
         return .yellow
     }
 
@@ -52,16 +52,16 @@ enum AppearanceMode: String, Codable {
     }
 }
 
-struct ThemeVariantConfig: Codable {
+struct ColorSchemeVariantConfig: Codable {
     let background: [Double]
     let text: [Double]
     let link: [Double]
     let code: [Double]
 }
 
-struct ThemeConfig: Codable {
-    let dark: ThemeVariantConfig
-    let light: ThemeVariantConfig
+struct ColorSchemeConfig: Codable {
+    let dark: ColorSchemeVariantConfig
+    let light: ColorSchemeVariantConfig
 }
 
 struct ChiramiConfig: Codable {
@@ -70,7 +70,7 @@ struct ChiramiConfig: Codable {
     var hotkey: String?
     var launchAtLogin: Bool?
     var showMenuBarIcon: Bool?
-    var themes: [String: ThemeConfig]?
+    var colorSchemes: [String: ColorSchemeConfig]?
     var notes: [NoteConfig] = []
     var adhoc: AdhocConfig?
     var karabiner: KarabinerConfig?
@@ -79,7 +79,8 @@ struct ChiramiConfig: Codable {
     var warpModifier: String?
 
     enum CodingKeys: String, CodingKey {
-        case appearance, font, hotkey, themes, notes, adhoc, karabiner
+        case appearance, font, hotkey, notes, adhoc, karabiner
+        case colorSchemes = "color_schemes"
         case launchAtLogin = "launch_at_login"
         case showMenuBarIcon = "show_menu_bar_icon"
         case smartPaste = "smart_paste"
@@ -171,7 +172,7 @@ enum KarabinerValue: Codable, Equatable {
 struct NoteConfig: Codable, NoteAppearanceResolvable {
     var path: String
     var title: String?
-    var color: String?
+    var colorScheme: String?
     var transparency: Double?
     var fontSize: Int?
     var hotkey: String?
@@ -199,7 +200,8 @@ struct NoteConfig: Codable, NoteAppearanceResolvable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case path, title, color, transparency, hotkey, position, template, attachment
+        case path, title, transparency, hotkey, position, template, attachment
+        case colorScheme = "color_scheme"
         case fontSize = "font_size"
         case alwaysOnTop = "always_on_top"
         case rolloverDelay = "rollover_delay"
@@ -247,7 +249,7 @@ struct AdhocConfig: Codable {
 
 struct AdhocProfile: Codable, NoteAppearanceResolvable {
     var title: String?
-    var color: String?
+    var colorScheme: String?
     var transparency: Double?
     var fontSize: Int?
     var position: String?       // "cursor" | nil
@@ -255,7 +257,8 @@ struct AdhocProfile: Codable, NoteAppearanceResolvable {
     var hotkey: String?
 
     enum CodingKeys: String, CodingKey {
-        case title, color, transparency, position, hotkey
+        case title, transparency, position, hotkey
+        case colorScheme = "color_scheme"
         case fontSize = "font_size"
         case alwaysOnTop = "always_on_top"
     }

@@ -5,7 +5,7 @@ import AppKit
 struct LivePreviewEditor: NSViewRepresentable {
     @Binding var text: String
     var backgroundColor: NSColor = .white
-    var noteColor: NoteColor = .yellow
+    var colorScheme: NoteColorScheme = .yellow
     var fontSize: CGFloat = 14
     var fontName: String?
     var noteURL: URL?
@@ -52,7 +52,7 @@ struct LivePreviewEditor: NSViewRepresentable {
         textView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
         textView.usesFindBar = true
         textView.isIncrementalSearchingEnabled = true
-        textView.selectedTextAttributes = [.backgroundColor: noteColor.selectionColor]
+        textView.selectedTextAttributes = [.backgroundColor: colorScheme.selectionColor]
 
         let coordinator = context.coordinator
         textView.onCheckboxClick = { [weak coordinator] charIndex in
@@ -126,8 +126,8 @@ struct LivePreviewEditor: NSViewRepresentable {
             coordinator.noteURL = noteURL
             needsRestyle = true
         }
-        if coordinator.noteColor != noteColor {
-            coordinator.noteColor = noteColor
+        if coordinator.colorScheme != colorScheme {
+            coordinator.colorScheme = colorScheme
             needsRestyle = true
         }
 
@@ -151,7 +151,7 @@ struct LivePreviewEditor: NSViewRepresentable {
         }
 
         if needsRestyle {
-            textView.selectedTextAttributes = [.backgroundColor: noteColor.selectionColor]
+            textView.selectedTextAttributes = [.backgroundColor: colorScheme.selectionColor]
             coordinator.applyStyling(to: textView)
         }
 
@@ -170,7 +170,7 @@ struct LivePreviewEditor: NSViewRepresentable {
     }
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(text: $text, noteColor: noteColor, fontSize: fontSize, fontName: fontName, noteURL: noteURL, isReadOnly: isReadOnly, onFontSizeChange: onFontSizeChange)
+        Coordinator(text: $text, colorScheme: colorScheme, fontSize: fontSize, fontName: fontName, noteURL: noteURL, isReadOnly: isReadOnly, onFontSizeChange: onFontSizeChange)
     }
 
     // MARK: - Coordinator
@@ -189,14 +189,14 @@ struct LivePreviewEditor: NSViewRepresentable {
         private var isTextChangePending = false
 
         var isWindowFocused = true
-        var noteColor: NoteColor {
-            didSet { styler = MarkdownStyler(noteColor: noteColor, baseFontSize: fontSize, fontName: fontName) }
+        var colorScheme: NoteColorScheme {
+            didSet { styler = MarkdownStyler(colorScheme: colorScheme, baseFontSize: fontSize, fontName: fontName) }
         }
         var fontSize: CGFloat {
-            didSet { styler = MarkdownStyler(noteColor: noteColor, baseFontSize: fontSize, fontName: fontName) }
+            didSet { styler = MarkdownStyler(colorScheme: colorScheme, baseFontSize: fontSize, fontName: fontName) }
         }
         var fontName: String? {
-            didSet { styler = MarkdownStyler(noteColor: noteColor, baseFontSize: fontSize, fontName: fontName) }
+            didSet { styler = MarkdownStyler(colorScheme: colorScheme, baseFontSize: fontSize, fontName: fontName) }
         }
         var noteURL: URL? {
             didSet {
@@ -226,15 +226,15 @@ struct LivePreviewEditor: NSViewRepresentable {
         private var foldButtonImageRight: NSImage?
         private var foldButtonImageDown: NSImage?
 
-        init(text: Binding<String>, noteColor: NoteColor, fontSize: CGFloat, fontName: String? = nil, noteURL: URL?, isReadOnly: Bool, onFontSizeChange: ((CGFloat) -> Void)?) {
+        init(text: Binding<String>, colorScheme: NoteColorScheme, fontSize: CGFloat, fontName: String? = nil, noteURL: URL?, isReadOnly: Bool, onFontSizeChange: ((CGFloat) -> Void)?) {
             self.text = text
-            self.noteColor = noteColor
+            self.colorScheme = colorScheme
             self.fontSize = fontSize
             self.fontName = fontName
             self.noteURL = noteURL
             self.isReadOnly = isReadOnly
             self.onFontSizeChange = onFontSizeChange
-            self.styler = MarkdownStyler(noteColor: noteColor, baseFontSize: fontSize, fontName: fontName)
+            self.styler = MarkdownStyler(colorScheme: colorScheme, baseFontSize: fontSize, fontName: fontName)
             if let path = noteURL?.path {
                 self.foldedLines = AppState.shared.foldingState(for: path).foldedLines
             }
@@ -279,7 +279,7 @@ struct LivePreviewEditor: NSViewRepresentable {
 
         @objc func textViewFrameDidChange(_ notification: Notification) {
             guard let textView = textView else { return }
-            overlayManager.update(textView: textView, noteColor: noteColor, fontSize: fontSize)
+            overlayManager.update(textView: textView, colorScheme: colorScheme, fontSize: fontSize)
             // Only restyle when the container width changes (e.g. window resize).
             // Height changes happen during typing and are already handled by textDidChange.
             let currentWidth = textView.textContainer?.size.width ?? 0
@@ -553,7 +553,7 @@ struct LivePreviewEditor: NSViewRepresentable {
 
             isApplyingStyling = false
             if styler.lastHadTable || overlayManager.hasOverlays {
-                overlayManager.update(textView: textView, noteColor: noteColor, fontSize: fontSize)
+                overlayManager.update(textView: textView, colorScheme: colorScheme, fontSize: fontSize)
             }
             textView.updateInsertionPointStateAndRestartTimer(true)
 

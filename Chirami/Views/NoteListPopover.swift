@@ -78,7 +78,7 @@ struct NoteRowView: View {
         } label: {
             HStack(spacing: 8) {
                 RoundedRectangle(cornerRadius: 3)
-                    .fill(note.color.nsColor.swiftUI)
+                    .fill(note.colorScheme.nsColor.swiftUI)
                     .frame(width: 12, height: 12)
                     .overlay(
                         RoundedRectangle(cornerRadius: 3)
