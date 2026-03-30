@@ -31,6 +31,19 @@ karabiner:
   on_unfocus: 0
   cli_path: /Library/Application Support/org.pqrs/Karabiner-Elements/bin/karabiner_cli
 
+themes:
+  monokai:
+    dark:
+      background: [0.149, 0.157, 0.129]
+      text: [0.973, 0.973, 0.949]
+      link: [0.400, 0.851, 0.937]
+      code: [0.663, 0.882, 0.071]
+    light:
+      background: [0.980, 0.976, 0.965]
+      text: [0.149, 0.157, 0.129]
+      link: [0.157, 0.451, 0.702]
+      code: [0.400, 0.553, 0.031]
+
 notes:
   - path: ~/Notes/todo.md
     title: TODO
@@ -65,6 +78,7 @@ notes:
 | `warp_modifier` | string | `ctrl+option` | Modifier key combination for Window Warp (HJKL grid movement). Specify modifiers joined with `+` (e.g. `ctrl+option`, `command+shift`). Allowed tokens: `ctrl`/`control`, `option`/`opt`, `command`/`cmd`, `shift`. |
 | `smart_paste` | object | — | Smart Paste configuration. See [Smart Paste](advanced.md#smart-paste). |
 | `karabiner` | object | — | Karabiner-Elements integration. See [Karabiner](advanced.md#karabiner-elements-integration). |
+| `themes` | object | — | Custom theme definitions. See [Custom Themes](#custom-themes). |
 | `notes` | array | `[]` | List of Registered Note configurations. |
 
 ## Note Settings (Registered Notes)
@@ -75,7 +89,7 @@ Each entry in `notes` configures one Registered Note — a sticky note window ma
 |-------|------|---------|----------|-------------|
 | `path` | string | — | yes | File path. Absolute or `~/` relative. Supports `{date-format}` placeholders for periodic notes. |
 | `title` | string | filename | no | Window title shown in the title bar. |
-| `color` | string | `yellow` | no | Background color: `yellow`, `blue`, `green`, `pink`, `purple`, `gray`. |
+| `color` | string | `yellow` | no | Theme name. Built-in: `yellow`, `blue`, `green`, `pink`, `purple`, `gray`. Custom themes defined in `themes` are also accepted. |
 | `transparency` | number | `0.9` | no | Window opacity (0.0–1.0). |
 | `font_size` | integer | `14` | no | Font size in points. Range: 8–32. |
 | `hotkey` | string | — | no | Global hotkey to toggle this note (e.g. `cmd+shift+m`). |
@@ -95,6 +109,38 @@ Hotkeys are specified as modifier keys joined with `+`, followed by the key:
 ### Colors
 
 Six preset colors are available: `yellow`, `blue`, `green`, `pink`, `purple`, `gray`.
+
+## Custom Themes
+
+Define custom themes in the `themes` block. Each theme requires `dark` and `light` variants, each with four color channels as RGB arrays (0.0–1.0).
+
+```yaml
+themes:
+  monokai:
+    dark:
+      background: [0.149, 0.157, 0.129]
+      text: [0.973, 0.973, 0.949]
+      link: [0.400, 0.851, 0.937]
+      code: [0.663, 0.882, 0.071]
+    light:
+      background: [0.980, 0.976, 0.965]
+      text: [0.149, 0.157, 0.129]
+      link: [0.157, 0.451, 0.702]
+      code: [0.400, 0.553, 0.031]
+
+notes:
+  - path: ~/Notes/daily/{yyyy-MM-dd}.md
+    color: monokai
+```
+
+| Field | Description |
+|-------|-------------|
+| `background` | Window and editor background color |
+| `text` | Body text color |
+| `link` | Hyperlink color |
+| `code` | Inline code and code block text color |
+
+Custom theme names can also override built-in themes (e.g. redefining `yellow`). Changes to `themes` in config.yaml take effect immediately without restarting.
 
 ## Smart Paste
 
