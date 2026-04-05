@@ -228,6 +228,8 @@ extension MarkdownStyler {
         let paragraphStyle = NSMutableParagraphStyle()
         paragraphStyle.paragraphSpacing = 0
         paragraphStyle.defaultTabInterval = 20
+        paragraphStyle.minimumLineHeight = listLineHeight
+        paragraphStyle.lineSpacing = 6
         storage.addAttributes([.paragraphStyle: paragraphStyle], range: lineRange)
 
         // Gray only the marker (leading whitespace + marker + optional checkbox syntax)
@@ -496,14 +498,11 @@ extension MarkdownStyler {
             storage.addAttributes(Self.hiddenAttributes, range: spaceRange)
         }
 
-        // Checkbox syntax "[ ]" or "[x]": hide and tag
+        // Checkbox syntax "[ ]" or "[x]": hide only (no taskCheckbox tag).
+        // Tagging these with taskCheckbox would cause drawGlyphs to draw the SF Symbol twice
+        // (once per attribute range), leading to visual jitter when typing in the item body.
         let checkboxCharRange = NSRange(location: markerAbsLocation + markerLength, length: 3)
-        storage.addAttributes([
-            .foregroundColor: NSColor.clear,
-            .font: NSFont.systemFont(ofSize: 0.001),
-            .taskCheckbox: NSNumber(value: isChecked ? 1 : 0),
-            .listNestingLevel: nestingLevel
-        ], range: checkboxCharRange)
+        storage.addAttributes(Self.hiddenAttributes, range: checkboxCharRange)
 
         // Space after checkbox: hide
         let spaceAfterCheckbox = NSRange(location: markerAbsLocation + markerLength + 3, length: 1)
@@ -523,13 +522,14 @@ extension MarkdownStyler {
         let textStart: CGFloat = (ordered || isTask) ? 20 : 14
         let levelIndent = textStart + nestingStep * CGFloat(nestingLevel)
 
-        let font = bodyFont(size: baseFontSize)
         let paragraphStyle = NSMutableParagraphStyle()
         paragraphStyle.tabStops = []
         paragraphStyle.defaultTabInterval = 0.001
         paragraphStyle.paragraphSpacing = 0
         paragraphStyle.lineSpacing = 6
-        paragraphStyle.minimumLineHeight = ceil(font.ascender - font.descender + font.leading)
+        // minimumLineHeight is the CJK typographic height (no lineSpacing) used as a list-item
+        // marker by BulletLayoutManager.setLineFragmentRect to force uniform line heights.
+        paragraphStyle.minimumLineHeight = listLineHeight
         paragraphStyle.headIndent = levelIndent
         if ordered {
             paragraphStyle.firstLineHeadIndent = nestingStep * CGFloat(nestingLevel)
@@ -538,7 +538,7 @@ extension MarkdownStyler {
             paragraphStyle.firstLineHeadIndent = levelIndent
         }
 
-        // Apply paragraph style to the full line range so leading whitespace inherits the style
+        // Apply paragraph style to the full line range so leading whitespace inherits the style.
         let nsText = text as NSString
         let lineRange = nsText.lineRange(for: itemRange)
         storage.addAttributes([.paragraphStyle: paragraphStyle], range: lineRange)

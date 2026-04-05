@@ -36,6 +36,29 @@ class MarkdownStyler {
     /// Pre-computed line-start indices for the current style pass. Populated by style(_:cursorLocation:).
     var lineStartCache: [String.Index] = []
 
+    /// Pure typographic line height for list items (does NOT include lineSpacing).
+    /// Measured via NSLayoutManager on a CJK character without any lineSpacing paragraph style,
+    /// so the value reflects what NSParagraphStyle.minimumLineHeight should be set to.
+    /// BulletLayoutManager.setLineFragmentRect uses `minimumLineHeight + lineSpacing` as the
+    /// forced target, making empty / ASCII / CJK list lines all render at the same height.
+    lazy var listLineHeight: CGFloat = {
+        let font = bodyFont(size: baseFontSize)
+        let latinHeight = ceil(font.ascender - font.descender + font.leading)
+        // Measure CJK WITHOUT lineSpacing — minimumLineHeight semantics exclude lineSpacing.
+        let testStorage = NSTextStorage(string: "あ", attributes: [.font: font])
+        let testLM = NSLayoutManager()
+        testStorage.addLayoutManager(testLM)
+        let testTC = NSTextContainer(size: CGSize(width: 1000, height: 1000))
+        testLM.addTextContainer(testTC)
+        testLM.ensureLayout(for: testTC)
+        var fragmentHeight: CGFloat = 0
+        testLM.enumerateLineFragments(forGlyphRange: NSRange(location: 0, length: testLM.numberOfGlyphs)) { rect, _, _, _, _ in
+            fragmentHeight = rect.height
+        }
+        testStorage.removeLayoutManager(testLM)
+        return max(latinHeight, fragmentHeight > 0 ? fragmentHeight : latinHeight)
+    }()
+
     init(colorScheme: NoteColorScheme = .yellow, baseFontSize: CGFloat = 14, fontName: String? = nil) {
         self.colorScheme = colorScheme
         self.baseFontSize = baseFontSize

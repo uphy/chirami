@@ -182,11 +182,8 @@ struct LivePreviewEditor: NSViewRepresentable {
         weak var editorState: EditorStatePreservable?
         private let overlayManager = TableOverlayManager()
 
-        /// Pending styling work item (shared between text and cursor scheduling).
+        /// Pending styling work item for cursor-only updates (see `scheduleCursorStyling`).
         private var pendingStylingItem: DispatchWorkItem?
-        /// True while a text-change debounce is outstanding.
-        /// Cursor-only re-styles are skipped until the debounce fires.
-        private var isTextChangePending = false
 
         var isWindowFocused = true
         var colorScheme: NoteColorScheme {
@@ -337,43 +334,26 @@ struct LivePreviewEditor: NSViewRepresentable {
             if textView.hasMarkedText() { return }
             text.wrappedValue = textView.string
             // Reposition table overlays immediately so they track inserted text
-            // without waiting for the 50 ms styling debounce.
+            // before synchronous Markdown restyling runs.
             if overlayManager.hasOverlays {
                 overlayManager.repositionExisting(textView: textView)
             }
-            scheduleTextStyling()
+            applyImmediateStyling()
         }
 
-        /// Bypasses the debounce and applies styling immediately.
-        /// Called after structural edits (list continuation, indent/dedent, task toggle).
+        /// Cancels any pending cursor styling work item and applies Markdown styling synchronously.
+        /// Used after text edits and structural edits (list continuation, indent/dedent, task toggle).
         func applyImmediateStyling() {
             pendingStylingItem?.cancel()
             pendingStylingItem = nil
-            isTextChangePending = false
             guard let textView = textView else { return }
             applyStyling(to: textView)
         }
 
-        /// Schedules applyStyling with a 50 ms debounce for text changes.
-        /// Consecutive text changes (e.g. held key) collapse into a single call
-        /// that fires 50 ms after the last change, keeping CPU low during rapid input.
-        private func scheduleTextStyling() {
-            isTextChangePending = true
-            pendingStylingItem?.cancel()
-            let item = DispatchWorkItem { [weak self] in
-                guard let self, let textView = self.textView else { return }
-                self.isTextChangePending = false
-                self.pendingStylingItem = nil
-                self.applyStyling(to: textView)
-            }
-            pendingStylingItem = item
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05, execute: item)
-        }
-
         /// Schedules applyStyling for the next run loop for cursor-only changes.
-        /// Skipped while a text-change debounce is pending (that call will handle it).
+        /// Skipped while a cursor styling pass is already queued.
         private func scheduleCursorStyling() {
-            guard !isTextChangePending, pendingStylingItem == nil else { return }
+            guard pendingStylingItem == nil else { return }
             let item = DispatchWorkItem { [weak self] in
                 guard let self, let textView = self.textView else { return }
                 self.pendingStylingItem = nil
@@ -451,6 +431,7 @@ struct LivePreviewEditor: NSViewRepresentable {
             guard let storage = textView.textStorage else { return }
             if let layoutManager = textView.layoutManager as? BulletLayoutManager {
                 layoutManager.baseFontSize = fontSize
+                layoutManager.listLineHeight = styler.listLineHeight
             }
 
             // Provide note base URL for relative image path resolution

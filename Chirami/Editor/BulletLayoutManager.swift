@@ -5,6 +5,10 @@ class BulletLayoutManager: NSLayoutManager {
 
     var baseFontSize: CGFloat = 14
     var fontName: String?
+    /// The pre-measured list line height (minimumLineHeight, excluding lineSpacing) provided by
+    /// MarkdownStyler. When set, the fallback path in setLineFragmentRect uses this value instead
+    /// of deriving it from Latin-only font metrics, so empty list items match non-empty ones.
+    var listLineHeight: CGFloat = 0
 
     /// Rects of drawn images keyed by character index (in view coordinates).
     private(set) var drawnImageRects: [Int: NSRect] = [:]
@@ -171,6 +175,73 @@ class BulletLayoutManager: NSLayoutManager {
         ctx.restoreGState()
     }
 
+    // NSATSTypesetter ignores maximumLineHeight when CJK font substitution (Hiragino) raises the
+    // natural glyph height, and also when all glyphs have a near-zero font (hidden prefix chars).
+    // Overriding setLineFragmentRect is the only reliable interception point that fires AFTER the
+    // typesetter has made its decision, so we can force a uniform height for all list item lines.
+    override func setLineFragmentRect(
+        _ fragmentRect: NSRect,
+        forGlyphRange glyphRange: NSRange,
+        usedRect: NSRect
+    ) {
+        // Force uniform line height for list item lines.
+        // NSATSTypesetter ignores maximumLineHeight during CJK font substitution (Hiragino), and
+        // also produces a near-zero height when all glyphs use the 0.001pt hidden font (empty task
+        // items like "- [ ] " where every character is invisible).
+        // We identify list lines by scanning the character range for any character that has either:
+        //   • paragraphStyle.minimumLineHeight > 0 (non-empty items — set by applyListParagraphStyle)
+        //   • .taskCheckbox or .bulletMarker attribute (empty items — prefix chars always carry these)
+        // and force the fragment height to minimumLineHeight + lineSpacing.
+        if let ts = textStorage, glyphRange.length > 0 {
+            let charRange = characterRange(forGlyphRange: glyphRange, actualGlyphRange: nil)
+            guard charRange.length > 0 else {
+                super.setLineFragmentRect(fragmentRect, forGlyphRange: glyphRange, usedRect: usedRect)
+                return
+            }
+
+            // Fast path: check paragraph style at first character.
+            var target: CGFloat = 0
+            if let ps = ts.attribute(.paragraphStyle, at: charRange.location, effectiveRange: nil) as? NSParagraphStyle,
+               ps.minimumLineHeight > 0 {
+                target = ps.minimumLineHeight + ps.lineSpacing
+            }
+
+            // Fallback for empty task items: all characters carry taskCheckbox/bulletMarker
+            // but the paragraph style lookup may miss minimumLineHeight if the attribute is set
+            // on a different sub-range. Scan the range to find any list-marker character.
+            if target == 0 {
+                ts.enumerateAttributes(in: charRange, options: [.longestEffectiveRangeNotRequired]) { attrs, _, stop in
+                    if let ps = attrs[.paragraphStyle] as? NSParagraphStyle, ps.minimumLineHeight > 0 {
+                        target = ps.minimumLineHeight + ps.lineSpacing
+                        stop.pointee = true
+                    } else if attrs[.taskCheckbox] != nil || attrs[.bulletMarker] != nil {
+                        // Prefix chars carry no minimumLineHeight; use the pre-measured listLineHeight
+                        // from MarkdownStyler (which accounts for CJK font substitution). Fall back
+                        // to Latin font metrics only when listLineHeight has not been set yet.
+                        if self.listLineHeight > 0 {
+                            target = self.listLineHeight + 6  // 6 = lineSpacing matching applyListParagraphStyle
+                        } else {
+                            let refFont = self.referenceFont(size: self.baseFontSize)
+                            let lineH = ceil(refFont.ascender - refFont.descender + refFont.leading)
+                            target = lineH + 6
+                        }
+                        stop.pointee = true
+                    }
+                }
+            }
+
+            if target > 0 {
+                var r = fragmentRect
+                r.size.height = target
+                var u = usedRect
+                u.size.height = min(u.size.height, target)
+                super.setLineFragmentRect(r, forGlyphRange: glyphRange, usedRect: u)
+                return
+            }
+        }
+        super.setLineFragmentRect(fragmentRect, forGlyphRange: glyphRange, usedRect: usedRect)
+    }
+
     override func drawGlyphs(forGlyphRange glyphsToShow: NSRange, at origin: NSPoint) {
         super.drawGlyphs(forGlyphRange: glyphsToShow, at: origin)
 
@@ -261,29 +332,32 @@ class BulletLayoutManager: NSLayoutManager {
         guard textContainer(forGlyphAt: glyphIndex, effectiveRange: nil) != nil else { return nil }
         let lineRect = lineFragmentRect(forGlyphAt: glyphIndex, effectiveRange: nil)
         let level = nestingLevel(at: range.location)
-        // Prefer the actual baseline from the first visible content character in the line.
-        // Hidden marker characters (0.001pt font) cause location(forGlyphAt:) to return an
-        // incorrect baseline; for non-empty items a content character gives the true value.
+        // Use the actual baseline of the first visible content character so the marker
+        // stays aligned with the text regardless of font substitution (e.g. Hiragino for CJK).
+        // For empty list items there is no content character; derive the fallback from
+        // listLineHeight + font.descender, which is where NSATSTypesetter places a Latin glyph
+        // when minimumLineHeight = listLineHeight (extra space is added *above* the text).
+        // This matches the actual glyph position for non-empty Latin items and avoids the
+        // "bullet too high" issue that occurs when using Latin-only baselineOffset().
+        let refFont = referenceFont(size: fontSize)
+        let emptyFallback = listLineHeight > 0
+            ? listLineHeight + refFont.descender
+            : baselineOffset(forGlyphAt: glyphIndex, fontSize: fontSize)
         let baselineFromTop = contentCharBaselineOffset(near: range.location, lineRect: lineRect)
-            ?? baselineOffset(forGlyphAt: glyphIndex, fontSize: fontSize)
+            ?? emptyFallback
         let baselineY = origin.y + lineRect.origin.y + baselineFromTop
         return GlyphPosition(glyphIndex: glyphIndex, lineRect: lineRect, level: level, baselineY: baselineY)
     }
 
     /// Scans forward from `charLocation` to find the first content character (non-hidden font)
-    /// in the same line fragment and returns its glyph location y, which equals the actual
-    /// baseline offset from the line fragment's top as used by NSLayoutManager.
-    /// Returns nil when no content character exists in the line (e.g., empty list items).
+    /// in the same line fragment and returns its glyph location y (baseline offset from fragment top).
+    /// Returns nil when no content character exists in the line (e.g. empty list items).
     private func contentCharBaselineOffset(near charLocation: Int, lineRect: NSRect) -> CGFloat? {
         guard let textStorage = textStorage else { return nil }
         let str = textStorage.string as NSString
         let startLoc = charLocation + 1
-        let totalLength = str.length
-        guard startLoc < totalLength else { return nil }
+        guard startLoc < str.length else { return nil }
 
-        // Compute the search range bounded to the current line (excluding trailing newline).
-        // This lets enumerateAttribute skip entire hidden-font runs atomically instead of
-        // checking each character, avoiding per-character attribute lookups in the hot path.
         let lineRange = str.lineRange(for: NSRange(location: charLocation, length: 0))
         let searchEnd = (lineRange.length > 0 && str.character(at: lineRange.upperBound - 1) == 0x0A)
             ? lineRange.upperBound - 1
