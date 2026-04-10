@@ -1,4 +1,5 @@
 import AppKit
+import os
 
 // MARK: - NotePanel
 
@@ -18,6 +19,8 @@ class NotePanel: NSPanel {
     private var nextButton: NSButton?
     private var todayButton: NSButton?
     private var pinButton: NSButton?
+    private var didLogTitlebarHierarchy = false
+    private let logger = Logger(subsystem: "io.github.uphy.Chirami", category: "NotePanel")
 
     var onWarpKey: ((Character) -> Void)?
     var onHideRequest: (() -> Void)?
@@ -40,6 +43,7 @@ class NotePanel: NSPanel {
         titleVisibility = .hidden
 
         guard let closeButton = standardWindowButton(.closeButton) else { return }
+        logTitlebarHierarchyIfNeeded(closeButton: closeButton)
 
         // Walk up from the close button to find the full-width titlebar view
         var fullWidthView: NSView = closeButton
@@ -147,6 +151,28 @@ class NotePanel: NSPanel {
         button.setContentHuggingPriority(.required, for: .horizontal)
         button.controlSize = .small
         return button
+    }
+
+    private func logTitlebarHierarchyIfNeeded(closeButton: NSButton) {
+        guard !didLogTitlebarHierarchy else { return }
+        guard ProcessInfo.processInfo.environment["CHIRAMI_DEBUG_TITLEBAR"] == "1" else { return }
+        didLogTitlebarHierarchy = true
+
+        logger.debug("[Titlebar] window=\(self.title, privacy: .public) frame=\(String(describing: self.frame), privacy: .public)")
+        var current: NSView? = closeButton
+        var level = 0
+        while let view = current {
+            let layerColor = view.layer?.backgroundColor.map { NSColor(cgColor: $0)?.description ?? "cgColor" } ?? "nil"
+            logger.debug("[Titlebar] level=\(level) type=\(String(describing: type(of: view)), privacy: .public) frame=\(String(describing: view.frame), privacy: .public) wantsLayer=\(view.wantsLayer) layerBg=\(layerColor, privacy: .public)")
+            current = view.superview
+            level += 1
+        }
+        if let contentView {
+            logger.debug("[Titlebar] contentView type=\(String(describing: type(of: contentView)), privacy: .public) frame=\(String(describing: contentView.frame), privacy: .public)")
+            if let superview = contentView.superview {
+                logger.debug("[Titlebar] contentSuperview type=\(String(describing: type(of: superview)), privacy: .public) frame=\(String(describing: superview.frame), privacy: .public)")
+            }
+        }
     }
 
     /// Hide the close button by default and show it on titlebar hover.

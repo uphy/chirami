@@ -9,16 +9,20 @@ struct DisplayContentView: View {
     let fontName: String?
 
     var body: some View {
-        LivePreviewEditor(
-            text: $model.text,
-            backgroundColor: colorScheme.nsColor,
-            colorScheme: colorScheme,
-            fontSize: fontSize,
-            fontName: fontName,
-            noteURL: model.fileURL,
-            isReadOnly: isReadOnly,
-            editorState: model
-        )
+        ZStack {
+            Color(nsColor: colorScheme.nsColor)
+                .ignoresSafeArea()
+            LivePreviewEditor(
+                text: $model.text,
+                backgroundColor: colorScheme.nsColor,
+                colorScheme: colorScheme,
+                fontSize: fontSize,
+                fontName: fontName,
+                noteURL: model.fileURL,
+                isReadOnly: isReadOnly,
+                editorState: model
+            )
+        }
         .onChange(of: model.text) { _, _ in
             model.save()
         }

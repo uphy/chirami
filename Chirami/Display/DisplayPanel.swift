@@ -10,7 +10,7 @@ class DisplayPanel: NotePanel {
         let frame = NSRect(x: 0, y: 0, width: 400, height: 500)
         super.init(
             contentRect: frame,
-            styleMask: [.titled, .closable, .resizable, .nonactivatingPanel],
+            styleMask: [.titled, .closable, .resizable, .nonactivatingPanel, .fullSizeContentView],
             backing: .buffered,
             defer: false
         )

@@ -1,6 +1,7 @@
 import AppKit
 import SwiftUI
 import Combine
+import os
 
 // MARK: - NoteWindowController
 
@@ -9,6 +10,7 @@ import Combine
 class NoteWindowController: NSWindowController, NSWindowDelegate {
     private(set) var note: Note
     private let noteStore = NoteStore.shared
+    private let logger = Logger(subsystem: "io.github.uphy.Chirami", category: "NoteWindowController")
     private var fileWatcher: FileWatcher?
     private var contentModel: NoteContentModel
     private var cancellables = Set<AnyCancellable>()
@@ -32,7 +34,7 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
 
         let panel = NotePanel(
             contentRect: frame,
-            styleMask: [.titled, .closable, .resizable, .nonactivatingPanel],
+            styleMask: [.titled, .closable, .resizable, .nonactivatingPanel, .fullSizeContentView],
             backing: .buffered,
             defer: false
         )
@@ -76,7 +78,7 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
 
         let rootView = NoteContentView(model: contentModel, noteId: note.id, onTogglePin: { [weak self] in self?.togglePinAction() })
             .environmentObject(NoteStore.shared)
-        panel.contentView = NSHostingView(rootView: rootView)
+        applyContentView(rootView, to: panel)
 
         setupFileWatcher()
 
@@ -375,8 +377,8 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
 
     @objc func togglePinAction() {
         isPinned.toggle()
-        (window as? NotePanel)?.updatePinState(isPinned: isPinned)
         noteStore.setPinned(isPinned, for: note)
+        (window as? NotePanel)?.updatePinState(isPinned: isPinned)
     }
 
     // MARK: - Periodic Note Navigation
@@ -461,7 +463,9 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
         contentModel = NoteContentModel(note: note)
         let rootView = NoteContentView(model: contentModel, noteId: note.id, onTogglePin: { [weak self] in self?.togglePinAction() })
             .environmentObject(NoteStore.shared)
-        (window as? NotePanel)?.contentView = NSHostingView(rootView: rootView)
+        if let panel = window as? NotePanel {
+            applyContentView(rootView, to: panel)
+        }
 
         // Update panel title
         (window as? NotePanel)?.title = note.title
@@ -508,6 +512,26 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
     private func reloadContent() {
         let newContent = noteStore.readContent(of: note)
         contentModel.reloadIfNeeded(newContent)
+    }
+
+    private func applyContentView<V: View>(_ rootView: V, to panel: NotePanel) {
+        let hostingView = NSHostingView(rootView: rootView)
+        hostingView.wantsLayer = true
+        hostingView.layer?.backgroundColor = note.colorScheme.nsColor.cgColor
+        panel.contentView = hostingView
+        debugLogContentViewIfNeeded(panel: panel, hostingView: hostingView)
+    }
+
+    private func debugLogContentViewIfNeeded(panel: NotePanel, hostingView: NSView) {
+        guard ProcessInfo.processInfo.environment["CHIRAMI_DEBUG_TITLEBAR"] == "1" else { return }
+        logger.debug("[Content] title=\(panel.title, privacy: .public) frame=\(String(describing: panel.frame), privacy: .public) contentLayoutRect=\(String(describing: panel.contentLayoutRect), privacy: .public)")
+        logger.debug("[Content] hosting frame=\(String(describing: hostingView.frame), privacy: .public) wantsLayer=\(hostingView.wantsLayer) layerBg=\(String(describing: hostingView.layer?.backgroundColor), privacy: .public)")
+        if let contentView = panel.contentView {
+            logger.debug("[Content] contentView type=\(String(describing: type(of: contentView)), privacy: .public) frame=\(String(describing: contentView.frame), privacy: .public)")
+            if let superview = contentView.superview {
+                logger.debug("[Content] contentSuperview type=\(String(describing: type(of: superview)), privacy: .public) frame=\(String(describing: superview.frame), privacy: .public)")
+            }
+        }
     }
 }
 
@@ -569,23 +593,14 @@ struct NoteContentView: View {
     }
 
     var body: some View {
-        LivePreviewEditor(
-            text: $model.text,
-            backgroundColor: note?.colorScheme.nsColor ?? NoteColorScheme.yellow.nsColor,
-            colorScheme: note?.colorScheme ?? .yellow,
-            fontSize: model.fontSize,
-            fontName: AppConfig.shared.config.font,
-            noteURL: note?.path,
-            attachmentsDir: note?.attachmentsDir,
-            editorState: model,
-            onFontSizeChange: { newSize in
-                model.fontSize = newSize
-            },
-            onTogglePin: onTogglePin
-        )
+        ZStack {
+            (note?.colorScheme.nsColor ?? NoteColorScheme.yellow.nsColor).swiftUI
+                .ignoresSafeArea()
+            NoteWebViewRepresentable(model: model)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
         .onChange(of: model.text) { _, _ in
             model.save()
         }
-        .background((note?.colorScheme.nsColor ?? NoteColorScheme.yellow.nsColor).swiftUI)
     }
 }

@@ -27,7 +27,8 @@ let package = Package(
                 "Resources/Assets.xcassets"
             ],
             resources: [
-                .copy("Resources/color_schemes.yaml")
+                .copy("Resources/color_schemes.yaml"),
+                .copy("Resources/editor")
             ]
         ),
         .testTarget(
