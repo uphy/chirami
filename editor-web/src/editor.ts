@@ -16,6 +16,7 @@ const markdownStyle = HighlightStyle.define([
   { tag: [tags.heading4, tags.heading5, tags.heading6], fontWeight: "bold" },
   { tag: tags.strikethrough, textDecoration: "line-through" },
   { tag: tags.monospace, class: "chirami-inline-code" },
+  { tag: tags.contentSeparator, class: "chirami-hr" },
 ]);
 
 export type EditorCallbacks = {

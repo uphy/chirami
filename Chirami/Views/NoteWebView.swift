@@ -81,6 +81,11 @@ final class NoteWebView: NSView {
         webView.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent())
     }
 
+    func focus() {
+        window?.makeFirstResponder(webView)
+        enqueueOrEval("window.chirami.focus();")
+    }
+
     func setContent(_ text: String) {
         guard text != lastSetContent else { return }
         if !isReady {

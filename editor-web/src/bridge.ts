@@ -3,6 +3,7 @@ type SwiftToJsApi = {
   setContent: (text: string) => void;
   setTheme: (cssVars: string) => void;
   setFont: (family: string, size: number) => void;
+  focus: () => void;
 };
 
 type JsToSwiftMessage =

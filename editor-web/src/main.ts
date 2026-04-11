@@ -28,6 +28,7 @@ exposeApi({
   },
   setTheme: applyCSSVariables,
   setFont: applyFont,
+  focus: () => { view.focus(); },
 });
 
 postToSwift({ type: "ready" });

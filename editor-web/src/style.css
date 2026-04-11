@@ -75,3 +75,13 @@ html, body {
 
 /* List markers */
 .cm-editor .tok-list { color: var(--chirami-link); }
+
+/* Horizontal rule */
+.chirami-hr {
+  display: inline-block;
+  width: 100%;
+  font-size: 0;
+  border-bottom: 1px solid var(--chirami-text);
+  opacity: 0.25;
+  margin: 0.25em 0;
+}

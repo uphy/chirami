@@ -1,4 +1,5 @@
 import AppKit
+import WebKit
 import os
 
 // MARK: - NotePanel
@@ -22,7 +23,6 @@ class NotePanel: NSPanel {
     private var didLogTitlebarHierarchy = false
     private let logger = Logger(subsystem: "io.github.uphy.Chirami", category: "NotePanel")
 
-    var onWarpKey: ((Character) -> Void)?
     var onHideRequest: (() -> Void)?
 
     override var title: String {
@@ -31,10 +31,14 @@ class NotePanel: NSPanel {
 
     override func becomeKey() {
         super.becomeKey()
-        // NSHostingView doesn't forward first responder to embedded NSTextViews.
-        // Walk the view hierarchy to find and focus the text view.
+        // NSHostingView doesn't forward first responder to embedded views automatically.
+        // Prefer MarkdownTextView (native editor); fall back to NoteWebView (web editor).
+        // For WKWebView, makeFirstResponder alone doesn't focus the DOM content —
+        // call focus() to also trigger JS focus() on the CodeMirror editor.
         if let textView = contentView?.firstDescendant(of: MarkdownTextView.self) {
             makeFirstResponder(textView)
+        } else if let noteWebView = contentView?.firstDescendant(of: NoteWebView.self) {
+            noteWebView.focus()
         }
     }
 
@@ -239,22 +243,6 @@ class NotePanel: NSPanel {
                 let activeFlags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
                 if activeFlags.isEmpty {
                     onHideRequest?()
-                    return
-                }
-            }
-            let warpFlags = AppConfig.shared.data.warpModifierFlags
-            let activeFlags = event.modifierFlags.intersection(.deviceIndependentFlagsMask).subtracting([.function, .numericPad])
-            if activeFlags == warpFlags {
-                // hjkl keys
-                if let char = event.charactersIgnoringModifiers?.first,
-                   ["h", "j", "k", "l"].contains(char) {
-                    onWarpKey?(char)
-                    return
-                }
-                // Arrow keys mapped to hjkl equivalents
-                let arrowKeyMap: [UInt16: Character] = [123: "h", 124: "l", 125: "j", 126: "k"]
-                if let mapped = arrowKeyMap[event.keyCode] {
-                    onWarpKey?(mapped)
                     return
                 }
             }

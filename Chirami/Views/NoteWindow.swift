@@ -18,6 +18,7 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
     private var isPinned: Bool
     private var isFadingOut: Bool = false
     private var fadeOutToken: Int = 0
+    nonisolated(unsafe) private var warpEventMonitor: Any?
 
     var isVisible: Bool { window?.isVisible ?? false }
 
@@ -56,9 +57,6 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
 
         super.init(window: panel)
         panel.delegate = self
-        panel.onWarpKey = { [weak self] key in
-            self?.warpTo(key: key)
-        }
         panel.onHideRequest = { [weak self] in
             self?.hide()
         }
@@ -101,6 +99,33 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
                 self?.contentModel.fontName = config.font
             }
             .store(in: &cancellables)
+
+        // Use a local event monitor instead of sendEvent override so warp keys are
+        // captured even when WKWebView holds first responder focus.
+        warpEventMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard let self, self.window?.isKeyWindow == true else { return event }
+            let warpFlags = AppConfig.shared.data.warpModifierFlags
+            let activeFlags = event.modifierFlags
+                .intersection(.deviceIndependentFlagsMask)
+                .subtracting([.function, .numericPad])
+            guard activeFlags == warpFlags else { return event }
+            if let char = event.charactersIgnoringModifiers?.first,
+               ["h", "j", "k", "l"].contains(char) {
+                self.warpTo(key: char)
+                return nil
+            }
+            if let mapped = Self.warpArrowMap[event.keyCode] {
+                self.warpTo(key: mapped)
+                return nil
+            }
+            return event
+        }
+    }
+
+    deinit {
+        if let monitor = warpEventMonitor {
+            NSEvent.removeMonitor(monitor)
+        }
     }
 
     @available(*, unavailable)
@@ -318,6 +343,8 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
     }
 
     // MARK: - Keyboard Warp
+
+    private static let warpArrowMap: [UInt16: Character] = [123: "h", 124: "l", 125: "j", 126: "k"]
 
     /// Warp the window to the adjacent grid position in the given HJKL direction, cycling at edges.
     func warpTo(key: Character) {
