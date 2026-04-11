@@ -9,35 +9,39 @@
   --chirami-font-size: 14px;
 }
 
-html, body {
+html, body, #editor {
   margin: 0;
   padding: 0;
   height: 100%;
+}
+
+html, body {
   background: var(--chirami-bg);
   color: var(--chirami-text);
   font-family: var(--chirami-font);
   font-size: var(--chirami-font-size);
 }
 
-#editor {
-  box-sizing: border-box;
-  width: 100%;
+.cm-editor {
   height: 100%;
-  padding: 12px 16px;
-  border: none;
-  outline: none;
-  resize: none;
-  background: transparent;
-  color: var(--chirami-text);
-  font-family: var(--chirami-font);
-  font-size: var(--chirami-font-size);
-  line-height: 1.5;
-  -webkit-font-smoothing: antialiased;
-  /* Disable macOS system-level Markdown rendering in textarea */
-  -webkit-text-decoration: none;
-  text-decoration: none;
+  background-color: var(--chirami-bg);
 }
 
-#editor::selection {
-  background-color: var(--chirami-selection);
+.cm-editor.cm-focused {
+  outline: none;
+}
+
+.cm-content {
+  padding: 12px 16px;
+  caret-color: var(--chirami-text);
+  -webkit-font-smoothing: antialiased;
+}
+
+.cm-selectionBackground,
+.cm-editor ::selection {
+  background-color: var(--chirami-selection) !important;
+}
+
+.cm-scroller {
+  line-height: 1.5;
 }
