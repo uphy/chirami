@@ -1,8 +1,22 @@
+:root {
+  --chirami-bg: transparent;
+  --chirami-text: #222;
+  --chirami-link: #2e538f;
+  --chirami-code: #6b3d1c;
+  --chirami-code-bg: rgba(0, 0, 0, 0.07);
+  --chirami-selection: rgba(34, 34, 34, 0.15);
+  --chirami-font: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+  --chirami-font-size: 14px;
+}
+
 html, body {
   margin: 0;
   padding: 0;
   height: 100%;
-  background: transparent;
+  background: var(--chirami-bg);
+  color: var(--chirami-text);
+  font-family: var(--chirami-font);
+  font-size: var(--chirami-font-size);
 }
 
 #editor {
@@ -14,11 +28,16 @@ html, body {
   outline: none;
   resize: none;
   background: transparent;
-  color: #222;
-  font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
-  font-size: 14px;
+  color: var(--chirami-text);
+  font-family: var(--chirami-font);
+  font-size: var(--chirami-font-size);
   line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
   /* Disable macOS system-level Markdown rendering in textarea */
   -webkit-text-decoration: none;
   text-decoration: none;
+}
+
+#editor::selection {
+  background-color: var(--chirami-selection);
 }

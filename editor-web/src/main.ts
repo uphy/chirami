@@ -1,4 +1,5 @@
 import { postToSwift, exposeApi } from "./bridge";
+import { applyCSSVariables, applyFont } from "./theme";
 
 const editor = document.getElementById("editor") as HTMLTextAreaElement;
 let debounceTimer: number | null = null;
@@ -10,6 +11,8 @@ exposeApi({
     editor.value = text;
     suppressNextInput = false;
   },
+  setTheme: (cssVars: string) => applyCSSVariables(cssVars),
+  setFont: (family: string, size: number) => applyFont(family, size),
 });
 
 editor.addEventListener("input", () => {

@@ -14,6 +14,12 @@ final class NoteWebView: NSView {
     private var pendingContent: String?
     private var lastSetContent: String?
     private var isReady: Bool = false
+    private var pendingScripts: [String] = []
+
+    private var currentColorScheme: NoteColorScheme = .yellow
+    private var currentIsDark: Bool = false
+    private var currentFontName: String?
+    private var currentFontSize: Double = 14
 
     var onContentChanged: ((String) -> Void)?
 
@@ -84,16 +90,52 @@ final class NoteWebView: NSView {
         evalSetContent(text)
     }
 
+    func setTheme(_ colorScheme: NoteColorScheme, isDark: Bool) {
+        guard colorScheme != currentColorScheme || isDark != currentIsDark else { return }
+        currentColorScheme = colorScheme
+        currentIsDark = isDark
+        let cssVars = ColorSchemeCSSConverter.cssVariables(for: colorScheme, isDark: isDark)
+        enqueueOrEval("window.chirami.setTheme(\(jsonString(cssVars)));")
+    }
+
+    func setFont(name: String?, size: Double) {
+        guard name != currentFontName || size != currentFontSize else { return }
+        currentFontName = name
+        currentFontSize = size
+        let family = FontCSSConverter.cssFontFamily(from: name)
+        enqueueOrEval("window.chirami.setFont(\(jsonString(family)), \(size));")
+    }
+
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        let isDark = effectiveAppearance.isDark
+        currentIsDark = isDark
+        let cssVars = ColorSchemeCSSConverter.cssVariables(for: currentColorScheme, isDark: isDark)
+        enqueueOrEval("window.chirami.setTheme(\(jsonString(cssVars)));")
+    }
+
+    private func enqueueOrEval(_ script: String) {
+        if !isReady {
+            pendingScripts.append(script)
+            return
+        }
+        webView.evaluateJavaScript(script, completionHandler: nil)
+    }
+
     private func handleReady() {
         isReady = true
         if let content = pendingContent {
             pendingContent = nil
             evalSetContent(content)
         }
+        for script in pendingScripts {
+            webView.evaluateJavaScript(script, completionHandler: nil)
+        }
+        pendingScripts.removeAll()
     }
 
     private func evalSetContent(_ text: String) {
-        let escaped = escapeForJS(text)
+        let escaped = jsonString(text)
         lastSetContent = text
         webView.evaluateJavaScript("window.chirami.setContent(\(escaped));") { [weak self] _, error in
             if let error {
@@ -102,7 +144,7 @@ final class NoteWebView: NSView {
         }
     }
 
-    private func escapeForJS(_ text: String) -> String {
+    private func jsonString(_ text: String) -> String {
         guard let data = try? JSONEncoder().encode(text),
               let json = String(data: data, encoding: .utf8) else {
             return "\"\""
@@ -126,5 +168,7 @@ struct NoteWebViewRepresentable: NSViewRepresentable {
 
     func updateNSView(_ nsView: NoteWebView, context: Context) {
         nsView.setContent(model.text)
+        nsView.setTheme(model.colorScheme, isDark: nsView.effectiveAppearance.isDark)
+        nsView.setFont(name: model.fontName, size: Double(model.fontSize))
     }
 }

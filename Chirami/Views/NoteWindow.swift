@@ -92,6 +92,15 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
                 }
             }
             .store(in: &cancellables)
+
+        // Monitor global font changes independently from note updates
+        AppConfig.shared.$data
+            .dropFirst()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] config in
+                self?.contentModel.fontName = config.font
+            }
+            .store(in: &cancellables)
     }
 
     @available(*, unavailable)
@@ -253,6 +262,7 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
         panel.title = updated.title
         panel.level = updated.alwaysOnTop ? .floating : .normal
         contentModel.fontSize = updated.fontSize
+        contentModel.colorScheme = updated.colorScheme
         note.position = updated.position
         note.transparency = updated.transparency  // Keep in sync for fade-in target
     }
@@ -542,6 +552,8 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
 class NoteContentModel: ObservableObject, EditorStatePreservable {
     @Published var text: String = ""
     @Published var fontSize: CGFloat
+    @Published var colorScheme: NoteColorScheme
+    @Published var fontName: String?
     nonisolated(unsafe) var savedCursorLocation: Int = 0
     nonisolated(unsafe) var savedScrollOffset: CGPoint = .zero
     private let note: Note
@@ -552,6 +564,8 @@ class NoteContentModel: ObservableObject, EditorStatePreservable {
     init(note: Note) {
         self.note = note
         self.fontSize = note.fontSize
+        self.colorScheme = note.colorScheme
+        self.fontName = AppConfig.shared.config.font
         let content = NoteStore.shared.readContent(of: note)
         text = content
         lastSavedContent = content

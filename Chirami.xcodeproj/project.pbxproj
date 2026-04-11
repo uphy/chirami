@@ -55,6 +55,7 @@
 		9D97BDE960424A0B1AB96586 /* DisplayContentModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1ABF49BCE03CB5D5D8E5314E /* DisplayContentModel.swift */; };
 		9DEED2E2BE2095AE950FBF10 /* ColorSchemeRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F067E2928430591A4D9EC7A /* ColorSchemeRegistry.swift */; };
 		A6D022417A6118A3797D2193 /* MarkdownStyler+Attributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = ECB402A10B6F81945DC19F08 /* MarkdownStyler+Attributes.swift */; };
+		B2ABECDA8B05B81B189F62FC /* ColorSchemeCSSConverter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31832D845D15CEEA1BD34120 /* ColorSchemeCSSConverter.swift */; };
 		BFCCAB2D9367154CBB54D12E /* WindowManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0578EC63E7BF57954B30DB4E /* WindowManager.swift */; };
 		C1F28E6A44CA5164EA471BF0 /* NoteWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19D408CE9CF5E73181D332BF /* NoteWindow.swift */; };
 		C4D5F10C5E7A5C1D072E3A44 /* Yams in Frameworks */ = {isa = PBXBuildFile; productRef = 2147FF9FD1FA09ACD092B3B0 /* Yams */; };
@@ -102,6 +103,7 @@
 		239D776C2575B622398D62AC /* EditorStatePreservable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorStatePreservable.swift; sourceTree = "<group>"; };
 		25FA43C09A9A3CFC2A8C4AD3 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
 		2B8C541ABFE53048C0EB50D2 /* Chirami.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Chirami.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		31832D845D15CEEA1BD34120 /* ColorSchemeCSSConverter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorSchemeCSSConverter.swift; sourceTree = "<group>"; };
 		3411E97273BFEB3A9CDF7DDA /* index.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = index.html; sourceTree = "<group>"; };
 		3C8A6882D8CB492910B2C74F /* MarkdownStyler+ThematicBreak.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MarkdownStyler+ThematicBreak.swift"; sourceTree = "<group>"; };
 		3CA855E446061538CC13E343 /* ChiramiApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChiramiApp.swift; sourceTree = "<group>"; };
@@ -187,6 +189,7 @@
 			isa = PBXGroup;
 			children = (
 				0644F372AB4F8FCBC53526C9 /* AttachmentCleanupService.swift */,
+				31832D845D15CEEA1BD34120 /* ColorSchemeCSSConverter.swift */,
 				542A23A975A7EAAD9A26372C /* DurationParser.swift */,
 				B5FDF5DD4D54BF8F9A9E2B8D /* FileWatcher.swift */,
 				02F9256C8060115572AE6928 /* GlobalHotkeyService.swift */,
@@ -459,6 +462,7 @@
 				F60B7F4CCC6006BA702ADB11 /* AttachmentCleanupService.swift in Sources */,
 				D63CB1B98FF89C0199A1056F /* BulletLayoutManager.swift in Sources */,
 				31184FD7FE3922B29D63BC35 /* ChiramiApp.swift in Sources */,
+				B2ABECDA8B05B81B189F62FC /* ColorSchemeCSSConverter.swift in Sources */,
 				9DEED2E2BE2095AE950FBF10 /* ColorSchemeRegistry.swift in Sources */,
 				7633CB7FD9D0F957533CC50E /* ConfigModels.swift in Sources */,
 				9D97BDE960424A0B1AB96586 /* DisplayContentModel.swift in Sources */,

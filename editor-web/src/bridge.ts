@@ -1,6 +1,8 @@
 // Swift -> JS API and JS -> Swift message types
 type SwiftToJsApi = {
   setContent: (text: string) => void;
+  setTheme: (cssVars: string) => void;
+  setFont: (family: string, size: number) => void;
 };
 
 type JsToSwiftMessage =
