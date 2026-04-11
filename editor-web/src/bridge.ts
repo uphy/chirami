@@ -4,11 +4,17 @@ type SwiftToJsApi = {
   setTheme: (cssVars: string) => void;
   setFont: (family: string, size: number) => void;
   focus: () => void;
+  setCursorPosition: (offset: number) => void;
+  setScrollPosition: (offset: number) => void;
 };
 
 type JsToSwiftMessage =
   | { type: "ready" }
   | { type: "contentChanged"; text: string }
+  | { type: "cursorChanged"; offset: number; line: number }
+  | { type: "scrollChanged"; offset: number }
+  | { type: "openLink"; url: string }
+  | { type: "fontSizeChange"; delta: number }
   | { type: "log"; level: "debug" | "info" | "warn" | "error"; message: string };
 
 declare global {

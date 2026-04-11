@@ -20,6 +20,7 @@ enum ColorSchemeCSSConverter {
         --chirami-code: \(rgb(code));
         --chirami-code-bg: \(codeBg);
         --chirami-selection: \(rgba(text, alpha: selectionAlpha));
+        color-scheme: \(isDark ? "dark" : "light");
         """
     }
 

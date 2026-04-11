@@ -10,6 +10,10 @@ final class NoteWebViewBridge: NSObject, WKScriptMessageHandler {
 
     var onReady: (() -> Void)?
     var onContentChanged: ((String) -> Void)?
+    var onCursorChanged: ((Int, Int) -> Void)?  // (offset, line)
+    var onScrollChanged: ((Double) -> Void)?
+    var onOpenLink: ((URL) -> Void)?
+    var onFontSizeChange: ((Int) -> Void)?
 
     nonisolated func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
         MainActor.assumeIsolated {
@@ -24,6 +28,22 @@ final class NoteWebViewBridge: NSObject, WKScriptMessageHandler {
             case "contentChanged":
                 if let text = body["text"] as? String {
                     onContentChanged?(text)
+                }
+            case "cursorChanged":
+                if let offset = body["offset"] as? Int, let line = body["line"] as? Int {
+                    onCursorChanged?(offset, line)
+                }
+            case "scrollChanged":
+                if let offset = body["offset"] as? Double {
+                    onScrollChanged?(offset)
+                }
+            case "openLink":
+                if let urlString = body["url"] as? String, let url = URL(string: urlString) {
+                    onOpenLink?(url)
+                }
+            case "fontSizeChange":
+                if let delta = body["delta"] as? Int {
+                    onFontSizeChange?(delta)
                 }
             case "log":
                 let level = body["level"] as? String ?? "info"

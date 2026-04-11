@@ -33,7 +33,7 @@ html, body {
 
 .cm-content {
   padding: 12px 16px;
-  caret-color: var(--chirami-text);
+  caret-color: var(--chirami-text) !important;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -75,6 +75,97 @@ html, body {
 
 /* List markers */
 .cm-editor .tok-list { color: var(--chirami-link); }
+
+/* Bullet widget replacing ListMark on non-cursor lines */
+.cm-editor .cm-list-bullet {
+  color: var(--chirami-text);
+  opacity: 0.5;
+  font-size: 0.85em;
+  vertical-align: middle;
+}
+
+/* Code block: background drawn via ::before to allow left/right margins */
+.cm-code-block-line {
+  position: relative;
+  isolation: isolate; /* creates stacking context so z-index:-1 stays within the line */
+  padding-left: 10px !important;
+}
+
+.cm-code-block-line::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  left: 4px;
+  right: 4px;
+  background-color: var(--chirami-code-bg);
+  z-index: -1;
+}
+
+.cm-code-block-first {
+  padding-top: 4px;
+}
+
+.cm-code-block-first::before {
+  border-radius: 6px 6px 0 0;
+}
+
+.cm-code-block-last {
+  padding-bottom: 4px;
+}
+
+.cm-code-block-last::before {
+  border-radius: 0 0 6px 6px;
+}
+
+.cm-code-block-first.cm-code-block-last::before {
+  border-radius: 6px;
+}
+
+/* Inside code block lines, reset the per-span inline-code styles */
+.cm-code-block-line .chirami-inline-code {
+  background: none;
+  border-radius: 0;
+  padding: 0;
+}
+
+/* Checkbox widget */
+.cm-checkbox-widget input[type="checkbox"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 13px;
+  height: 13px;
+  border: 1.5px solid color-mix(in srgb, var(--chirami-text) 40%, transparent);
+  border-radius: 3px;
+  background-color: transparent;
+  cursor: pointer;
+  vertical-align: middle;
+  margin: 0 3px 1px 0;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.cm-checkbox-widget input[type="checkbox"]:checked {
+  background-color: color-mix(in srgb, var(--chirami-text) 55%, transparent);
+  border-color: color-mix(in srgb, var(--chirami-text) 55%, transparent);
+}
+
+.cm-checkbox-widget input[type="checkbox"]:checked::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 45%;
+  width: 5px;
+  height: 8px;
+  border: 1.5px solid var(--chirami-bg);
+  border-top: none;
+  border-left: none;
+  transform: translate(-50%, -60%) rotate(45deg);
+}
+
+/* Checked task line dimming */
+.cm-task-checked {
+  color: color-mix(in srgb, var(--chirami-text) 40%, transparent);
+}
 
 /* Horizontal rule */
 .chirami-hr {

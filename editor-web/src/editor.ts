@@ -1,9 +1,13 @@
-import { EditorState, Transaction } from "@codemirror/state";
-import { EditorView, ViewUpdate } from "@codemirror/view";
-import { markdown } from "@codemirror/lang-markdown";
-import { GFM } from "@lezer/markdown";
+import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
+import { markdown } from "@codemirror/lang-markdown";
+import { search, searchKeymap } from "@codemirror/search";
+import { EditorState, Transaction } from "@codemirror/state";
+import { EditorView, ViewUpdate, keymap } from "@codemirror/view";
+import { GFM } from "@lezer/markdown";
 import { classHighlighter, tags } from "@lezer/highlight";
+import { checkboxExtension } from "./extensions/checkbox";
+import { chiramiKeymap } from "./extensions/keymap";
 import { livePreview } from "./extensions/livePreview";
 
 // Heading font sizes and strikethrough must be set here as inline styles —
@@ -21,6 +25,8 @@ const markdownStyle = HighlightStyle.define([
 
 export type EditorCallbacks = {
   onContentChanged: (text: string) => void;
+  onCursorChanged: (offset: number, line: number) => void;
+  onScrollChanged: (offset: number) => void;
 };
 
 export function createEditor(parent: HTMLElement, callbacks: EditorCallbacks): EditorView {
@@ -28,11 +34,31 @@ export function createEditor(parent: HTMLElement, callbacks: EditorCallbacks): E
     if (update.docChanged) {
       callbacks.onContentChanged(update.state.doc.toString());
     }
+    if (update.selectionSet) {
+      const head = update.state.selection.main.head;
+      const line = update.state.doc.lineAt(head).number;
+      callbacks.onCursorChanged(head, line);
+    }
+  });
+
+  const scrollHandler = EditorView.domEventHandlers({
+    scroll: (_event, view) => {
+      callbacks.onScrollChanged(view.scrollDOM.scrollTop);
+      return false;
+    },
   });
 
   const state = EditorState.create({
     doc: "",
     extensions: [
+      history(),
+      search(),
+      keymap.of([
+        ...chiramiKeymap,
+        ...defaultKeymap,
+        ...historyKeymap,
+        ...searchKeymap,
+      ]),
       markdown({ extensions: GFM }),
       syntaxHighlighting(classHighlighter),
       syntaxHighlighting(markdownStyle),
@@ -47,7 +73,9 @@ export function createEditor(parent: HTMLElement, callbacks: EditorCallbacks): E
       }),
       EditorView.lineWrapping,
       livePreview,
+      checkboxExtension,
       updateListener,
+      scrollHandler,
       EditorView.contentAttributes.of({
         spellcheck: "false",
         autocorrect: "off",

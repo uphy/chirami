@@ -6,9 +6,12 @@ import {
   EditorView,
   ViewPlugin,
   ViewUpdate,
+  WidgetType,
 } from "@codemirror/view";
+import { cursorLineNumber, shouldRebuild } from "./utils";
 
-// Markdown syntax marks to hide on non-cursor lines
+// Markdown syntax marks to hide on non-cursor lines.
+// ListMark ("-", "*", "+") is handled separately below with bullet replacement.
 const HIDDEN_MARK_NODES = new Set([
   "HeaderMark",
   "EmphasisMark",
@@ -16,11 +19,30 @@ const HIDDEN_MARK_NODES = new Set([
   "LinkMark",
   "URL",
   "StrikethroughMark",
-  "ListMark",
   "QuoteMark",
 ]);
 
 const HIDDEN_DECORATION = Decoration.replace({ inclusive: false });
+const CODE_BLOCK_LINE       = Decoration.line({ class: "cm-code-block-line" });
+const CODE_BLOCK_LINE_FIRST = Decoration.line({ class: "cm-code-block-line cm-code-block-first" });
+const CODE_BLOCK_LINE_LAST  = Decoration.line({ class: "cm-code-block-line cm-code-block-last" });
+const CODE_BLOCK_LINE_ONLY  = Decoration.line({ class: "cm-code-block-line cm-code-block-first cm-code-block-last" });
+
+class BulletWidget extends WidgetType {
+  eq(): boolean {
+    return true;
+  }
+
+  toDOM(): HTMLElement {
+    const span = document.createElement("span");
+    span.textContent = "•";
+    span.className = "cm-list-bullet";
+    return span;
+  }
+}
+
+// Stateless singleton — BulletWidget.eq() always returns true so one instance is sufficient.
+const BULLET_DECORATION = Decoration.replace({ widget: new BulletWidget() });
 
 function nodeContainsCursorLine(
   view: EditorView,
@@ -41,33 +63,57 @@ class LivePreviewPlugin {
   }
 
   update(update: ViewUpdate) {
-    if (update.docChanged || update.viewportChanged) {
-      this.decorations = this.build(update.view);
-    } else if (update.selectionSet) {
-      const newLine = update.view.state.doc.lineAt(
-        update.view.state.selection.main.head
-      ).number;
-      const oldLine = update.startState.doc.lineAt(
-        update.startState.selection.main.head
-      ).number;
-      if (newLine !== oldLine) {
-        this.decorations = this.build(update.view);
-      }
-    }
+    if (shouldRebuild(update)) this.decorations = this.build(update.view);
   }
 
   private build(view: EditorView): DecorationSet {
-    const cursorLine = view.state.doc.lineAt(
-      view.state.selection.main.head
-    ).number;
+    const cursorLine = cursorLineNumber(view);
     const decorations: Range<Decoration>[] = [];
     const tree = syntaxTree(view.state);
+    const processedCodeLines = new Set<number>();
 
     for (const { from, to } of view.visibleRanges) {
       tree.iterate({
         from,
         to,
         enter: (node) => {
+          if (node.name === "FencedCode") {
+            const fullStart = view.state.doc.lineAt(node.from).number;
+            const fullEnd   = view.state.doc.lineAt(node.to).number;
+            const visStart  = view.state.doc.lineAt(Math.max(node.from, from)).number;
+            const visEnd    = view.state.doc.lineAt(Math.min(node.to, to)).number;
+            for (let lineNum = visStart; lineNum <= visEnd; lineNum++) {
+              const line = view.state.doc.line(lineNum);
+              if (!processedCodeLines.has(line.from)) {
+                processedCodeLines.add(line.from);
+                const isFirst = lineNum === fullStart;
+                const isLast  = lineNum === fullEnd;
+                const deco =
+                  isFirst && isLast ? CODE_BLOCK_LINE_ONLY :
+                  isFirst           ? CODE_BLOCK_LINE_FIRST :
+                  isLast            ? CODE_BLOCK_LINE_LAST  :
+                                      CODE_BLOCK_LINE;
+                decorations.push(deco.range(line.from));
+              }
+            }
+            return; // Continue into children so CodeMark is still processed
+          }
+
+          if (node.name === "ListMark") {
+            if (nodeContainsCursorLine(view, node.from, node.to, cursorLine)) return;
+            // Detect task list item: text after the mark starts with " [ ]" or " [x]"
+            const afterMark = view.state.sliceDoc(node.to, node.to + 4);
+            const isTaskItem = /^ \[[ xX]\]/.test(afterMark);
+            if (isTaskItem) {
+              // Task list: hide the dash (checkbox widget follows from checkboxExtension)
+              decorations.push(HIDDEN_DECORATION.range(node.from, node.to));
+            } else {
+              // Regular list: replace dash/asterisk/plus with bullet symbol
+              decorations.push(BULLET_DECORATION.range(node.from, node.to));
+            }
+            return;
+          }
+
           if (!HIDDEN_MARK_NODES.has(node.name)) return;
           if (nodeContainsCursorLine(view, node.from, node.to, cursorLine)) {
             return;

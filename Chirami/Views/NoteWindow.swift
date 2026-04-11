@@ -19,6 +19,7 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
     private var isFadingOut: Bool = false
     private var fadeOutToken: Int = 0
     nonisolated(unsafe) private var warpEventMonitor: Any?
+    nonisolated(unsafe) private var fontSizeEventMonitor: Any?
 
     var isVisible: Bool { window?.isVisible ?? false }
 
@@ -120,10 +121,34 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
             }
             return event
         }
+
+        // Intercept Cmd+=/Cmd++ (font up) and Cmd+- (font down) at the NSEvent level
+        // to prevent WKWebView from generating a system beep for these key combinations.
+        fontSizeEventMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard let self, self.window?.isKeyWindow == true else { return event }
+            let flags = event.modifierFlags
+                .intersection(.deviceIndependentFlagsMask)
+                .subtracting([.function, .numericPad])
+            guard let chars = event.charactersIgnoringModifiers else { return event }
+            // Cmd+= or Cmd+Shift+= (Cmd++) → font size up
+            if chars == "=", flags == .command || flags == [.command, .shift] {
+                self.handleFontSizeChange(delta: 1)
+                return nil
+            }
+            // Cmd+- → font size down
+            if chars == "-", flags == .command {
+                self.handleFontSizeChange(delta: -1)
+                return nil
+            }
+            return event
+        }
     }
 
     deinit {
         if let monitor = warpEventMonitor {
+            NSEvent.removeMonitor(monitor)
+        }
+        if let monitor = fontSizeEventMonitor {
             NSEvent.removeMonitor(monitor)
         }
     }
@@ -294,6 +319,10 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
 
     // MARK: - NSWindowDelegate
 
+    func windowDidBecomeKey(_ notification: Notification) {
+        contentModel.focusWebView?()
+    }
+
     func windowDidResignKey(_ notification: Notification) {
         guard !isPinned, isVisible else { return }
         contentModel.save()
@@ -340,6 +369,13 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
             size: window.frame.size,
             visible: isVisible
         )
+    }
+
+    // MARK: - Font Size
+
+    private func handleFontSizeChange(delta: Int) {
+        let newSize = max(8, min(72, Int(contentModel.fontSize) + delta))
+        contentModel.fontSize = CGFloat(newSize)
     }
 
     // MARK: - Keyboard Warp
@@ -583,6 +619,7 @@ class NoteContentModel: ObservableObject, EditorStatePreservable {
     @Published var fontName: String?
     nonisolated(unsafe) var savedCursorLocation: Int = 0
     nonisolated(unsafe) var savedScrollOffset: CGPoint = .zero
+    var focusWebView: (() -> Void)?
     private let note: Note
     private var isSaving = false
     private var isReloading = false

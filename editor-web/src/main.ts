@@ -1,20 +1,24 @@
 import { createEditor, setEditorContent } from "./editor";
 import { postToSwift, exposeApi } from "./bridge";
 import { applyCSSVariables, applyFont } from "./theme";
+import { debounce } from "./extensions/utils";
 
 const container = document.getElementById("editor")!;
-let debounceTimer: number | null = null;
 let suppressChangeNotification = false;
 
+const debouncedContentChanged = debounce((text: string) => {
+  postToSwift({ type: "contentChanged", text });
+}, 300);
+
 const view = createEditor(container, {
-  onContentChanged: (text) => {
-    if (suppressChangeNotification) return;
-    if (debounceTimer !== null) window.clearTimeout(debounceTimer);
-    debounceTimer = window.setTimeout(() => {
-      postToSwift({ type: "contentChanged", text });
-      debounceTimer = null;
-    }, 300);
-  },
+  // Guard is checked at call time so setContent echo-back is suppressed before debounce.
+  onContentChanged: (text) => { if (!suppressChangeNotification) debouncedContentChanged(text); },
+  onCursorChanged: debounce((offset, line) => {
+    postToSwift({ type: "cursorChanged", offset, line });
+  }, 1000),
+  onScrollChanged: debounce((offset) => {
+    postToSwift({ type: "scrollChanged", offset });
+  }, 1000),
 });
 
 exposeApi({
@@ -29,6 +33,14 @@ exposeApi({
   setTheme: applyCSSVariables,
   setFont: applyFont,
   focus: () => { view.focus(); },
+  setCursorPosition: (offset) => {
+    const docLength = view.state.doc.length;
+    const clampedOffset = Math.min(offset, docLength);
+    view.dispatch({ selection: { anchor: clampedOffset } });
+  },
+  setScrollPosition: (offset) => {
+    view.scrollDOM.scrollTop = offset;
+  },
 });
 
 postToSwift({ type: "ready" });

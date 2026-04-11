@@ -21,7 +21,14 @@ final class NoteWebView: NSView {
     private var currentFontName: String?
     private var currentFontSize: Double = 14
 
+    private var initialCursorOffset: Int = 0
+    private var initialScrollOffset: Double = 0
+
     var onContentChanged: ((String) -> Void)?
+    var onCursorChanged: ((Int, Int) -> Void)?
+    var onScrollChanged: ((Double) -> Void)?
+    var onOpenLink: ((URL) -> Void)?
+    var onFontSizeChange: ((Int) -> Void)?
 
     override init(frame frameRect: NSRect) {
         let config = WKWebViewConfiguration()
@@ -54,6 +61,18 @@ final class NoteWebView: NSView {
             // Track JS-originated content to suppress the echo-back in setContent
             self?.lastSetContent = text
             self?.onContentChanged?(text)
+        }
+        bridge.onCursorChanged = { [weak self] offset, line in
+            self?.onCursorChanged?(offset, line)
+        }
+        bridge.onScrollChanged = { [weak self] offset in
+            self?.onScrollChanged?(offset)
+        }
+        bridge.onOpenLink = { [weak self] url in
+            self?.onOpenLink?(url)
+        }
+        bridge.onFontSizeChange = { [weak self] delta in
+            self?.onFontSizeChange?(delta)
         }
 
         webView.translatesAutoresizingMaskIntoConstraints = false
@@ -111,12 +130,22 @@ final class NoteWebView: NSView {
         enqueueOrEval("window.chirami.setFont(\(jsonString(family)), \(size));")
     }
 
+    func setInitialState(cursor: Int, scroll: Double) {
+        initialCursorOffset = cursor
+        initialScrollOffset = scroll
+    }
+
+    func setCursorPosition(offset: Int) {
+        enqueueOrEval("window.chirami.setCursorPosition(\(offset));")
+    }
+
+    func setScrollPosition(offset: Double) {
+        enqueueOrEval("window.chirami.setScrollPosition(\(offset));")
+    }
+
     override func viewDidChangeEffectiveAppearance() {
         super.viewDidChangeEffectiveAppearance()
-        let isDark = effectiveAppearance.isDark
-        currentIsDark = isDark
-        let cssVars = ColorSchemeCSSConverter.cssVariables(for: currentColorScheme, isDark: isDark)
-        enqueueOrEval("window.chirami.setTheme(\(jsonString(cssVars)));")
+        setTheme(currentColorScheme, isDark: effectiveAppearance.isDark)
     }
 
     private func enqueueOrEval(_ script: String) {
@@ -137,6 +166,12 @@ final class NoteWebView: NSView {
             webView.evaluateJavaScript(script, completionHandler: nil)
         }
         pendingScripts.removeAll()
+        applyInitialState()
+    }
+
+    private func applyInitialState() {
+        if initialCursorOffset > 0 { setCursorPosition(offset: initialCursorOffset) }
+        if initialScrollOffset > 0 { setScrollPosition(offset: initialScrollOffset) }
     }
 
     private func evalSetContent(_ text: String) {
@@ -168,6 +203,26 @@ struct NoteWebViewRepresentable: NSViewRepresentable {
         view.onContentChanged = { [model] text in
             model.text = text
         }
+        view.onCursorChanged = { [model] offset, _ in
+            model.savedCursorLocation = offset
+        }
+        view.onScrollChanged = { [model] offset in
+            model.savedScrollOffset = CGPoint(x: 0, y: offset)
+        }
+        view.onOpenLink = { url in
+            NSWorkspace.shared.open(url)
+        }
+        view.onFontSizeChange = { [model] delta in
+            let newSize = max(8, min(72, Int(model.fontSize) + delta))
+            model.fontSize = CGFloat(newSize)
+        }
+        model.focusWebView = { [weak view] in
+            view?.focus()
+        }
+        view.setInitialState(
+            cursor: model.savedCursorLocation,
+            scroll: model.savedScrollOffset.y
+        )
         return view
     }
 
