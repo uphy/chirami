@@ -45,3 +45,33 @@ html, body {
 .cm-scroller {
   line-height: 1.5;
 }
+
+/* Inline formatting (heading sizes/weights and strikethrough handled by markdownStyle in editor.ts) */
+.cm-editor .tok-emphasis { font-style: italic; }
+.cm-editor .tok-strong { font-weight: 700; }
+
+/* Links */
+.cm-editor .tok-link { color: var(--chirami-link); text-decoration: underline; }
+.cm-editor .tok-url { color: var(--chirami-link); }
+
+/* Inline code */
+.chirami-inline-code {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  color: var(--chirami-code);
+  background-color: var(--chirami-code-bg);
+  border-radius: 3px;
+  padding: 0 4px;
+}
+
+/* Blockquote */
+.cm-editor .cm-line.cm-quote {
+  border-left: 3px solid var(--chirami-link);
+  padding-left: 8px;
+  opacity: 0.85;
+}
+
+/* Code block comment dimming */
+.cm-editor .tok-comment { opacity: 0.7; }
+
+/* List markers */
+.cm-editor .tok-list { color: var(--chirami-link); }
