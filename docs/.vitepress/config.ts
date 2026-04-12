@@ -25,7 +25,8 @@ export default defineConfig({
           { text: 'Getting Started', link: '/getting-started' },
           { text: 'Features', link: '/features' },
           { text: 'Advanced', link: '/advanced' },
-          { text: 'CLI', link: '/cli' }
+          { text: 'CLI', link: '/cli' },
+          { text: 'AI Integrations', link: '/ai-integrations' }
         ]
       },
       {

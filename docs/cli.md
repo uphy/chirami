@@ -79,3 +79,5 @@ Returns exit code 1 with `no focused note` on stderr if no note was recently foc
 ```bash
 chirami context | jq -r '.selection.text' | claude "Summarize:"
 ```
+
+For more advanced integrations (Raycast script command, Claude Code skill), see [AI Integrations](/ai-integrations).
