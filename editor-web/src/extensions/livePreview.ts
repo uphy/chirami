@@ -28,6 +28,7 @@ const CODE_BLOCK_LINE       = Decoration.line({ class: "cm-code-block-line" });
 const CODE_BLOCK_LINE_FIRST = Decoration.line({ class: "cm-code-block-line cm-code-block-first" });
 const CODE_BLOCK_LINE_LAST  = Decoration.line({ class: "cm-code-block-line cm-code-block-last" });
 const CODE_BLOCK_LINE_ONLY  = Decoration.line({ class: "cm-code-block-line cm-code-block-first cm-code-block-last" });
+const QUOTE_LINE            = Decoration.line({ class: "cm-quote" });
 
 class BulletWidget extends WidgetType {
   eq(): boolean {
@@ -67,6 +68,16 @@ class LivePreviewPlugin {
         from,
         to,
         enter: (node) => {
+          if (node.name === "Blockquote") {
+            const startLine = view.state.doc.lineAt(Math.max(node.from, from)).number;
+            const endLine   = view.state.doc.lineAt(Math.min(node.to, to)).number;
+            for (let lineNum = startLine; lineNum <= endLine; lineNum++) {
+              const line = view.state.doc.line(lineNum);
+              decorations.push(QUOTE_LINE.range(line.from));
+            }
+            return; // Continue into children for QuoteMark handling
+          }
+
           if (node.name === "FencedCode") {
             // mermaidExtension owns the rendered widget; skip duplicate line decorations
             const cursorInBlock = nodeContainsCursorLine(view, node.from, node.to, cursorLine);
@@ -104,16 +115,19 @@ class LivePreviewPlugin {
 
           if (node.name === "ListMark") {
             if (nodeContainsCursorLine(view, node.from, node.to, cursorLine)) return;
+            const markText = view.state.sliceDoc(node.from, node.to);
             // Detect task list item: text after the mark starts with " [ ]" or " [x]"
             const afterMark = view.state.sliceDoc(node.to, node.to + 4);
             const isTaskItem = /^ \[[ xX]\]/.test(afterMark);
+            const isOrderedMark = /^\d+[.)]$/.test(markText);
             if (isTaskItem) {
               // Task list: hide the dash (checkbox widget follows from checkboxExtension)
               decorations.push(HIDDEN_DECORATION.range(node.from, node.to));
-            } else {
-              // Regular list: replace dash/asterisk/plus with bullet symbol
+            } else if (!isOrderedMark) {
+              // Unordered list: replace dash/asterisk/plus with bullet symbol
               decorations.push(BULLET_DECORATION.range(node.from, node.to));
             }
+            // Ordered list marks (e.g. "1.") are left as-is
             return;
           }
 

@@ -53,11 +53,11 @@ Outputs the context of the last focused Registered Note as JSON.
 
 ```bash
 chirami context
-# {"file":"/path/to/note.md","selection":"","line":1,"column":0}
+# {"file":"/path/to/note.md","selection":{"text":"","from":{"line":1,"column":0},"to":{"line":1,"column":0}},"cursor":{"line":1,"column":0}}
 
 # With text selected in the note
 chirami context
-# {"file":"/path/to/note.md","selection":"selected text","line":5,"column":3}
+# {"file":"/path/to/note.md","selection":{"text":"selected text","from":{"line":5,"column":0},"to":{"line":5,"column":13}},"cursor":{"line":5,"column":13}}
 ```
 
 **Output fields**
@@ -65,14 +65,17 @@ chirami context
 | Field | Description |
 |-------|-------------|
 | `file` | Absolute path to the note file |
-| `selection` | Currently selected text (empty string if nothing selected) |
-| `line` | Line number of the cursor (1-indexed) |
-| `column` | Column of the cursor within the line (0-indexed) |
+| `selection.text` | Currently selected text (empty string if nothing selected) |
+| `selection.from` | Start position of the selection `{ line, column }` |
+| `selection.to` | End position of the selection `{ line, column }` |
+| `cursor` | Cursor position `{ line, column }` |
+
+`line` is 1-indexed; `column` is 0-indexed. When nothing is selected, `selection.from` and `selection.to` equal `cursor`.
 
 Returns exit code 1 with `no focused note` on stderr if no note was recently focused.
 
 **Example: pass context to an AI tool**
 
 ```bash
-chirami context | jq -r '.selection' | claude "Summarize:"
+chirami context | jq -r '.selection.text' | claude "Summarize:"
 ```

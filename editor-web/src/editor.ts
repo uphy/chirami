@@ -157,10 +157,15 @@ export function getEditorContext(view: EditorView): string {
   const sel = state.selection.main;
   const head = sel.head;
   const line = state.doc.lineAt(head);
+  const fromLine = state.doc.lineAt(sel.from);
+  const toLine = state.doc.lineAt(sel.to);
   return JSON.stringify({
     file: window.__chiramiNotePath ?? "",
-    selection: sel.empty ? "" : state.sliceDoc(sel.from, sel.to),
-    line: line.number,
-    column: head - line.from,
+    selection: {
+      text: sel.empty ? "" : state.sliceDoc(sel.from, sel.to),
+      from: { line: fromLine.number, column: sel.from - fromLine.from },
+      to: { line: toLine.number, column: sel.to - toLine.from },
+    },
+    cursor: { line: line.number, column: head - line.from },
   });
 }
