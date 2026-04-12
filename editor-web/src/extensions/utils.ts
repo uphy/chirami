@@ -4,6 +4,17 @@ export function cursorLineNumber(view: EditorView): number {
   return view.state.doc.lineAt(view.state.selection.main.head).number;
 }
 
+export function nodeContainsCursorLine(
+  view: EditorView,
+  from: number,
+  to: number,
+  cursorLine: number
+): boolean {
+  const startLine = view.state.doc.lineAt(from).number;
+  const endLine = view.state.doc.lineAt(to).number;
+  return cursorLine >= startLine && cursorLine <= endLine;
+}
+
 export function shouldRebuild(update: ViewUpdate): boolean {
   if (update.docChanged || update.viewportChanged) return true;
   if (update.selectionSet) {

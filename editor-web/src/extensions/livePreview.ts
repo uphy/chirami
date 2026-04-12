@@ -8,7 +8,7 @@ import {
   ViewUpdate,
   WidgetType,
 } from "@codemirror/view";
-import { cursorLineNumber, shouldRebuild } from "./utils";
+import { cursorLineNumber, nodeContainsCursorLine, shouldRebuild } from "./utils";
 
 // Markdown syntax marks to hide on non-cursor lines.
 // ListMark ("-", "*", "+") is handled separately below with bullet replacement.
@@ -45,17 +45,6 @@ class BulletWidget extends WidgetType {
 // Stateless singleton — BulletWidget.eq() always returns true so one instance is sufficient.
 const BULLET_DECORATION = Decoration.replace({ widget: new BulletWidget() });
 
-function nodeContainsCursorLine(
-  view: EditorView,
-  from: number,
-  to: number,
-  cursorLine: number
-): boolean {
-  const startLine = view.state.doc.lineAt(from).number;
-  const endLine = view.state.doc.lineAt(to).number;
-  return cursorLine >= startLine && cursorLine <= endLine;
-}
-
 class LivePreviewPlugin {
   decorations: DecorationSet;
 
@@ -79,6 +68,19 @@ class LivePreviewPlugin {
         to,
         enter: (node) => {
           if (node.name === "FencedCode") {
+            // mermaidExtension owns the rendered widget; skip duplicate line decorations
+            const cursorInBlock = nodeContainsCursorLine(view, node.from, node.to, cursorLine);
+            if (!cursorInBlock) {
+              const codeInfoNode = node.node.getChild("CodeInfo");
+              if (codeInfoNode) {
+                const lang = view.state
+                  .sliceDoc(codeInfoNode.from, codeInfoNode.to)
+                  .trim()
+                  .toLowerCase();
+                if (lang === "mermaid") return false;
+              }
+            }
+
             const fullStart = view.state.doc.lineAt(node.from).number;
             const fullEnd   = view.state.doc.lineAt(node.to).number;
             const visStart  = view.state.doc.lineAt(Math.max(node.from, from)).number;

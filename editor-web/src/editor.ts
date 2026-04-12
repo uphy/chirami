@@ -11,12 +11,15 @@ import { checkboxExtension } from "./extensions/checkbox";
 import { chiramiKeymap } from "./extensions/keymap";
 import { livePreview } from "./extensions/livePreview";
 import { tableExtension } from "./extensions/table";
+import { mermaidExtension } from "./extensions/mermaid";
 import { imageExtension } from "./extensions/image";
 import {
   markdownHeadingFold,
   markdownListFold,
   foldChangeListener,
+  applyFoldingFromLines,
 } from "./extensions/foldMarkdown";
+import { foldedRanges } from "@codemirror/language";
 import { smartPaste, plainPasteKeymap } from "./extensions/smartPaste";
 
 // Heading font sizes and strikethrough must be set here as inline styles —
@@ -114,6 +117,7 @@ export function createEditor(parent: HTMLElement, callbacks: EditorCallbacks): E
       foldGutter(),
       foldChangeListener,
       tableExtension,
+      mermaidExtension,
       imageExtension,
       smartPaste,
       updateListener,
@@ -130,8 +134,20 @@ export function createEditor(parent: HTMLElement, callbacks: EditorCallbacks): E
 }
 
 export function setEditorContent(view: EditorView, text: string) {
+  // Preserve fold state across document replacement.
+  // Replacing the entire document invalidates all fold ranges in CodeMirror,
+  // so we save the folded line numbers and reapply them after the dispatch.
+  const foldedLineNumbers: number[] = [];
+  foldedRanges(view.state).between(0, view.state.doc.length, (from) => {
+    foldedLineNumbers.push(view.state.doc.lineAt(from).number);
+  });
+
   view.dispatch({
     changes: { from: 0, to: view.state.doc.length, insert: text },
     annotations: Transaction.userEvent.of("external"),
   });
+
+  if (foldedLineNumbers.length > 0) {
+    applyFoldingFromLines(view, foldedLineNumbers);
+  }
 }

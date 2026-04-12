@@ -15,6 +15,8 @@ final class NoteWebView: NSView {
     private var lastSetContent: String?
     private var isReady: Bool = false
     private var pendingScripts: [String] = []
+    // Fold lines are applied after content to avoid being wiped by setContent.
+    private var pendingFoldLines: [Int]?
 
     private var currentColorScheme: NoteColorScheme = .yellow
     private var currentIsDark: Bool = false
@@ -134,8 +136,13 @@ final class NoteWebView: NSView {
 
     func applyFolding(lines: [Int]) {
         guard !lines.isEmpty else { return }
+        if !isReady {
+            // Store separately so it can be applied after setContent in handleReady()
+            pendingFoldLines = lines
+            return
+        }
         let linesJSON = lines.map(String.init).joined(separator: ",")
-        enqueueOrEval("window.chirami.applyFolding([\(linesJSON)]);")
+        webView.evaluateJavaScript("window.chirami.applyFolding([\(linesJSON)]);", completionHandler: nil)
     }
 
     func setTheme(_ colorScheme: NoteColorScheme, isDark: Bool) {
@@ -190,6 +197,12 @@ final class NoteWebView: NSView {
         if let content = pendingContent {
             pendingContent = nil
             evalSetContent(content)
+        }
+        // Apply folding after content so it is not wiped by setContent
+        if let lines = pendingFoldLines {
+            pendingFoldLines = nil
+            let linesJSON = lines.map(String.init).joined(separator: ",")
+            webView.evaluateJavaScript("window.chirami.applyFolding([\(linesJSON)]);", completionHandler: nil)
         }
         applyInitialState()
     }

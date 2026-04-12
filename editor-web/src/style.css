@@ -196,6 +196,32 @@ html, body {
   display: none;
 }
 
+/* Hide raw mermaid markdown text when widget is shown */
+.cm-mermaid-raw {
+  display: none;
+}
+
+/* Mermaid diagram container */
+.cm-mermaid-container {
+  margin: 0.5em 0;
+  overflow: auto;
+}
+
+.cm-mermaid-container svg {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Mermaid syntax error display */
+.cm-mermaid-error {
+  padding: 8px;
+  background: rgba(255, 0, 0, 0.08);
+  border-radius: 4px;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 12px;
+  color: #cd3131;
+}
+
 /* Table widget */
 .cm-table-widget {
   overflow-x: auto;
