@@ -1,9 +1,8 @@
 import Foundation
 
 /// Manages content and auto-saving for Ad-hoc Note windows.
-/// Used as an ObservableObject to provide a Binding<String> for LivePreviewEditor.
 @MainActor
-class DisplayContentModel: ObservableObject, EditorStatePreservable {
+class DisplayContentModel: ObservableObject {
 
     @Published var text: String
     let fileURL: URL?

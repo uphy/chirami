@@ -609,7 +609,7 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
 
 /// Shared state between NoteWindowController and NoteContentView.
 @MainActor
-class NoteContentModel: ObservableObject, EditorStatePreservable {
+class NoteContentModel: ObservableObject {
     @Published var text: String = ""
     @Published var fontSize: CGFloat
     @Published var colorScheme: NoteColorScheme

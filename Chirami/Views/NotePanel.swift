@@ -32,12 +32,9 @@ class NotePanel: NSPanel {
     override func becomeKey() {
         super.becomeKey()
         // NSHostingView doesn't forward first responder to embedded views automatically.
-        // Prefer MarkdownTextView (native editor); fall back to NoteWebView (web editor).
         // For WKWebView, makeFirstResponder alone doesn't focus the DOM content —
         // call focus() to also trigger JS focus() on the CodeMirror editor.
-        if let textView = contentView?.firstDescendant(of: MarkdownTextView.self) {
-            makeFirstResponder(textView)
-        } else if let noteWebView = contentView?.firstDescendant(of: NoteWebView.self) {
+        if let noteWebView = contentView?.firstDescendant(of: NoteWebView.self) {
             noteWebView.focus()
         }
     }
