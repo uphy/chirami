@@ -6,7 +6,7 @@ A macOS sticky-note Markdown app. Access your notes as floating windows — with
 
 ## Features
 
-- **Markdown Live Preview** — Obsidian-style editing: raw Markdown at the cursor, rendered everywhere else
+- **Markdown Live Preview** — Obsidian-style editing: raw Markdown at the cursor, rendered everywhere else (includes Mermaid diagram rendering)
 - **Always-on-top floating windows** — `NSPanel`-based sticky notes that stay above all windows (tiling WM friendly)
 - **Global hotkeys** — Summon any note instantly from any application
 - **Pure `.md` files** — No metadata, no front matter. Full Obsidian / VS Code compatibility
@@ -16,7 +16,7 @@ A macOS sticky-note Markdown app. Access your notes as floating windows — with
 - **Window Warp** — Modifier+H/J/K/L to snap windows to a 3×3 grid
 - **External Editor Sync** — Live file watching; edits in Obsidian or VS Code reflect instantly
 - **Per-note styling** — Background color, transparency, and font size for each note
-- **CLI** — `chirami display` to show Markdown in a floating window from the terminal
+- **CLI** — `chirami display` to show Markdown in a floating window from the terminal; `chirami context` to read the focused note's context as JSON for use with external tools
 
 See [Features](docs/features.md) for the full feature guide and keyboard shortcuts.
 
@@ -109,12 +109,20 @@ open Chirami.xcodeproj
 
 ## Dependencies
 
+**Swift (SPM)**
+
 | Library | Purpose | License |
 |---------|---------|---------|
-| [swift-markdown](https://github.com/swiftlang/swift-markdown) | Markdown parser (Apple) | Apache 2.0 |
 | [HotKey](https://github.com/soffes/HotKey) | Global hotkeys | MIT |
 | [Yams](https://github.com/jpsim/Yams) | YAML parser | MIT |
-| [Highlightr](https://github.com/raspu/Highlightr) | Code block syntax highlighting | MIT |
+
+**JS (editor-web/)**
+
+| Library | Purpose | License |
+|---------|---------|---------|
+| [CodeMirror 6](https://codemirror.net/) | Live Preview editor engine | MIT |
+| [mermaid](https://mermaid.js.org/) | Mermaid diagram rendering | MIT |
+| [turndown](https://github.com/mixmark-io/turndown) | HTML → Markdown conversion (Smart Paste) | MIT |
 
 ## License
 

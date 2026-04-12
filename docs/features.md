@@ -23,6 +23,7 @@ Chirami renders Markdown in an Obsidian-style Live Preview: the block containing
 - Nested lists
 - Blockquotes (`>`)
 - Code blocks with syntax highlighting (triple backticks with optional language)
+- Mermaid diagrams (` ```mermaid ` blocks) — rendered as SVG when cursor is outside the block
 - Tables (GitHub Flavored Markdown pipe syntax)
 - Thematic breaks (`---`, `***`, `___`)
 
