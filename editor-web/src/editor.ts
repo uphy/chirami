@@ -1,6 +1,7 @@
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { HighlightStyle, foldGutter, syntaxHighlighting } from "@codemirror/language";
 import { markdown } from "@codemirror/lang-markdown";
+import { languages } from "@codemirror/language-data";
 import { search, searchKeymap } from "@codemirror/search";
 import { EditorState, Transaction } from "@codemirror/state";
 import { EditorView, ViewUpdate, keymap } from "@codemirror/view";
@@ -69,7 +70,7 @@ export function createEditor(parent: HTMLElement, callbacks: EditorCallbacks): E
         ...historyKeymap,
         ...searchKeymap,
       ]),
-      markdown({ extensions: GFM }),
+      markdown({ extensions: GFM, codeLanguages: languages }),
       syntaxHighlighting(classHighlighter),
       syntaxHighlighting(markdownStyle),
       EditorView.theme({

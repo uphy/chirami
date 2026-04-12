@@ -16,6 +16,7 @@ const HIDDEN_MARK_NODES = new Set([
   "HeaderMark",
   "EmphasisMark",
   "CodeMark",
+  "CodeInfo",
   "LinkMark",
   "URL",
   "StrikethroughMark",

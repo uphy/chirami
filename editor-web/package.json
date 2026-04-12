@@ -13,6 +13,7 @@
     "@codemirror/lang-markdown": "^6",
     "@codemirror/commands": "^6",
     "@codemirror/search": "^6",
+    "@codemirror/language-data": "^6",
     "@lezer/markdown": "^1",
     "@lezer/highlight": "^1",
     "turndown": "^7",

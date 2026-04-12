@@ -90,6 +90,7 @@ html, body {
   position: relative;
   isolation: isolate; /* creates stacking context so z-index:-1 stays within the line */
   padding-left: 10px !important;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace !important;
 }
 
 .cm-code-block-line::before {
@@ -119,6 +120,20 @@ html, body {
 .cm-code-block-first.cm-code-block-last::before {
   border-radius: 6px;
 }
+
+/* Syntax highlighting — VS Code Light+ inspired, scoped to code blocks */
+.cm-code-block-line .tok-keyword   { color: #0070c1; }
+.cm-code-block-line .tok-string    { color: #a31515; }
+.cm-code-block-line .tok-string2   { color: #811f3f; }
+.cm-code-block-line .tok-number    { color: #098658; }
+.cm-code-block-line .tok-comment   { color: #008000; opacity: 1; } /* override global dimming — code comments use explicit color */
+.cm-code-block-line .tok-typeName  { color: #267f99; }
+.cm-code-block-line .tok-className { color: #267f99; }
+.cm-code-block-line .tok-propertyName { color: #795e26; }
+.cm-code-block-line .tok-atom,
+.cm-code-block-line .tok-bool      { color: #0000ff; }
+.cm-code-block-line .tok-meta      { color: #795e26; }
+.cm-code-block-line .tok-invalid   { color: #cd3131; }
 
 /* Inside code block lines, reset the per-span inline-code styles */
 .cm-code-block-line .chirami-inline-code {
