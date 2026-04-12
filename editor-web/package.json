@@ -14,10 +14,13 @@
     "@codemirror/commands": "^6",
     "@codemirror/search": "^6",
     "@lezer/markdown": "^1",
-    "@lezer/highlight": "^1"
+    "@lezer/highlight": "^1",
+    "turndown": "^7",
+    "turndown-plugin-gfm": "^1"
   },
   "devDependencies": {
     "esbuild": "^0.21",
-    "typescript": "^5"
+    "typescript": "^5",
+    "@types/turndown": "^5"
   }
 }

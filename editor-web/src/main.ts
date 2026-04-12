@@ -2,6 +2,7 @@ import { createEditor, setEditorContent } from "./editor";
 import { postToSwift, exposeApi } from "./bridge";
 import { applyCSSVariables, applyFont } from "./theme";
 import { debounce } from "./extensions/utils";
+import { applyFoldingFromLines } from "./extensions/foldMarkdown";
 
 const container = document.getElementById("editor")!;
 let suppressChangeNotification = false;
@@ -40,6 +41,15 @@ exposeApi({
   },
   setScrollPosition: (offset) => {
     view.scrollDOM.scrollTop = offset;
+  },
+  insertText: (text) => {
+    view.dispatch(view.state.replaceSelection(text));
+  },
+  setNotePath: (path) => {
+    window.__chiramiNotePath = path;
+  },
+  applyFolding: (lines) => {
+    applyFoldingFromLines(view, lines);
   },
 });
 

@@ -29,12 +29,16 @@ final class NoteWebView: NSView {
     var onScrollChanged: ((Double) -> Void)?
     var onOpenLink: ((URL) -> Void)?
     var onFontSizeChange: ((Int) -> Void)?
+    var onPasteImage: ((String) -> Void)?  // dataUrl
+    var onFoldChanged: (([Int]) -> Void)?  // 1-based line numbers
 
     override init(frame frameRect: NSRect) {
         let config = WKWebViewConfiguration()
         #if DEBUG
         config.preferences.setValue(true, forKey: "developerExtrasEnabled")
         #endif
+
+        config.setURLSchemeHandler(LocalImageSchemeHandler(), forURLScheme: "chirami-img")
 
         let userContentController = WKUserContentController()
         config.userContentController = userContentController
@@ -74,6 +78,12 @@ final class NoteWebView: NSView {
         bridge.onFontSizeChange = { [weak self] delta in
             self?.onFontSizeChange?(delta)
         }
+        bridge.onPasteImage = { [weak self] dataUrl in
+            self?.onPasteImage?(dataUrl)
+        }
+        bridge.onFoldChanged = { [weak self] lines in
+            self?.onFoldChanged?(lines)
+        }
 
         webView.translatesAutoresizingMaskIntoConstraints = false
         addSubview(webView)
@@ -112,6 +122,20 @@ final class NoteWebView: NSView {
             return
         }
         evalSetContent(text)
+    }
+
+    func setNotePath(_ path: String) {
+        enqueueOrEval("window.chirami.setNotePath(\(jsonString(path)));")
+    }
+
+    func insertText(_ text: String) {
+        enqueueOrEval("window.chirami.insertText(\(jsonString(text)));")
+    }
+
+    func applyFolding(lines: [Int]) {
+        guard !lines.isEmpty else { return }
+        let linesJSON = lines.map(String.init).joined(separator: ",")
+        enqueueOrEval("window.chirami.applyFolding([\(linesJSON)]);")
     }
 
     func setTheme(_ colorScheme: NoteColorScheme, isDark: Bool) {
@@ -158,14 +182,15 @@ final class NoteWebView: NSView {
 
     private func handleReady() {
         isReady = true
-        if let content = pendingContent {
-            pendingContent = nil
-            evalSetContent(content)
-        }
+        // Apply theme/font/notePath before content so ImagePlugin resolves paths correctly
         for script in pendingScripts {
             webView.evaluateJavaScript(script, completionHandler: nil)
         }
         pendingScripts.removeAll()
+        if let content = pendingContent {
+            pendingContent = nil
+            evalSetContent(content)
+        }
         applyInitialState()
     }
 
@@ -216,6 +241,15 @@ struct NoteWebViewRepresentable: NSViewRepresentable {
             let newSize = max(8, min(72, Int(model.fontSize) + delta))
             model.fontSize = CGFloat(newSize)
         }
+        view.onPasteImage = { [model, weak view] dataUrl in
+            guard let view else { return }
+            model.handlePastedImage(dataUrl: dataUrl) { markdown in
+                view.insertText(markdown)
+            }
+        }
+        view.onFoldChanged = { [model] lines in
+            model.updateFoldingState(lines: lines)
+        }
         model.focusWebView = { [weak view] in
             view?.focus()
         }
@@ -230,5 +264,12 @@ struct NoteWebViewRepresentable: NSViewRepresentable {
         nsView.setContent(model.text)
         nsView.setTheme(model.colorScheme, isDark: nsView.effectiveAppearance.isDark)
         nsView.setFont(name: model.fontName, size: Double(model.fontSize))
+        if let notePath = model.notePath {
+            nsView.setNotePath(notePath)
+        }
+        if let foldedLines = model.pendingFoldedLines {
+            nsView.applyFolding(lines: foldedLines)
+            model.pendingFoldedLines = nil
+        }
     }
 }

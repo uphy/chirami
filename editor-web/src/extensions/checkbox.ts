@@ -28,6 +28,7 @@ class CheckboxWidget extends WidgetType {
     const input = document.createElement("input");
     input.type = "checkbox";
     input.checked = this.checked;
+    input.tabIndex = -1;
     input.addEventListener("mousedown", (e) => e.preventDefault());
     input.addEventListener("click", (e) => {
       e.stopPropagation();

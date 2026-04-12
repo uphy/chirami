@@ -457,23 +457,23 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
     // MARK: - Periodic Note Navigation
 
     @objc func navigatePrevious() {
-        guard let info = note.periodicInfo else { return }
-        let baseDir = PathTemplateResolver.extractBaseDirectory(from: info.pathTemplate)
-        guard let baseDirURL = resolveTemplatePath(baseDir) else { return }
-        let relativeTemplate = String(info.pathTemplate.dropFirst(baseDir.count))
-        let files = PeriodicFileNavigator.listMatchingFiles(template: relativeTemplate, baseDirectory: baseDirURL)
-        guard let prev = PeriodicFileNavigator.previousFile(from: note.path, in: files) else { return }
+        guard let files = periodicMatchingFiles(),
+              let prev = PeriodicFileNavigator.previousFile(from: note.path, in: files) else { return }
         navigateToFile(prev)
     }
 
     @objc func navigateNext() {
-        guard let info = note.periodicInfo else { return }
-        let baseDir = PathTemplateResolver.extractBaseDirectory(from: info.pathTemplate)
-        guard let baseDirURL = resolveTemplatePath(baseDir) else { return }
-        let relativeTemplate = String(info.pathTemplate.dropFirst(baseDir.count))
-        let files = PeriodicFileNavigator.listMatchingFiles(template: relativeTemplate, baseDirectory: baseDirURL)
-        guard let next = PeriodicFileNavigator.nextFile(from: note.path, in: files) else { return }
+        guard let files = periodicMatchingFiles(),
+              let next = PeriodicFileNavigator.nextFile(from: note.path, in: files) else { return }
         navigateToFile(next)
+    }
+
+    private func periodicMatchingFiles() -> [URL]? {
+        guard let info = note.periodicInfo else { return nil }
+        let baseDir = PathTemplateResolver.extractBaseDirectory(from: info.pathTemplate)
+        guard let baseDirURL = resolveTemplatePath(baseDir) else { return nil }
+        let relativeTemplate = String(info.pathTemplate.dropFirst(baseDir.count))
+        return PeriodicFileNavigator.listMatchingFiles(template: relativeTemplate, baseDirectory: baseDirURL)
     }
 
     /// Navigate to today's periodic note only if the date has changed.
@@ -550,11 +550,8 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
     }
 
     private func updateNavigationButtons() {
-        guard let panel = window as? NotePanel, let info = note.periodicInfo else { return }
-        let baseDir = PathTemplateResolver.extractBaseDirectory(from: info.pathTemplate)
-        guard let baseDirURL = resolveTemplatePath(baseDir) else { return }
-        let relativeTemplate = String(info.pathTemplate.dropFirst(baseDir.count))
-        let files = PeriodicFileNavigator.listMatchingFiles(template: relativeTemplate, baseDirectory: baseDirURL)
+        guard let panel = window as? NotePanel,
+              let files = periodicMatchingFiles() else { return }
         let hasPrev = PeriodicFileNavigator.previousFile(from: note.path, in: files) != nil
         let hasNext = PeriodicFileNavigator.nextFile(from: note.path, in: files) != nil
         panel.updateNavigationState(hasPrevious: hasPrev, hasNext: hasNext, isToday: isShowingToday)
@@ -620,7 +617,13 @@ class NoteContentModel: ObservableObject, EditorStatePreservable {
     nonisolated(unsafe) var savedCursorLocation: Int = 0
     nonisolated(unsafe) var savedScrollOffset: CGPoint = .zero
     var focusWebView: (() -> Void)?
+    /// Resolved file path of the note (used by image widget for relative path resolution).
+    var notePath: String?
+    /// Folded line numbers to apply on next WebView update (cleared after applying).
+    var pendingFoldedLines: [Int]?
     private let note: Note
+    private let imagePasteService = ImagePasteService()
+    private let logger = Logger(subsystem: "io.github.uphy.Chirami", category: "NoteContentModel")
     private var isSaving = false
     private var isReloading = false
     private var lastSavedContent: String = ""
@@ -630,6 +633,7 @@ class NoteContentModel: ObservableObject, EditorStatePreservable {
         self.fontSize = note.fontSize
         self.colorScheme = note.colorScheme
         self.fontName = AppConfig.shared.config.font
+        self.notePath = note.path.path
         let content = NoteStore.shared.readContent(of: note)
         text = content
         lastSavedContent = content
@@ -638,6 +642,12 @@ class NoteContentModel: ObservableObject, EditorStatePreservable {
         if let state = AppState.shared.windowState(for: note.id) {
             savedCursorLocation = state.cursorPosition ?? 0
             savedScrollOffset = state.scrollCGPoint ?? .zero
+        }
+
+        // Restore fold state
+        let foldingState = AppState.shared.foldingState(for: note.path.path)
+        if !foldingState.foldedLines.isEmpty {
+            pendingFoldedLines = Array(foldingState.foldedLines).sorted()
         }
     }
 
@@ -655,6 +665,43 @@ class NoteContentModel: ObservableObject, EditorStatePreservable {
         lastSavedContent = newContent
         text = newContent
         isReloading = false
+    }
+
+    /// Decodes a data URL, saves the image to the attachments directory, and calls completion with the Markdown text.
+    func handlePastedImage(dataUrl: String, completion: @escaping (String) -> Void) {
+        guard let commaIndex = dataUrl.firstIndex(of: ",") else { return }
+        let base64 = String(dataUrl[dataUrl.index(after: commaIndex)...])
+        guard let imageData = Data(base64Encoded: base64),
+              let image = NSImage(data: imageData) else {
+            logger.error("Failed to decode pasted image data")
+            return
+        }
+
+        let noteConfig = AppConfig.shared.config.notes.first { nc in
+            nc.resolvedPath == note.path.path
+        }
+        let attachmentsDir = noteConfig?.resolveAttachmentsDir(
+            noteURL: note.path,
+            isPeriodicNote: note.periodicInfo != nil,
+            pathTemplate: note.periodicInfo?.pathTemplate
+        ) ?? note.path.deletingLastPathComponent().appendingPathComponent("attachments")
+
+        let result = imagePasteService.save(image: image, to: attachmentsDir, noteURL: note.path)
+        switch result {
+        case .success(let pasteResult):
+            logger.info("Saved pasted image: \(pasteResult.fileURL.path, privacy: .public)")
+            completion(pasteResult.markdownText)
+        case .failure(let error):
+            logger.error("Failed to save pasted image: \(error, privacy: .public)")
+        }
+    }
+
+    /// Persists the current folding state when notified by the WebView.
+    func updateFoldingState(lines: [Int]) {
+        let notePath = note.path.path
+        AppState.shared.updateFoldingState(for: notePath) { fs in
+            fs.foldedLines = Set(lines)
+        }
     }
 }
 

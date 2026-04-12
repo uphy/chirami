@@ -44,6 +44,7 @@ html, body {
 
 .cm-scroller {
   line-height: 1.5;
+  padding-right: 16px;
 }
 
 /* Inline formatting (heading sizes/weights and strikethrough handled by markdownStyle in editor.ts) */
@@ -95,8 +96,6 @@ html, body {
   content: '';
   position: absolute;
   inset: 0;
-  left: 4px;
-  right: 4px;
   background-color: var(--chirami-code-bg);
   z-index: -1;
 }
@@ -175,4 +174,59 @@ html, body {
   border-bottom: 1px solid var(--chirami-text);
   opacity: 0.25;
   margin: 0.25em 0;
+}
+
+/* Hide raw table markdown text when widget is shown */
+.cm-table-raw {
+  display: none;
+}
+
+/* Table widget */
+.cm-table-widget {
+  overflow-x: auto;
+  margin: 0.5em 0;
+}
+
+.cm-table-widget table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: var(--chirami-font-size);
+}
+
+.cm-table-widget th,
+.cm-table-widget td {
+  border: 1px solid rgba(128, 128, 128, 0.3);
+  padding: 4px 8px;
+  text-align: left;
+}
+
+.cm-table-widget thead tr {
+  background: rgba(128, 128, 128, 0.1);
+  font-weight: bold;
+}
+
+/* Image widget */
+.cm-image-widget img {
+  display: inline-block;
+  max-width: 100%;
+  border-radius: 4px;
+  vertical-align: bottom;
+}
+
+.cm-image-delete {
+  position: fixed;
+  width: 20px;
+  height: 20px;
+  line-height: 20px;
+  text-align: center;
+  border: none;
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  border-radius: 50%;
+  cursor: pointer;
+  opacity: 0;
+  z-index: 9999;
+  font-size: 14px;
+  padding: 0;
+  transition: opacity 0.15s;
 }

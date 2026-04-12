@@ -1,5 +1,5 @@
-import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
-import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
+import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
+import { HighlightStyle, foldGutter, syntaxHighlighting } from "@codemirror/language";
 import { markdown } from "@codemirror/lang-markdown";
 import { search, searchKeymap } from "@codemirror/search";
 import { EditorState, Transaction } from "@codemirror/state";
@@ -9,6 +9,14 @@ import { classHighlighter, tags } from "@lezer/highlight";
 import { checkboxExtension } from "./extensions/checkbox";
 import { chiramiKeymap } from "./extensions/keymap";
 import { livePreview } from "./extensions/livePreview";
+import { tableExtension } from "./extensions/table";
+import { imageExtension } from "./extensions/image";
+import {
+  markdownHeadingFold,
+  markdownListFold,
+  foldChangeListener,
+} from "./extensions/foldMarkdown";
+import { smartPaste, plainPasteKeymap } from "./extensions/smartPaste";
 
 // Heading font sizes and strikethrough must be set here as inline styles —
 // classHighlighter CSS classes alone don't apply font-size to heading lines correctly.
@@ -54,6 +62,8 @@ export function createEditor(parent: HTMLElement, callbacks: EditorCallbacks): E
       history(),
       search(),
       keymap.of([
+        indentWithTab,
+        ...plainPasteKeymap,
         ...chiramiKeymap,
         ...defaultKeymap,
         ...historyKeymap,
@@ -70,10 +80,41 @@ export function createEditor(parent: HTMLElement, callbacks: EditorCallbacks): E
         ".cm-line": {
           fontFamily: "var(--chirami-font)",
         },
+        ".cm-gutters": {
+          background: "transparent",
+          border: "none",
+        },
+        ".cm-gutter.cm-foldGutter": {
+          width: "10px",
+        },
+        ".cm-foldGutter .cm-gutterElement": {
+          padding: "0",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: "10px",
+          color: "var(--chirami-text)",
+          cursor: "pointer",
+          userSelect: "none",
+        },
+        ".cm-foldGutter .cm-gutterElement span": {
+          opacity: "0",
+          transition: "opacity 0.1s",
+        },
+        ".cm-foldGutter .cm-gutterElement:hover span": {
+          opacity: "0.6",
+        },
       }),
       EditorView.lineWrapping,
       livePreview,
       checkboxExtension,
+      markdownHeadingFold,
+      markdownListFold,
+      foldGutter(),
+      foldChangeListener,
+      tableExtension,
+      imageExtension,
+      smartPaste,
       updateListener,
       scrollHandler,
       EditorView.contentAttributes.of({

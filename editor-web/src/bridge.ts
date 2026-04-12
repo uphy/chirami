@@ -6,6 +6,9 @@ type SwiftToJsApi = {
   focus: () => void;
   setCursorPosition: (offset: number) => void;
   setScrollPosition: (offset: number) => void;
+  insertText: (text: string) => void;
+  setNotePath: (path: string) => void;
+  applyFolding: (lines: number[]) => void;
 };
 
 type JsToSwiftMessage =
@@ -15,6 +18,8 @@ type JsToSwiftMessage =
   | { type: "scrollChanged"; offset: number }
   | { type: "openLink"; url: string }
   | { type: "fontSizeChange"; delta: number }
+  | { type: "pasteImage"; dataUrl: string }
+  | { type: "foldChanged"; foldedLines: number[] }
   | { type: "log"; level: "debug" | "info" | "warn" | "error"; message: string };
 
 declare global {
@@ -27,6 +32,7 @@ declare global {
       };
     };
     chirami: SwiftToJsApi;
+    __chiramiNotePath?: string;
   }
 }
 
