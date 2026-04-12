@@ -2,6 +2,7 @@ package internal
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -50,4 +51,38 @@ func WaitForClosed(pipePath string) error {
 	// EOF without CLOSED means the writer (Chirami.app) closed without sending CLOSED,
 	// which indicates a crash or unexpected termination.
 	return fmt.Errorf("FIFO closed unexpectedly (Chirami.app crash?)")
+}
+
+// ErrNoFocus is returned by WaitForContext when no Registered Note is currently focused.
+var ErrNoFocus = errors.New("no focused note")
+
+// ContextResult holds the JSON string returned by WaitForContext.
+type ContextResult struct {
+	JSON string
+}
+
+// WaitForContext reads from the FIFO waiting for "CONTEXT:<json>" or "NO_FOCUS".
+// Returns (ContextResult, nil) on CONTEXT, or (ContextResult{}, ErrNoFocus) on NO_FOCUS.
+func WaitForContext(pipePath string) (ContextResult, error) {
+	f, err := os.Open(pipePath)
+	if err != nil {
+		return ContextResult{}, fmt.Errorf("failed to open FIFO: %w", err)
+	}
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if json, ok := strings.CutPrefix(line, "CONTEXT:"); ok {
+			return ContextResult{JSON: json}, nil
+		}
+		if line == "NO_FOCUS" {
+			return ContextResult{}, ErrNoFocus
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return ContextResult{}, fmt.Errorf("FIFO read error: %w", err)
+	}
+	return ContextResult{}, fmt.Errorf("FIFO closed unexpectedly (Chirami.app crash?)")
 }

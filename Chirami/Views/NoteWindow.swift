@@ -321,6 +321,16 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
 
     func windowDidBecomeKey(_ notification: Notification) {
         contentModel.focusWebView?()
+        WindowManager.shared.noteWindowDidBecomeKey(self)
+    }
+
+    func getEditorContext(completion: @escaping (Result<String, Error>) -> Void) {
+        guard let getter = contentModel.getEditorContext else {
+            completion(.failure(NSError(domain: "ContextHandler", code: -1,
+                userInfo: [NSLocalizedDescriptionKey: "editor not ready"])))
+            return
+        }
+        getter(completion)
     }
 
     func windowDidResignKey(_ notification: Notification) {
@@ -617,6 +627,7 @@ class NoteContentModel: ObservableObject {
     nonisolated(unsafe) var savedCursorLocation: Int = 0
     nonisolated(unsafe) var savedScrollOffset: CGPoint = .zero
     var focusWebView: (() -> Void)?
+    var getEditorContext: ((@escaping (Result<String, Error>) -> Void) -> Void)?
     /// Resolved file path of the note (used by image widget for relative path resolution).
     var notePath: String?
     /// Folded line numbers to apply on next WebView update (cleared after applying).

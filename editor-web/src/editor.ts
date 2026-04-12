@@ -151,3 +151,16 @@ export function setEditorContent(view: EditorView, text: string) {
     applyFoldingFromLines(view, foldedLineNumbers);
   }
 }
+
+export function getEditorContext(view: EditorView): string {
+  const state = view.state;
+  const sel = state.selection.main;
+  const head = sel.head;
+  const line = state.doc.lineAt(head);
+  return JSON.stringify({
+    file: window.__chiramiNotePath ?? "",
+    selection: sel.empty ? "" : state.sliceDoc(sel.from, sel.to),
+    line: line.number,
+    column: head - line.from,
+  });
+}

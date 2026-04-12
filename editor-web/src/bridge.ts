@@ -9,6 +9,7 @@ type SwiftToJsApi = {
   insertText: (text: string) => void;
   setNotePath: (path: string) => void;
   applyFolding: (lines: number[]) => void;
+  getEditorContext: () => string;
 };
 
 type JsToSwiftMessage =

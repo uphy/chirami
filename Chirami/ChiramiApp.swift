@@ -158,6 +158,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             if url.host == "display" {
                 // Ad-hoc Note: opened dynamically via chirami://display URI
                 DisplayWindowManager.shared.display(url: url)
+            } else if url.host == "context" {
+                ContextHandler.shared.handle(url: url)
             }
         }
     }

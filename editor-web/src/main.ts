@@ -1,4 +1,4 @@
-import { createEditor, setEditorContent } from "./editor";
+import { createEditor, setEditorContent, getEditorContext } from "./editor";
 import { postToSwift, exposeApi } from "./bridge";
 import { applyCSSVariables, applyFont } from "./theme";
 import { debounce } from "./extensions/utils";
@@ -51,6 +51,7 @@ exposeApi({
   applyFolding: (lines) => {
     applyFoldingFromLines(view, lines);
   },
+  getEditorContext: () => getEditorContext(view),
 });
 
 postToSwift({ type: "ready" });

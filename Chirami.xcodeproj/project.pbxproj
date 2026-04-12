@@ -49,6 +49,7 @@
 		D3CB17FDD13CC5DD9F79DFC9 /* DisplayWindowManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 169F492DA5E6EC2CB07714DC /* DisplayWindowManager.swift */; };
 		DD926D50F26529581D4EEF86 /* DisplayContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB72F1E44E85FE910F38AFAA /* DisplayContentView.swift */; };
 		E06AE51869D8EF941F885E19 /* bundle.js.map in Resources */ = {isa = PBXBuildFile; fileRef = 53ACA2ECCFB0B4CF4F6D62E2 /* bundle.js.map */; };
+		E744262D1A1474B98D139D1F /* ContextHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 719434DCF50B3E94798E7C17 /* ContextHandler.swift */; };
 		E9CC6B93A1B5C232CB1DC041 /* AppConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03EDDD5314821A0DC2BBC68E /* AppConfig.swift */; };
 		F60B7F4CCC6006BA702ADB11 /* AttachmentCleanupService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0644F372AB4F8FCBC53526C9 /* AttachmentCleanupService.swift */; };
 		F6B33B1AD1B75ADD0727E469 /* NoteWebViewBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD53C2CB1801B2A25F4DD1F3 /* NoteWebViewBridge.swift */; };
@@ -94,6 +95,7 @@
 		63D578984796D93E1CFD8909 /* NotePanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotePanel.swift; sourceTree = "<group>"; };
 		69BA5531F6C7AE8515A16268 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		6D3DE244BA7DCE44138C9CBE /* color_schemes.yaml */ = {isa = PBXFileReference; lastKnownFileType = text.yaml; path = color_schemes.yaml; sourceTree = "<group>"; };
+		719434DCF50B3E94798E7C17 /* ContextHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContextHandler.swift; sourceTree = "<group>"; };
 		719C8C6D2FA67CF5419DF100 /* NoteWebView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteWebView.swift; sourceTree = "<group>"; };
 		80AC5462545113CBC9452EF1 /* NoteListPopover.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteListPopover.swift; sourceTree = "<group>"; };
 		984B89F7D269A9B5912928F5 /* ChiramiTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ChiramiTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -150,6 +152,7 @@
 			children = (
 				0644F372AB4F8FCBC53526C9 /* AttachmentCleanupService.swift */,
 				31832D845D15CEEA1BD34120 /* ColorSchemeCSSConverter.swift */,
+				719434DCF50B3E94798E7C17 /* ContextHandler.swift */,
 				542A23A975A7EAAD9A26372C /* DurationParser.swift */,
 				B5FDF5DD4D54BF8F9A9E2B8D /* FileWatcher.swift */,
 				02F9256C8060115572AE6928 /* GlobalHotkeyService.swift */,
@@ -394,6 +397,7 @@
 				B2ABECDA8B05B81B189F62FC /* ColorSchemeCSSConverter.swift in Sources */,
 				9DEED2E2BE2095AE950FBF10 /* ColorSchemeRegistry.swift in Sources */,
 				7633CB7FD9D0F957533CC50E /* ConfigModels.swift in Sources */,
+				E744262D1A1474B98D139D1F /* ContextHandler.swift in Sources */,
 				9D97BDE960424A0B1AB96586 /* DisplayContentModel.swift in Sources */,
 				DD926D50F26529581D4EEF86 /* DisplayContentView.swift in Sources */,
 				2AC7F852F87878D58384C253 /* DisplayPanel.swift in Sources */,

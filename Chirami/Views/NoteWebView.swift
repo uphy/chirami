@@ -174,6 +174,24 @@ final class NoteWebView: NSView {
         enqueueOrEval("window.chirami.setScrollPosition(\(offset));")
     }
 
+    func getEditorContext(completion: @escaping (Result<String, Error>) -> Void) {
+        guard isReady else {
+            completion(.failure(NSError(domain: "NoteWebView", code: -1,
+                userInfo: [NSLocalizedDescriptionKey: "editor not ready"])))
+            return
+        }
+        webView.evaluateJavaScript("window.chirami.getEditorContext()") { result, error in
+            if let error {
+                completion(.failure(error))
+            } else if let json = result as? String {
+                completion(.success(json))
+            } else {
+                completion(.failure(NSError(domain: "NoteWebView", code: -2,
+                    userInfo: [NSLocalizedDescriptionKey: "unexpected JS return type"])))
+            }
+        }
+    }
+
     override func viewDidChangeEffectiveAppearance() {
         super.viewDidChangeEffectiveAppearance()
         setTheme(currentColorScheme, isDark: effectiveAppearance.isDark)
@@ -257,7 +275,7 @@ struct NoteWebViewRepresentable: NSViewRepresentable {
         view.onPasteImage = { [model, weak view] dataUrl in
             guard let view else { return }
             model.handlePastedImage(dataUrl: dataUrl) { markdown in
-                view.insertText(markdown)
+                view.insertText(markdown + "\n")
             }
         }
         view.onFoldChanged = { [model] lines in
@@ -265,6 +283,14 @@ struct NoteWebViewRepresentable: NSViewRepresentable {
         }
         model.focusWebView = { [weak view] in
             view?.focus()
+        }
+        model.getEditorContext = { [weak view] completion in
+            guard let view else {
+                completion(.failure(NSError(domain: "NoteWebView", code: -3,
+                    userInfo: [NSLocalizedDescriptionKey: "webView deallocated"])))
+                return
+            }
+            view.getEditorContext(completion: completion)
         }
         view.setInitialState(
             cursor: model.savedCursorLocation,

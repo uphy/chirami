@@ -9,8 +9,13 @@ class WindowManager: ObservableObject {
     private var controllers: [String: NoteWindowController] = [:]
     private let noteStore = NoteStore.shared
     private var rolloverTimer: Timer?
+    private(set) weak var lastFocusedController: NoteWindowController?
 
     private init() {}
+
+    func noteWindowDidBecomeKey(_ controller: NoteWindowController) {
+        lastFocusedController = controller
+    }
 
     func openAllWindows() {
         var cascadePoint = CGPoint.zero
