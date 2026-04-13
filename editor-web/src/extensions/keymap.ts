@@ -2,6 +2,7 @@ import { syntaxTree } from "@codemirror/language";
 import { EditorSelection } from "@codemirror/state";
 import { EditorView, KeyBinding } from "@codemirror/view";
 import { insertNewlineContinueMarkup } from "@codemirror/lang-markdown";
+import { indentMore, indentLess } from "@codemirror/commands";
 import { postToSwift } from "../bridge";
 
 // Wraps insertNewlineContinueMarkup to prevent spurious blank lines in tight lists.
@@ -109,6 +110,73 @@ function moveVerticalOnListLine(view: EditorView, dir: 1 | -1): boolean {
   return true;
 }
 
+// Indents a list item and immediately places the cursor after the list mark.
+// Without this, indentMore puts the cursor between \t and "-" (before the mark),
+// then livePreview's cm-list-raw-hanging decoration changes the layout a frame
+// later, making the cursor visually jump to after "- ". This eliminates that flicker
+// by moving the cursor to the content start in the same transaction as the indent.
+function indentListItem(view: EditorView): boolean {
+  const state = view.state;
+  const sel = state.selection.main;
+  if (!sel.empty) return false;
+
+  const line = state.doc.lineAt(sel.head);
+  const match = /^([ \t]*)([-*+])([ \t]+)/.exec(line.text);
+  if (!match) return false;
+
+  const contentStart = line.from + match[0].length;
+  const cursorBeforeContent = sel.head < contentStart;
+
+  const result = indentMore(view);
+  if (!result) return false;
+
+  if (cursorBeforeContent) {
+    const newState = view.state;
+    const newLine = newState.doc.lineAt(newState.selection.main.head);
+    const newMatch = /^([ \t]*)([-*+])([ \t]+)/.exec(newLine.text);
+    if (newMatch) {
+      view.dispatch({
+        selection: EditorSelection.cursor(newLine.from + newMatch[0].length),
+        scrollIntoView: true,
+      });
+    }
+  }
+
+  return true;
+}
+
+// Dedents a list item and places the cursor after the list mark.
+// Mirrors indentListItem to avoid the same visual flicker on Shift+Tab.
+function dedentListItem(view: EditorView): boolean {
+  const state = view.state;
+  const sel = state.selection.main;
+  if (!sel.empty) return false;
+
+  const line = state.doc.lineAt(sel.head);
+  const match = /^([ \t]*)([-*+])([ \t]+)/.exec(line.text);
+  if (!match) return false;
+
+  const contentStart = line.from + match[0].length;
+  const cursorBeforeContent = sel.head < contentStart;
+
+  const result = indentLess(view);
+  if (!result) return false;
+
+  if (cursorBeforeContent) {
+    const newState = view.state;
+    const newLine = newState.doc.lineAt(newState.selection.main.head);
+    const newMatch = /^([ \t]*)([-*+])([ \t]+)/.exec(newLine.text);
+    if (newMatch) {
+      view.dispatch({
+        selection: EditorSelection.cursor(newLine.from + newMatch[0].length),
+        scrollIntoView: true,
+      });
+    }
+  }
+
+  return true;
+}
+
 function openLinkAtCursor(view: EditorView): boolean {
   const pos = view.state.selection.main.head;
   const tree = syntaxTree(view.state);
@@ -142,6 +210,7 @@ export const tightListEnterKeymap: KeyBinding[] = [
 ];
 
 export const chiramiKeymap: KeyBinding[] = [
+  { key: "Tab", run: indentListItem, shift: dedentListItem },
   { key: "ArrowDown", run: (view) => moveVerticalOnListLine(view, 1) },
   { key: "ArrowUp", run: (view) => moveVerticalOnListLine(view, -1) },
   { key: "Mod-b", run: (view) => wrapSelection(view, "**") },

@@ -1,5 +1,5 @@
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
-import { HighlightStyle, foldGutter, syntaxHighlighting } from "@codemirror/language";
+import { HighlightStyle, foldGutter, syntaxHighlighting, indentUnit } from "@codemirror/language";
 import { markdown } from "@codemirror/lang-markdown";
 import { languages } from "@codemirror/language-data";
 import { search, searchKeymap } from "@codemirror/search";
@@ -67,6 +67,8 @@ export function createEditor(parent: HTMLElement, callbacks: EditorCallbacks): E
     extensions: [
       history(),
       search(),
+      indentUnit.of("\t"),
+      EditorState.tabSize.of(2),
       Prec.highest(keymap.of(tightListEnterKeymap)),
       keymap.of([
         indentWithTab,

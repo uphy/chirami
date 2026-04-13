@@ -15,3 +15,7 @@ CLAUDE.local.md
 node_modules/
 docs/.vitepress/dist/
 docs/.vitepress/cache/
+Chirami/Resources/editor/bundle.js
+Chirami/Resources/editor/bundle.js.map
+Chirami/Resources/editor/bundle.css
+Chirami/Resources/editor/index.html

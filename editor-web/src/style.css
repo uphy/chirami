@@ -45,7 +45,7 @@ html, body {
 }
 
 .cm-scroller {
-  line-height: 1.5;
+  line-height: 1.65;
   padding-right: 16px;
 }
 
@@ -79,13 +79,84 @@ html, body {
 /* List markers */
 .cm-editor .tok-list { color: var(--chirami-link); }
 
-/* Bullet widget replacing ListMark on non-cursor lines */
-.cm-editor .cm-list-bullet {
+
+/* Hide top-level list mark ("- ") via display:none so the span is removed from
+   the inline formatting context and creates no element-boundary break opportunity. */
+.cm-editor .cm-list-mark-hidden {
+  display: none;
+}
+
+/* Rendered mode: mark is hidden; bullet provided by ::before; text indented. */
+.cm-editor .cm-line.cm-list-hanging {
+  padding-left: 1.5em;
+  position: relative;
+}
+.cm-editor .cm-line.cm-list-hanging::before {
+  content: '•';
+  position: absolute;
+  left: 0;
+  width: 1.3em;
+  text-align: right;
   color: var(--chirami-text);
   opacity: 0.5;
   font-size: 0.85em;
-  vertical-align: middle;
+  line-height: inherit;
 }
+
+/* Nested list items: --hang-n is set via inline style from TypeScript (space count).
+   Same approach as cm-list-hanging: leading spaces and "- " are hidden from the DOM
+   flow; padding-left indents all lines uniformly; ::before provides the bullet. */
+.cm-editor .cm-line.cm-list-hang {
+  padding-left: calc(var(--hang-n) * 0.25em + 0.75em);
+  position: relative;
+}
+.cm-editor .cm-line.cm-list-hang::before {
+  content: '•';
+  position: absolute;
+  left: calc(var(--hang-n) * 0.25em);
+  width: 0.75em;
+  text-align: right;
+  color: var(--chirami-text);
+  opacity: 0.5;
+  font-size: 0.85em;
+  line-height: inherit;
+}
+
+/* Cursor lines: suppress ::before bullet — the real "- " mark is shown instead. */
+.cm-editor .cm-line.cm-list-hanging.cm-list-hanging-cursor::before,
+.cm-editor .cm-line.cm-list-hang.cm-list-hang-cursor::before {
+  display: none;
+}
+
+/* Position the top-level cursor-line "- " mark absolutely in the far-left gutter. */
+.cm-editor .cm-list-mark-cursor {
+  position: absolute;
+  left: 0;
+  width: 1.3em;
+  text-align: right;
+  color: var(--chirami-text);
+  opacity: 0.5;
+  font-size: 0.85em;
+  line-height: inherit;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+/* Position the nested cursor-line "- " mark in the level-appropriate gutter.
+   --hang-n is inherited from the cm-line element set by the TypeScript decoration. */
+.cm-editor .cm-list-mark-cursor-hang {
+  position: absolute;
+  left: calc(var(--hang-n) * 0.25em);
+  width: 0.75em;
+  text-align: right;
+  color: var(--chirami-text);
+  opacity: 0.5;
+  font-size: 0.85em;
+  line-height: inherit;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
 
 /* Code block: background drawn via ::before to allow left/right margins */
 .cm-code-block-line {
