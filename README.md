@@ -1,6 +1,6 @@
 # Chirami
 
-A macOS sticky-note Markdown app. Access your notes as floating windows — without breaking your flow.
+While you work, you always need something else at hand. Chirami floats it above your screen.
 
 > **Chirami** — from the Japanese word *chirami* (ちら見), meaning "a quick glance." Glance at your notes without interrupting your work.
 

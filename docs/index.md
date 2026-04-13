@@ -3,8 +3,8 @@ layout: home
 
 hero:
   name: Chirami
-  text: Sticky-note Markdown for macOS
-  tagline: Access your notes as floating windows — without breaking your flow.
+  text: A floating workspace for your daily work
+  tagline: Float what you need. Keep your focus.
   image:
     src: /logo.png
     alt: Chirami
@@ -24,7 +24,7 @@ features:
     title: Markdown Live Preview
     details: Obsidian-style editing — raw Markdown at the cursor, rendered everywhere else.
   - icon: 🔗
-    title: Full Obsidian Compatibility
+    title: Plain Markdown Files
     details: Pure .md files with no metadata or front matter. Works seamlessly with Obsidian, VS Code, and any text editor.
   - icon: 📌
     title: Always-on-top Windows
@@ -64,8 +64,8 @@ Launch Chirami from the menu bar. Press `Cmd+Shift+T` to toggle your note.
 
 ## Why Chirami?
 
-You want to check your TODO list or jot down a note while working — but every time you switch to an editor, you lose your train of thought.
+While you work, you always need something else at hand — a TODO list, a reference doc, a scratch pad. Chirami floats it above your screen.
 
-Obsidian offers a great editing experience but can't display notes quickly and unobtrusively alongside your work. **Chirami exists to let you work with your notes without breaking your flow.**
+No app switching. No context loss. Just float what you need, and keep your focus.
 
 > *Chirami* — from the Japanese *ちら見*, meaning "a quick glance."

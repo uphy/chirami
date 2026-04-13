@@ -2,135 +2,135 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## プロダクトビジョン
+## Product Vision
 
 @docs/product-vision.md
 
-## プロジェクト概要
+## Overview
 
-Chirami は macOS 付箋型 Markdown ノートアプリ。Stickies のシンプルさと Obsidian の Live Preview を plain `.md` ファイルで実現する。メニューバー常駐型（LSUIElement）で、各ノートは独立した NSPanel ウィンドウとして表示される。
+Chirami is a macOS sticky-note Markdown app — a floating companion for daily work. It floats what you need (notes, TODOs, memos) above your screen while you work. Built on plain `.md` files with full Obsidian compatibility. Runs as a menu bar app (LSUIElement); each note is displayed as an independent `NSPanel` window.
 
-## ビルド
+## Build
 
 ```bash
-# 初回セットアップ（xcodegen が必要）
+# Initial setup (requires xcodegen)
 brew install xcodegen
 xcodegen generate
 
-# ビルド・実行は Xcode で
+# Build and run in Xcode
 open Chirami.xcodeproj
-# Xcode で ⌘R
+# Press ⌘R in Xcode
 ```
 
-Xcode プロジェクトは `project.yml` から xcodegen で生成する。`Chirami.xcodeproj` を直接編集せず、`project.yml` を変更して `xcodegen generate` を再実行すること。
+The Xcode project is generated from `project.yml` via xcodegen. Do not edit `Chirami.xcodeproj` directly — modify `project.yml` and re-run `xcodegen generate`.
 
-SPM 依存は初回ビルド時に自動取得される。`swift build` でもビルド可能（Package.swift あり）。
+SPM dependencies are fetched automatically on first build. `swift build` also works (Package.swift is present).
 
-### mise タスク
+### mise Tasks
 
-`.mise/tasks/` にビルド・デプロイ用のタスクを定義している。
+Build and deploy tasks are defined in `.mise/tasks/`.
 
-- `mise run generate` — xcodegen でプロジェクトファイルを生成
-- `mise run build` — Release ビルド（.app バンドル生成）
-- `mise run apply` — `~/Applications` にインストール（実行中なら再起動）
-- `mise run clean` — ビルド成果物を削除
-- `mise run build:editor` — `editor-web/` の TypeScript をビルドして `Chirami/Resources/editor/` に出力
+- `mise run generate` — Generate project file via xcodegen
+- `mise run build` — Release build (produces .app bundle)
+- `mise run apply` — Install to `~/Applications` (restarts if running)
+- `mise run clean` — Remove build artifacts
+- `mise run build:editor` — Build TypeScript in `editor-web/` and output to `Chirami/Resources/editor/`
 
-## Note 種別
+## Note Types
 
-| 用語 | 定義 | コード上の主要クラス |
-|------|------|---------------------|
-| **Registered Note** | config.yaml の `notes[]` に登録されたノート。Static Note と Periodic Note を含む | `NoteStore`, `WindowManager`, `NoteWindowController` |
-| **Ad-hoc Note** | CLI (`chirami display`) から動的に作成されるノート | `DisplayWindowManager`, `DisplayWindowController` |
-| **Static Note** | Registered Note のうち、固定パスのもの | — |
-| **Periodic Note** | Registered Note のうち、日付テンプレートパスのもの | `PeriodicNoteInfo`, `PathTemplateResolver` |
+| Term | Definition | Key Classes |
+|------|------------|-------------|
+| **Registered Note** | Notes registered in `notes[]` of config.yaml. Includes Static Notes and Periodic Notes | `NoteStore`, `WindowManager`, `NoteWindowController` |
+| **Ad-hoc Note** | Notes dynamically created via CLI (`chirami display`) | `DisplayWindowManager`, `DisplayWindowController` |
+| **Static Note** | A Registered Note with a fixed file path | — |
+| **Periodic Note** | A Registered Note with a date-template file path | `PeriodicNoteInfo`, `PathTemplateResolver` |
 
-## アーキテクチャ
+## Architecture
 
-### Config/State 分離
+### Config/State Separation
 
-- `~/.config/chirami/config.yaml` — ノート一覧・外観設定（dotfiles 管理可能）
-- `~/.local/state/chirami/state.yaml` — ウィンドウ位置・サイズ・表示状態（揮発的、アプリが自動管理）
+- `~/.config/chirami/config.yaml` — Note list and appearance settings (dotfiles-manageable)
+- `~/.local/state/chirami/state.yaml` — Window position, size, and visibility (volatile, managed by the app)
 
-YAML の読み書きには Yams を使用。構造体定義は `Config/ConfigModels.swift`。
+YAML reading/writing uses Yams. Struct definitions are in `Config/ConfigModels.swift`.
 
-### Singleton パターン
+### Singleton Pattern
 
-主要サービスは Singleton + `@MainActor` で統一:
+Major services are unified as Singleton + `@MainActor`:
 
-- `NoteStore.shared` — ノート管理・ファイル I/O
-- `AppConfig.shared` — config.yaml 読み書き
-- `AppState.shared` — state.yaml 読み書き
-- `WindowManager.shared` — 全ウィンドウ制御
+- `NoteStore.shared` — Note management and file I/O
+- `AppConfig.shared` — config.yaml read/write
+- `AppState.shared` — state.yaml read/write
+- `WindowManager.shared` — All window control
 
-### NSPanel + SwiftUI ハイブリッド
+### NSPanel + SwiftUI Hybrid
 
-ノートウィンドウは AppKit の `NSPanel`（always-on-top 対応）に SwiftUI View をホストする構成。`NoteWindow.swift` に `NotePanel`, `NoteWindowController`, `NoteContentView` が同居。
+Note windows host SwiftUI Views inside AppKit `NSPanel` (always-on-top). `NoteWindow.swift` contains `NotePanel`, `NoteWindowController`, and `NoteContentView`.
 
-### WebView エディタ
+### WebView Editor
 
-Obsidian 風の Live Preview は WKWebView + CodeMirror 6 で実現している。
+Live Preview is implemented with WKWebView + CodeMirror 6.
 
-- `NoteWebView` — WKWebView をラップした NSView。Swift と JS のメッセージングを管理する
-- `NoteWebViewBridge` — `WKScriptMessageHandler` 実装。JS → Swift メッセージを受信してコールバックに転送
-- `editor-web/` — TypeScript/CodeMirror 6 ソース。`mise run build:editor` でビルドして `Chirami/Resources/editor/` に出力される
+- `NoteWebView` — NSView wrapping WKWebView. Manages Swift ↔ JS messaging
+- `NoteWebViewBridge` — `WKScriptMessageHandler` implementation. Receives JS → Swift messages and forwards them via callbacks
+- `editor-web/` — TypeScript/CodeMirror 6 source. Built with `mise run build:editor` and output to `Chirami/Resources/editor/`
 
-**データフロー**: `NoteContentModel.text` ↔ `NoteWebView`（evaluateJavaScript / WKScriptMessageHandler）↔ CodeMirror 6 state
+**Data flow**: `NoteContentModel.text` ↔ `NoteWebView` (evaluateJavaScript / WKScriptMessageHandler) ↔ CodeMirror 6 state
 
-**注意**: JS ↔ Swift 間のカーソルオフセットは UTF-16 コードユニット単位。`NoteWebViewBridge` でのオフセット受け渡し時は単位を意識すること。
+**Note**: Cursor offsets between JS and Swift are in UTF-16 code units. Be aware of units when passing offsets through `NoteWebViewBridge`.
 
-### 依存ライブラリ
+### Dependencies
 
 **Swift (SPM)**
 
-| ライブラリ | 用途 |
-|-----------|------|
-| HotKey | グローバルホットキー登録 |
-| Yams | YAML パーサー |
+| Library | Purpose |
+|---------|---------|
+| HotKey | Global hotkey registration |
+| Yams | YAML parser |
 
 **JS (editor-web/)**
 
-| ライブラリ | 用途 |
-|-----------|------|
-| CodeMirror 6 | Live Preview エディタエンジン |
-| mermaid | Mermaid ダイアグラムレンダリング |
-| turndown | HTML → Markdown 変換（Smart Paste） |
+| Library | Purpose |
+|---------|---------|
+| CodeMirror 6 | Live Preview editor engine |
+| mermaid | Mermaid diagram rendering |
+| turndown | HTML → Markdown conversion (Smart Paste) |
 
-## ログ実装ルール
+## Logging Rules
 
-- `NSLog` / `print` は使用禁止。必ず `os.Logger` を使用する
-- subsystem は `"io.github.uphy.Chirami"` で統一
-- category はクラス名・ファイル名に対応させる
-- 動的な値（パス・エラー・URL）は `privacy: .public` を指定する
+- `NSLog` / `print` are prohibited. Always use `os.Logger`
+- subsystem: `"io.github.uphy.Chirami"` (consistent across all loggers)
+- category: match to the class or file name
+- Dynamic values (paths, errors, URLs): specify `privacy: .public`
 
-### Logger 定義場所
+### Logger Definition
 
-- クラス内 instance property または `static let`（enum の場合）として定義する
+- Define as an instance property or `static let` (for enums) within the class
 
-### ログレベル指針
+### Log Level Guidelines
 
-| 状況 | レベル |
-|------|--------|
-| デバッグ情報（URL受信・処理開始など） | `.debug` |
-| 正常完了の記録（〇件削除、保存成功） | `.info` |
-| 設定ミス・リソース不存在の警告 | `.warning` |
-| 処理の失敗・エラー | `.error` |
+| Situation | Level |
+|-----------|-------|
+| Debug info (URL received, process started, etc.) | `.debug` |
+| Successful completion (N items deleted, save succeeded) | `.info` |
+| Misconfiguration or missing resource | `.warning` |
+| Processing failure or error | `.error` |
 
-### ログ確認方法
+### Viewing Logs
 
-ターミナルで以下を実行してからアプリを起動する：
+Run the following in a terminal before launching the app:
 
 ```bash
 log stream --predicate 'subsystem == "io.github.uphy.Chirami"' --level debug
 ```
 
-category で絞る場合：
+Filter by category:
 
 ```bash
 log stream --predicate 'subsystem == "io.github.uphy.Chirami" AND category == "NoteWebView"' --level debug
 ```
 
-エラーのみ確認する場合：
+Errors only:
 
 ```bash
 log stream --predicate 'subsystem == "io.github.uphy.Chirami"' --level error
