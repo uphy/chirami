@@ -113,6 +113,20 @@ class LivePreviewPlugin {
             return; // Continue into children so CodeMark is still processed
           }
 
+          if (node.name === "ListItem") {
+            const itemLine = view.state.doc.lineAt(node.from);
+            const match = /^([ \t]*(?:[-*+]|\d+[.)])\s+(?:\[[xX ]\]\s+)?)/.exec(itemLine.text);
+            if (match) {
+              const prefixLen = match[1].length;
+              decorations.push(
+                Decoration.line({
+                  attributes: { style: `padding-left: ${prefixLen}ch; text-indent: -${prefixLen}ch` },
+                }).range(itemLine.from)
+              );
+            }
+            return; // Continue into children for ListMark and other handling
+          }
+
           if (node.name === "ListMark") {
             if (nodeContainsCursorLine(view, node.from, node.to, cursorLine)) return;
             const markText = view.state.sliceDoc(node.from, node.to);

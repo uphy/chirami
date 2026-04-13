@@ -22,6 +22,7 @@ import {
 } from "./extensions/foldMarkdown";
 import { foldedRanges } from "@codemirror/language";
 import { smartPaste, plainPasteKeymap } from "./extensions/smartPaste";
+import { slashCommandExtension } from "./extensions/slashCommand";
 
 // Heading font sizes and strikethrough must be set here as inline styles —
 // classHighlighter CSS classes alone don't apply font-size to heading lines correctly.
@@ -121,6 +122,7 @@ export function createEditor(parent: HTMLElement, callbacks: EditorCallbacks): E
       mermaidExtension,
       imageExtension,
       tldrawExtension,
+      slashCommandExtension,
       smartPaste,
       updateListener,
       scrollHandler,
