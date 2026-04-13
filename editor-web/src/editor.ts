@@ -68,7 +68,7 @@ export function createEditor(parent: HTMLElement, callbacks: EditorCallbacks): E
       history(),
       search(),
       indentUnit.of("\t"),
-      EditorState.tabSize.of(2),
+      EditorState.tabSize.of(3),
       Prec.highest(keymap.of(tightListEnterKeymap)),
       keymap.of([
         indentWithTab,

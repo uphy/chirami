@@ -1,6 +1,7 @@
 import { EditorView, ViewUpdate } from "@codemirror/view";
 
 export function cursorLineNumber(view: EditorView): number {
+  if (!view.hasFocus) return -1;
   return view.state.doc.lineAt(view.state.selection.main.head).number;
 }
 
@@ -16,7 +17,7 @@ export function nodeContainsCursorLine(
 }
 
 export function shouldRebuild(update: ViewUpdate): boolean {
-  if (update.docChanged || update.viewportChanged) return true;
+  if (update.docChanged || update.viewportChanged || update.focusChanged) return true;
   if (update.selectionSet) {
     const newLine = update.view.state.doc.lineAt(update.view.state.selection.main.head).number;
     const oldLine = update.startState.doc.lineAt(update.startState.selection.main.head).number;
