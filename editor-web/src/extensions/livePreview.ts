@@ -115,14 +115,19 @@ class LivePreviewPlugin {
 
           if (node.name === "ListItem") {
             const itemLine = view.state.doc.lineAt(node.from);
-            const match = /^([ \t]*(?:[-*+]|\d+[.)])\s+(?:\[[xX ]\]\s+)?)/.exec(itemLine.text);
+            const match = /^([ \t]*)(?:[-*+]|\d+[.)])/.exec(itemLine.text);
             if (match) {
-              const prefixLen = match[1].length;
-              decorations.push(
-                Decoration.line({
-                  attributes: { style: `padding-left: ${prefixLen}ch; text-indent: -${prefixLen}ch` },
-                }).range(itemLine.from)
-              );
+              const indent = match[1].length; // leading spaces/tabs before the marker
+              if (indent === 0) {
+                // Top-level list items: push bullet + text right so they sit inset
+                // from non-list content. Only padding-left is used (no text-indent)
+                // so CodeMirror's cursor calculation stays accurate.
+                decorations.push(
+                  Decoration.line({
+                    attributes: { style: "padding-left: 1.5ch" },
+                  }).range(itemLine.from)
+                );
+              }
             }
             return; // Continue into children for ListMark and other handling
           }

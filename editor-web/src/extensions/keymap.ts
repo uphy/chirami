@@ -1,7 +1,47 @@
 import { syntaxTree } from "@codemirror/language";
 import { EditorSelection } from "@codemirror/state";
 import { EditorView, KeyBinding } from "@codemirror/view";
+import { insertNewlineContinueMarkup } from "@codemirror/lang-markdown";
 import { postToSwift } from "../bridge";
+
+// Wraps insertNewlineContinueMarkup to prevent spurious blank lines in tight lists.
+// CodeMirror's nonTightList heuristic sometimes misclassifies long (visually
+// wrapped) lines as loose, inserting "\n\n- " instead of "\n- ".
+// This handler checks if the list was already loose before the keypress; if not
+// and a blank line was inserted, it removes the extra newline.
+function tightListEnter(view: EditorView): boolean {
+  const state = view.state;
+  const head = state.selection.main.head;
+  const headLine = state.doc.lineAt(head);
+
+  // Was the line immediately after the cursor already blank? (= existing loose list)
+  const nextLineNum = headLine.number + 1;
+  const wasLoose =
+    nextLineNum <= state.doc.lines &&
+    state.doc.line(nextLineNum).text.trim() === "";
+
+  const result = insertNewlineContinueMarkup(view);
+  if (!result) return false;
+
+  // If the list was tight and a blank line was unexpectedly inserted, remove it.
+  if (!wasLoose) {
+    const afterState = view.state;
+    const afterHead = afterState.selection.main.head;
+    const afterLine = afterState.doc.lineAt(afterHead);
+
+    if (afterLine.number > 1) {
+      const prevLine = afterState.doc.line(afterLine.number - 1);
+      if (prevLine.text === "") {
+        view.dispatch({
+          changes: { from: prevLine.from, to: prevLine.to + 1 },
+          selection: { anchor: afterHead - (prevLine.length + 1) },
+        });
+      }
+    }
+  }
+
+  return true;
+}
 
 function wrapSelection(view: EditorView, marker: string): boolean {
   const changes = view.state.changeByRange((range) => {
@@ -96,6 +136,10 @@ function openLinkAtCursor(view: EditorView): boolean {
   }
   return false;
 }
+
+export const tightListEnterKeymap: KeyBinding[] = [
+  { key: "Enter", run: tightListEnter },
+];
 
 export const chiramiKeymap: KeyBinding[] = [
   { key: "ArrowDown", run: (view) => moveVerticalOnListLine(view, 1) },

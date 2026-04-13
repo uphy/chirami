@@ -3,12 +3,12 @@ import { HighlightStyle, foldGutter, syntaxHighlighting } from "@codemirror/lang
 import { markdown } from "@codemirror/lang-markdown";
 import { languages } from "@codemirror/language-data";
 import { search, searchKeymap } from "@codemirror/search";
-import { EditorState, Transaction } from "@codemirror/state";
+import { EditorState, Prec, Transaction } from "@codemirror/state";
 import { EditorView, ViewUpdate, keymap } from "@codemirror/view";
 import { GFM } from "@lezer/markdown";
 import { classHighlighter, tags } from "@lezer/highlight";
 import { checkboxExtension } from "./extensions/checkbox";
-import { chiramiKeymap } from "./extensions/keymap";
+import { chiramiKeymap, tightListEnterKeymap } from "./extensions/keymap";
 import { livePreview } from "./extensions/livePreview";
 import { tableExtension } from "./extensions/table";
 import { mermaidExtension } from "./extensions/mermaid";
@@ -67,6 +67,7 @@ export function createEditor(parent: HTMLElement, callbacks: EditorCallbacks): E
     extensions: [
       history(),
       search(),
+      Prec.highest(keymap.of(tightListEnterKeymap)),
       keymap.of([
         indentWithTab,
         ...plainPasteKeymap,
