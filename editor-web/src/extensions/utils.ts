@@ -32,3 +32,12 @@ export function debounce<T extends unknown[]>(fn: (...args: T) => void, delay: n
     timer = window.setTimeout(() => { fn(...args); timer = null; }, delay);
   };
 }
+
+export function tryParseJSON<T>(json: string): T | undefined {
+  if (!json.trim()) return undefined;
+  try {
+    return JSON.parse(json) as T;
+  } catch {
+    return undefined;
+  }
+}

@@ -21,7 +21,8 @@ type JsToSwiftMessage =
   | { type: "fontSizeChange"; delta: number }
   | { type: "pasteImage"; dataUrl: string }
   | { type: "foldChanged"; foldedLines: number[] }
-  | { type: "log"; level: "debug" | "info" | "warn" | "error"; message: string };
+  | { type: "log"; level: "debug" | "info" | "warn" | "error"; message: string }
+  | { type: "overlayVisible"; visible: boolean };
 
 declare global {
   interface Window {

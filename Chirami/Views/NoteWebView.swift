@@ -34,6 +34,9 @@ final class NoteWebView: NSView {
     var onPasteImage: ((String) -> Void)?  // dataUrl
     var onFoldChanged: (([Int]) -> Void)?  // 1-based line numbers
 
+    /// True while the tldraw editor overlay is open in the WebView.
+    private(set) var overlayVisible: Bool = false
+
     override init(frame frameRect: NSRect) {
         let config = WKWebViewConfiguration()
         #if DEBUG
@@ -85,6 +88,9 @@ final class NoteWebView: NSView {
         }
         bridge.onFoldChanged = { [weak self] lines in
             self?.onFoldChanged?(lines)
+        }
+        bridge.onTldrawOverlayVisibleChanged = { [weak self] visible in
+            self?.overlayVisible = visible
         }
 
         webView.translatesAutoresizingMaskIntoConstraints = false
@@ -172,6 +178,12 @@ final class NoteWebView: NSView {
 
     func setScrollPosition(offset: Double) {
         enqueueOrEval("window.chirami.setScrollPosition(\(offset));")
+    }
+
+    /// Dispatches a synthetic Escape keydown event into the WebView's JS context.
+    /// Used when Swift intercepts ESC but wants JS (e.g. an overlay) to handle it.
+    func dispatchEscapeKey() {
+        enqueueOrEval("document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}))")
     }
 
     func getEditorContext(completion: @escaping (Result<String, Error>) -> Void) {

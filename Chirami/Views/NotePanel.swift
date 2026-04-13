@@ -235,11 +235,19 @@ class NotePanel: NSPanel {
                 onHideRequest?()
                 return
             }
-            // ESC key (keyCode 53) with no modifiers hides the window
+            // ESC key (keyCode 53) with no modifiers hides the window,
+            // unless a WebView overlay is open — dispatch ESC to JS instead.
+            // NOTE: do NOT call super.sendEvent for ESC; it triggers cancelOperation:/
+            // performClose: which closes the panel regardless of onHideRequest.
             if event.keyCode == 53 {
                 let activeFlags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
                 if activeFlags.isEmpty {
-                    onHideRequest?()
+                    if let webView = contentView?.firstDescendant(of: NoteWebView.self),
+                       webView.overlayVisible {
+                        webView.dispatchEscapeKey()
+                    } else {
+                        onHideRequest?()
+                    }
                     return
                 }
             }

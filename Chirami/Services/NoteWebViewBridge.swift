@@ -16,6 +16,7 @@ final class NoteWebViewBridge: NSObject, WKScriptMessageHandler {
     var onFontSizeChange: ((Int) -> Void)?
     var onPasteImage: ((String) -> Void)?  // dataUrl
     var onFoldChanged: (([Int]) -> Void)?  // 1-based line numbers
+    var onTldrawOverlayVisibleChanged: ((Bool) -> Void)?
 
     nonisolated func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
         MainActor.assumeIsolated {
@@ -54,6 +55,10 @@ final class NoteWebViewBridge: NSObject, WKScriptMessageHandler {
             case "foldChanged":
                 if let lines = body["foldedLines"] as? [Int] {
                     onFoldChanged?(lines)
+                }
+            case "overlayVisible":
+                if let visible = body["visible"] as? Bool {
+                    onTldrawOverlayVisibleChanged?(visible)
                 }
             case "log":
                 let level = body["level"] as? String ?? "info"

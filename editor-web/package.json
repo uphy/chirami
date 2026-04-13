@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "build": "esbuild src/main.ts --bundle --minify --sourcemap --outfile=../Chirami/Resources/editor/bundle.js && esbuild src/style.css --bundle --minify --outfile=../Chirami/Resources/editor/bundle.css && node scripts/copy-html.js",
-    "dev": "esbuild src/main.ts --bundle --watch --outfile=../Chirami/Resources/editor/bundle.js"
+    "build": "esbuild src/main.ts --bundle --minify --sourcemap --loader:.tsx=tsx --jsx=automatic --outfile=../Chirami/Resources/editor/bundle.js && esbuild src/style.css --bundle --minify --outfile=../Chirami/Resources/editor/bundle.css && node scripts/copy-html.js",
+    "dev": "esbuild src/main.ts --bundle --watch --loader:.tsx=tsx --jsx=automatic --outfile=../Chirami/Resources/editor/bundle.js"
   },
   "dependencies": {
     "@codemirror/commands": "^6",
@@ -17,10 +17,15 @@
     "@lezer/highlight": "^1",
     "@lezer/markdown": "^1",
     "mermaid": "^11.14.0",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
+    "tldraw": "^4.5.8",
     "turndown": "^7",
     "turndown-plugin-gfm": "^1"
   },
   "devDependencies": {
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
     "@types/turndown": "^5",
     "esbuild": "^0.21",
     "typescript": "^5"
