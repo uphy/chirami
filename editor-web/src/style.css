@@ -1,4 +1,5 @@
 @import 'tldraw/tldraw.css';
+@import '../node_modules/@excalidraw/excalidraw/dist/prod/index.css';
 
 :root {
   --chirami-bg: transparent;
@@ -406,6 +407,84 @@ html, body {
 
 /* tldraw overlay root (full-screen) */
 #tldraw-overlay-root {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+}
+
+/* Hide raw excalidraw markdown text when widget is shown */
+.cm-excalidraw-raw {
+  display: none;
+}
+
+/* excalidraw container */
+.cm-excalidraw-container {
+  position: relative;
+  margin: 0.5em 0;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid rgba(128, 128, 128, 0.2);
+}
+
+/* excalidraw SVG preview */
+.cm-excalidraw-preview-inner {
+  width: 100%;
+  background: white;
+}
+
+.cm-excalidraw-preview-inner svg {
+  display: block;
+  width: 100% !important;
+  height: auto !important;
+}
+
+/* Empty block placeholder */
+.cm-excalidraw-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60px;
+  color: rgba(128, 128, 128, 0.7);
+  font-size: 13px;
+  cursor: pointer;
+  user-select: none;
+}
+
+/* Error state */
+.cm-excalidraw-error {
+  padding: 8px;
+  background: rgba(255, 0, 0, 0.08);
+  border-radius: 4px;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 12px;
+  color: #cd3131;
+}
+
+/* Edit button (hidden by default, shown on hover) */
+.cm-excalidraw-edit-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 4px 10px;
+  font-size: 12px;
+  border: 1px solid rgba(128, 128, 128, 0.4);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #222;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s;
+  pointer-events: none;
+}
+
+.cm-excalidraw-container.cm-excalidraw-hover .cm-excalidraw-edit-btn,
+.cm-excalidraw-placeholder ~ .cm-excalidraw-edit-btn {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* excalidraw overlay root (full-screen) */
+#excalidraw-overlay-root {
   position: fixed;
   inset: 0;
   z-index: 9999;

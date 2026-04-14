@@ -25,6 +25,7 @@ Chirami renders Markdown in an Obsidian-style Live Preview: the block containing
 - Code blocks with syntax highlighting (triple backticks with optional language)
 - Mermaid diagrams (` ```mermaid ` blocks) — rendered as SVG when cursor is outside the block
 - tldraw diagrams (` ```tldraw ` blocks) — rendered as SVG preview; hover to show Edit button, click to open fullscreen tldraw editor overlay
+- Excalidraw diagrams (` ```excalidraw ` blocks) — rendered as SVG preview; hover to show Edit button, click to open fullscreen Excalidraw editor overlay
 - Tables (GitHub Flavored Markdown pipe syntax)
 - Thematic breaks (`---`, `***`, `___`)
 - `<details>`/`<summary>` HTML blocks — rendered as collapsible sections; click to expand/collapse
@@ -48,9 +49,24 @@ Chirami renders Markdown in an Obsidian-style Live Preview: the block containing
 **Slash command** — Type `/` at the start of an empty line to open a command picker. Type to filter, ↑/↓ to navigate, Enter to insert, Escape to dismiss. Available commands:
 
 - `/tldraw` — Insert a tldraw diagram block and open the editor overlay immediately
+- `/excalidraw` — Insert an Excalidraw diagram block and open the editor overlay immediately
 - `/mermaid` — Insert a Mermaid code block with a starter template
 - `/details` — Insert a collapsible `<details>` block with the summary text selected
 - `/table` — Insert a 2×2 Markdown table template
+
+**Embedded diagram blocks** — tldraw and Excalidraw diagrams can be embedded in fenced code blocks and edited without leaving the note.
+
+- ` ```tldraw ` — vector drawing canvas (tldraw)
+- ` ```excalidraw ` — hand-drawn style diagram editor (Excalidraw)
+
+Workflow:
+
+1. Type `/tldraw` or `/excalidraw` on an empty line to insert a block — the fullscreen editor opens immediately
+2. Draw your diagram, then close with the × button or Escape
+3. When the cursor is outside the block, the diagram renders as an SVG preview
+4. To edit an existing diagram, hover the preview and click **Edit**, or place the cursor inside the block and press **Mod+Enter**
+
+Diagram data is stored as JSON inside the code block, so the `.md` file remains plain text and the diagram survives round-trips through any editor.
 
 **Task list toggle** — Cmd+L converts the current line to/from a task list item (`- [ ]`). Click a checkbox to toggle it.
 

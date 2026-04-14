@@ -1,35 +1,36 @@
 import React, { useCallback, useEffect, useMemo, useRef } from "react";
 import { createRoot, Root } from "react-dom/client";
-import { Tldraw, Editor, TLEditorSnapshot, TLStoreSnapshot } from "tldraw";
+import { Excalidraw, serializeAsJSON } from "@excalidraw/excalidraw";
+import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 import { postToSwift } from "./bridge";
-import { tryParseJSON } from "./extensions/utils";
+import { parseExcalidrawScene } from "./extensions/excalidrawShared";
 
-interface TldrawOverlayProps {
+interface ExcalidrawOverlayProps {
   initialSnapshot: string;
   onClose: (snapshot: string) => void;
 }
 
-function TldrawOverlay({ initialSnapshot, onClose }: TldrawOverlayProps) {
-  const editorRef = useRef<Editor | null>(null);
+function ExcalidrawOverlay({ initialSnapshot, onClose }: ExcalidrawOverlayProps) {
+  const apiRef = useRef<ExcalidrawImperativeAPI | null>(null);
 
-  const parsedSnapshot = useMemo(
-    () => tryParseJSON<TLEditorSnapshot | TLStoreSnapshot>(initialSnapshot),
-    [initialSnapshot]
-  );
+  const initialData = useMemo(() => parseExcalidrawScene(initialSnapshot), [initialSnapshot]);
 
   const handleClose = useCallback(() => {
-    const editor = editorRef.current;
-    if (!editor) {
+    const api = apiRef.current;
+    if (!api) {
       onClose(initialSnapshot);
       return;
     }
-    const snapshot = editor.getSnapshot();
-    const snapshotJson = JSON.stringify(snapshot);
-    if (snapshotJson === initialSnapshot) {
-      onClose(initialSnapshot);
-    } else {
-      onClose(snapshotJson);
+
+    const elements = api.getSceneElements();
+    if (elements.length === 0) {
+      onClose("");
+      return;
     }
+
+    const snapshotJson = serializeAsJSON(elements, api.getAppState(), api.getFiles(), "local");
+
+    onClose(snapshotJson === initialSnapshot ? initialSnapshot : snapshotJson);
   }, [initialSnapshot, onClose]);
 
   useEffect(() => {
@@ -42,10 +43,10 @@ function TldrawOverlay({ initialSnapshot, onClose }: TldrawOverlayProps) {
 
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 9999 }}>
-      <Tldraw
-        snapshot={parsedSnapshot}
-        onMount={(editor) => {
-          editorRef.current = editor;
+      <Excalidraw
+        initialData={initialData}
+        excalidrawAPI={(api) => {
+          apiRef.current = api;
         }}
       />
       <button
@@ -85,23 +86,20 @@ function TldrawOverlay({ initialSnapshot, onClose }: TldrawOverlayProps) {
 let overlayRoot: Root | null = null;
 let overlayContainer: HTMLElement | null = null;
 
-export function openTldrawOverlay(
-  initialSnapshot: string,
-  onClose: (snapshot: string) => void
-): void {
-  if (overlayContainer) return; // already open
+export function openExcalidrawOverlay(initialSnapshot: string, onClose: (snapshot: string) => void): void {
+  if (overlayContainer) return;
 
   const container = document.createElement("div");
-  container.id = "tldraw-overlay-root";
+  container.id = "excalidraw-overlay-root";
   document.body.appendChild(container);
   overlayContainer = container;
 
   overlayRoot = createRoot(container);
   overlayRoot.render(
-    <TldrawOverlay
+    <ExcalidrawOverlay
       initialSnapshot={initialSnapshot}
       onClose={(snapshot) => {
-        closeTldrawOverlay();
+        closeExcalidrawOverlay();
         onClose(snapshot);
       }}
     />
@@ -109,7 +107,7 @@ export function openTldrawOverlay(
   postToSwift({ type: "overlayVisible", visible: true });
 }
 
-export function closeTldrawOverlay(): void {
+export function closeExcalidrawOverlay(): void {
   overlayRoot?.unmount();
   overlayRoot = null;
   overlayContainer?.remove();

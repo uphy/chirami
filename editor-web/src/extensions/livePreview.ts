@@ -233,7 +233,7 @@ class LivePreviewPlugin {
                   .sliceDoc(codeInfoNode.from, codeInfoNode.to)
                   .trim()
                   .toLowerCase();
-                if (lang === "mermaid" || lang === "tldraw") return false;
+                if (lang === "mermaid" || lang === "tldraw" || lang === "excalidraw") return false;
               }
             }
 
