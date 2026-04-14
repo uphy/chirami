@@ -224,17 +224,14 @@ class LivePreviewPlugin {
           }
 
           if (node.name === "FencedCode") {
-            // mermaidExtension owns the rendered widget; skip duplicate line decorations
-            const cursorInBlock = nodeContainsCursorLine(view, node.from, node.to, cursorLine);
-            if (!cursorInBlock) {
-              const codeInfoNode = node.node.getChild("CodeInfo");
-              if (codeInfoNode) {
-                const lang = view.state
-                  .sliceDoc(codeInfoNode.from, codeInfoNode.to)
-                  .trim()
-                  .toLowerCase();
-                if (lang === "mermaid" || lang === "tldraw" || lang === "excalidraw") return false;
-              }
+            // mermaid/tldraw/excalidraw own their rendered widgets; skip duplicate line decorations.
+            const codeInfoNode = node.node.getChild("CodeInfo");
+            if (codeInfoNode) {
+              const lang = view.state
+                .sliceDoc(codeInfoNode.from, codeInfoNode.to)
+                .trim()
+                .toLowerCase();
+              if (lang === "mermaid" || lang === "tldraw" || lang === "excalidraw") return false;
             }
 
             const fullStart = view.state.doc.lineAt(node.from).number;

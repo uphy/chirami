@@ -1,5 +1,5 @@
 import { syntaxTree } from "@codemirror/language";
-import { Prec, Range } from "@codemirror/state";
+import { Prec, Range, RangeSet, RangeSetBuilder } from "@codemirror/state";
 import {
   Decoration,
   DecorationSet,
@@ -16,12 +16,6 @@ import { shouldRebuild } from "./utils";
 
 const excalidrawHideMark = Decoration.mark({ class: "cm-excalidraw-raw" });
 
-interface ExcalidrawWidgetInfo {
-  json: string;
-  codeFrom: number;
-  codeTo: number;
-}
-
 interface ExcalidrawBlockRef {
   json: string;
   codeFrom: number;
@@ -33,12 +27,20 @@ interface ExcalidrawBlockRef {
 class ExcalidrawPreviewWidget extends WidgetType {
   private destroyed = false;
 
-  constructor(private info: ExcalidrawWidgetInfo) {
+  constructor(
+    private readonly json: string,
+    private codeFrom: number,
+    private codeTo: number,
+  ) {
     super();
   }
 
   eq(other: ExcalidrawPreviewWidget): boolean {
-    return other.info.json === this.info.json && other.info.codeFrom === this.info.codeFrom;
+    return other.json === this.json;
+  }
+
+  get estimatedHeight(): number {
+    return 180;
   }
 
   toDOM(view: EditorView): HTMLElement {
@@ -47,7 +49,7 @@ class ExcalidrawPreviewWidget extends WidgetType {
     const wrap = document.createElement("div");
     wrap.className = "cm-excalidraw-container";
 
-    if (!this.info.json.trim() || isEmptyExcalidrawScene(this.info.json)) {
+    if (!this.json.trim() || isEmptyExcalidrawScene(this.json)) {
       const placeholder = document.createElement("div");
       placeholder.className = "cm-excalidraw-placeholder";
       placeholder.textContent = "Click to add a diagram";
@@ -73,7 +75,7 @@ class ExcalidrawPreviewWidget extends WidgetType {
   }
 
   private async renderPreview(container: HTMLElement, view: EditorView): Promise<void> {
-    const scene = parseExcalidrawScene(this.info.json);
+    const scene = parseExcalidrawScene(this.json);
     if (!scene) {
       container.insertBefore(this.makeErrorEl("Invalid JSON"), container.lastElementChild);
       return;
@@ -86,17 +88,23 @@ class ExcalidrawPreviewWidget extends WidgetType {
     try {
       const svg = await exportToSvg({
         elements: scene.elements,
-        appState: scene.appState ?? {},
+        appState: {
+          ...(scene.appState ?? {}),
+          exportBackground: false,
+          viewBackgroundColor: "transparent",
+        },
         files: scene.files ?? {},
-        exportPadding: 16,
+        exportPadding: 0,
         renderEmbeddables: true,
       });
 
       if (this.destroyed || !previewEl.isConnected) return;
-      svg.style.display = "block";
-      svg.style.width = "100%";
-      svg.style.height = "auto";
-      previewEl.replaceChildren(svg);
+      const serialized = new XMLSerializer().serializeToString(svg);
+      const img = document.createElement("img");
+      img.alt = "Excalidraw diagram preview";
+      img.decoding = "async";
+      img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(serialized)}`;
+      previewEl.replaceChildren(img);
       view.requestMeasure();
     } catch (err) {
       if (this.destroyed || !previewEl.isConnected) return;
@@ -113,15 +121,15 @@ class ExcalidrawPreviewWidget extends WidgetType {
   }
 
   private openOverlay(view: EditorView): void {
-    openExcalidrawOverlay(this.info.json, (newSnapshot) => {
+    openExcalidrawOverlay(this.json, (newSnapshot) => {
       this.updateCodeBlock(view, newSnapshot);
     });
   }
 
   private updateCodeBlock(view: EditorView, newSnapshot: string): void {
-    if (newSnapshot === this.info.json) return;
+    if (newSnapshot === this.json) return;
     view.dispatch({
-      changes: { from: this.info.codeFrom, to: this.info.codeTo, insert: newSnapshot + "\n" },
+      changes: { from: this.codeFrom, to: this.codeTo, insert: newSnapshot + "\n" },
     });
   }
 
@@ -137,6 +145,7 @@ class ExcalidrawPreviewWidget extends WidgetType {
 class ExcalidrawPlugin {
   decorations: DecorationSet;
   blocks: ExcalidrawBlockRef[] = [];
+  atomicRangeSet: RangeSet<Decoration> = Decoration.none;
 
   constructor(view: EditorView) {
     this.decorations = this.build(view);
@@ -150,6 +159,7 @@ class ExcalidrawPlugin {
 
   private build(view: EditorView): DecorationSet {
     const decorations: Range<Decoration>[] = [];
+    const atomicBuilder = new RangeSetBuilder<Decoration>();
     this.blocks = [];
 
     for (const { from, to } of view.visibleRanges) {
@@ -184,14 +194,14 @@ class ExcalidrawPlugin {
           }
 
           this.blocks.push({ json, codeFrom, codeTo, blockFrom: node.from, blockTo: node.to });
+          atomicBuilder.add(node.from, node.to, excalidrawHideMark);
 
           const startLine = view.state.doc.lineAt(node.from);
           const endLine = view.state.doc.lineAt(node.to);
-          const info: ExcalidrawWidgetInfo = { json, codeFrom, codeTo };
 
           decorations.push(
             Decoration.widget({
-              widget: new ExcalidrawPreviewWidget(info),
+              widget: new ExcalidrawPreviewWidget(json, codeFrom, codeTo),
               side: -1,
             }).range(startLine.from)
           );
@@ -202,12 +212,17 @@ class ExcalidrawPlugin {
       });
     }
 
+    this.atomicRangeSet = this.blocks.length > 0 ? atomicBuilder.finish() : Decoration.none;
     return decorations.length > 0 ? Decoration.set(decorations, true) : Decoration.none;
   }
 }
 
 const excalidrawPlugin = ViewPlugin.fromClass(ExcalidrawPlugin, {
   decorations: (v) => v.decorations,
+});
+
+const excalidrawAtomicRanges = EditorView.atomicRanges.of((view) => {
+  return view.plugin(excalidrawPlugin)?.atomicRangeSet ?? Decoration.none;
 });
 
 const excalidrawKeymap = keymap.of([
@@ -232,4 +247,4 @@ const excalidrawKeymap = keymap.of([
   },
 ]);
 
-export const excalidrawExtension = [excalidrawPlugin, Prec.high(excalidrawKeymap)];
+export const excalidrawExtension = [excalidrawPlugin, excalidrawAtomicRanges, Prec.high(excalidrawKeymap)];
