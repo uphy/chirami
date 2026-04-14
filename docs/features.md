@@ -53,7 +53,24 @@ Chirami renders Markdown in an Obsidian-style Live Preview: the block containing
 - `/details` — Insert a collapsible `<details>` block with the summary text selected
 - `/table` — Insert a 2×2 Markdown table template
 
+**Mermaid diagrams** — Use `/mermaid` to insert a ` ```mermaid ` block with a starter template. When the cursor is outside the block, the diagram renders as an SVG. To constrain the rendered size, add `width` and/or `height` to the opening fence:
+
+````
+```mermaid width=400 height=200
+graph LR
+  A --> B
+```
+````
+
 **Excalidraw diagrams** — Use `/excalidraw` to insert a ` ```excalidraw ` block and open the fullscreen editor immediately. When the cursor is outside the block, the diagram renders as an SVG preview. Hover and click **Edit**, or press **Mod+Enter** inside the block, to reopen the editor. Diagram data is stored as JSON in the code block — the `.md` file stays plain text.
+
+To constrain the rendered size, add `width` and/or `height` to the opening fence:
+
+````
+```excalidraw width=600 height=300
+{...}
+```
+````
 
 **Excalidraw Library** — Add reusable shape libraries via `config.yaml`. Libraries from [libraries.excalidraw.com](https://libraries.excalidraw.com/) can be downloaded as `.excalidrawlib` files and loaded directly. Items added inside the editor are saved separately and persist across sessions.
 
