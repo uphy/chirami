@@ -23,6 +23,7 @@ import {
 import { foldedRanges } from "@codemirror/language";
 import { smartPaste, plainPasteKeymap } from "./extensions/smartPaste";
 import { slashCommandExtension } from "./extensions/slashCommand";
+import { foldGutterLineHover } from "./extensions/foldGutterHover";
 
 // Heading font sizes and strikethrough must be set here as inline styles —
 // classHighlighter CSS classes alone don't apply font-size to heading lines correctly.
@@ -95,14 +96,14 @@ export function createEditor(parent: HTMLElement, callbacks: EditorCallbacks): E
           border: "none",
         },
         ".cm-gutter.cm-foldGutter": {
-          width: "10px",
+          width: "14px",
         },
         ".cm-foldGutter .cm-gutterElement": {
           padding: "0",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          fontSize: "10px",
+          fontSize: "12px",
           color: "var(--chirami-text)",
           cursor: "pointer",
           userSelect: "none",
@@ -111,8 +112,8 @@ export function createEditor(parent: HTMLElement, callbacks: EditorCallbacks): E
           opacity: "0",
           transition: "opacity 0.1s",
         },
-        ".cm-foldGutter .cm-gutterElement:hover span": {
-          opacity: "0.6",
+        ".cm-foldGutter .cm-gutterElement.cm-fold-line-hovered span, .cm-foldGutter .cm-gutterElement:hover span": {
+          opacity: "1",
         },
       }),
       drawSelection(),
@@ -122,6 +123,7 @@ export function createEditor(parent: HTMLElement, callbacks: EditorCallbacks): E
       markdownListFold,
       foldGutter(),
       foldChangeListener,
+      foldGutterLineHover,
       tableExtension,
       mermaidExtension,
       imageExtension,
