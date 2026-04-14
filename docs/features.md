@@ -24,8 +24,10 @@ Chirami renders Markdown in an Obsidian-style Live Preview: the block containing
 - Blockquotes (`>`)
 - Code blocks with syntax highlighting (triple backticks with optional language)
 - Mermaid diagrams (` ```mermaid ` blocks) — rendered as SVG when cursor is outside the block
+- tldraw diagrams (` ```tldraw ` blocks) — rendered as SVG preview; hover to show Edit button, click to open fullscreen tldraw editor overlay
 - Tables (GitHub Flavored Markdown pipe syntax)
 - Thematic breaks (`---`, `***`, `___`)
+- `<details>`/`<summary>` HTML blocks — rendered as collapsible sections; click to expand/collapse
 
 ## Window Operations
 
@@ -42,6 +44,12 @@ Chirami renders Markdown in an Obsidian-style Live Preview: the block containing
 **Window Warp** — While a note window is focused, press the warp modifier key (default: Ctrl+Option) + H/J/K/L or the arrow keys to instantly move the window to one of 9 positions in a 3×3 grid. The grid covers the screen with an 8pt margin at each edge. Movement wraps around at the edges — pressing H (or ←) at the left column jumps to the right column of the same row. The current grid position is inferred from the window's actual position, so warp works naturally after manual dragging. In multi-monitor setups, the window warps within the screen it currently occupies. Warp position is persisted across restarts. The modifier key is configurable via `warp_modifier` in `config.yaml`.
 
 ## Editor Features
+
+**Slash command** — Type `/` at the start of an empty line to open a command picker. Type to filter, ↑/↓ to navigate, Enter to insert, Escape to dismiss. Available commands:
+
+- `/tldraw` — Insert a tldraw diagram block and open the editor overlay immediately
+- `/mermaid` — Insert a Mermaid code block with a starter template
+- `/table` — Insert a 2×2 Markdown table template
 
 **Task list toggle** — Cmd+L converts the current line to/from a task list item (`- [ ]`). Click a checkbox to toggle it.
 
