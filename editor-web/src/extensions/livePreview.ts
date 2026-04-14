@@ -8,20 +8,24 @@ import {
   ViewUpdate,
   WidgetType,
 } from "@codemirror/view";
-import { cursorLineNumber, nodeContainsCursorLine, shouldRebuild } from "./utils";
+import { cursorInSpan, cursorLineNumber, nodeContainsCursorLine, shouldRebuild } from "./utils";
 
 // Markdown syntax marks to hide on non-cursor lines.
 // ListMark ("-", "*", "+") is handled separately below with bullet replacement.
 // HeaderMark ("# ") is handled separately below to also hide the trailing space.
-const HIDDEN_MARK_NODES = new Set([
+// Marks that go raw whenever cursor is anywhere inside the enclosing construct.
+// EmphasisMark/CodeMark/StrikethroughMark: opening+closing fence go raw together.
+// CodeInfo: language tag is shown whenever cursor is inside the fenced code block.
+const PARENT_SPAN_MARKS = new Set([
   "EmphasisMark",
   "CodeMark",
   "CodeInfo",
-  "LinkMark",
-  "URL",
   "StrikethroughMark",
-  "QuoteMark",
 ]);
+
+// Link/Image marks are handled as a group using the parent node span,
+// so all marks within a link go raw together when cursor touches any part of it.
+const LINK_MARK_NODES = new Set(["LinkMark", "URL"]);
 
 const HIDDEN_DECORATION = Decoration.replace({ inclusive: false });
 
@@ -101,6 +105,7 @@ class LivePreviewPlugin {
 
   private build(view: EditorView): DecorationSet {
     const cursorLine = cursorLineNumber(view);
+    const cursorPos  = view.state.selection.main.head;
     const decorations: Range<Decoration>[] = [];
     const tree = syntaxTree(view.state);
     const processedCodeLines = new Set<number>();
@@ -156,7 +161,10 @@ class LivePreviewPlugin {
           }
 
           if (node.name === "HeaderMark") {
-            if (nodeContainsCursorLine(view, node.from, node.to, cursorLine)) return;
+            const headingParent = node.node.parent;
+            const hSpanFrom = headingParent?.from ?? node.from;
+            const hSpanTo   = headingParent?.to   ?? node.to;
+            if (cursorInSpan(cursorPos, hSpanFrom, hSpanTo)) return;
             // Also hide the trailing space after "#" so the heading text aligns
             // with the paragraph left edge. The Lezer Markdown parser stores
             // HeaderMark as only the "#" characters (without the space), so the
@@ -183,9 +191,19 @@ class LivePreviewPlugin {
             const gutterEm = 1.0;
             const totalEm  = depth * 0.5 + gutterEm;
 
+            let prefixTo: number;
+            if (taskMatch) {
+              prefixTo = itemLine.from + match[0].length + taskMatch[0].length;
+            } else {
+              const markCharEnd = itemLine.from + match[0].length;
+              const trailingChar = itemLine.text[match[0].length] ?? "";
+              prefixTo = (trailingChar === " " || trailingChar === "\t") ? markCharEnd + 1 : markCharEnd;
+            }
+
             // Cursor lines: --list-gutter = totalEm so the raw prefix starts at 0em
-            // (predictable tab stops). Other lines: gutterEm so rendered text aligns normally.
-            const cssGutter = onCursorLine ? totalEm : gutterEm;
+            // (predictable tab stops). Other positions: gutterEm so rendered text aligns normally.
+            const cursorInPrefix = onCursorLine && cursorPos >= itemLine.from && cursorPos <= prefixTo;
+            const cssGutter = cursorInPrefix ? totalEm : gutterEm;
             decorations.push(
               Decoration.line({
                 class: "cm-list-item",
@@ -193,14 +211,13 @@ class LivePreviewPlugin {
               }).range(itemLine.from)
             );
 
-            if (!onCursorLine) {
+            if (!cursorInPrefix) {
               if (taskMatch) {
                 const checked = taskMatch[1] !== " ";
                 if (checked) {
                   decorations.push(Decoration.line({ class: "cm-task-checked" }).range(itemLine.from));
                 }
                 // Replace entire prefix (whitespace + "- " + "[ ] ") with a checkbox widget.
-                const prefixTo = itemLine.from + match[0].length + taskMatch[0].length;
                 const innerPos = itemLine.from + match[0].length + 2; // skip ' [' to reach checkbox char
                 decorations.push(
                   Decoration.replace({ widget: new CheckboxWidget(checked, innerPos) })
@@ -209,10 +226,6 @@ class LivePreviewPlugin {
               } else {
                 // Replace the full prefix (whitespace + mark char + trailing space)
                 // with a BulletWidget of width gutterEm.
-                const markCharEnd = itemLine.from + match[0].length;
-                const trailingChar = itemLine.text[match[0].length] ?? "";
-                const prefixTo = (trailingChar === " " || trailingChar === "\t")
-                  ? markCharEnd + 1 : markCharEnd;
                 decorations.push(
                   Decoration.replace({ widget: new BulletWidget(gutterEm) })
                     .range(itemLine.from, prefixTo)
@@ -222,11 +235,29 @@ class LivePreviewPlugin {
             return;
           }
 
-          if (!HIDDEN_MARK_NODES.has(node.name)) return;
-          if (nodeContainsCursorLine(view, node.from, node.to, cursorLine)) {
+          if (LINK_MARK_NODES.has(node.name)) {
+            const parent = node.node.parent;
+            const spanFrom = parent?.from ?? node.from;
+            const spanTo   = parent?.to   ?? node.to;
+            if (cursorInSpan(cursorPos, spanFrom, spanTo)) return;
+            decorations.push(HIDDEN_DECORATION.range(node.from, node.to));
             return;
           }
-          decorations.push(HIDDEN_DECORATION.range(node.from, node.to));
+
+          if (PARENT_SPAN_MARKS.has(node.name)) {
+            const parent = node.node.parent;
+            const spanFrom = parent?.from ?? node.from;
+            const spanTo   = parent?.to   ?? node.to;
+            if (cursorInSpan(cursorPos, spanFrom, spanTo)) return;
+            decorations.push(HIDDEN_DECORATION.range(node.from, node.to));
+            return;
+          }
+
+          // QuoteMark (">") goes raw when cursor is on the same blockquote line.
+          if (node.name === "QuoteMark") {
+            if (nodeContainsCursorLine(view, node.from, node.to, cursorLine)) return;
+            decorations.push(HIDDEN_DECORATION.range(node.from, node.to));
+          }
         },
       });
     }

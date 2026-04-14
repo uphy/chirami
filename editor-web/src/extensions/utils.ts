@@ -16,14 +16,15 @@ export function nodeContainsCursorLine(
   return cursorLine >= startLine && cursorLine <= endLine;
 }
 
+export function cursorInSpan(cursorPos: number, from: number, to: number): boolean {
+  return cursorPos >= from && cursorPos <= to;
+}
+
 export function shouldRebuild(update: ViewUpdate): boolean {
   if (update.docChanged || update.viewportChanged || update.focusChanged) return true;
-  if (update.selectionSet) {
-    const newLine = update.view.state.doc.lineAt(update.view.state.selection.main.head).number;
-    const oldLine = update.startState.doc.lineAt(update.startState.selection.main.head).number;
-    return newLine !== oldLine;
-  }
-  return false;
+  if (!update.selectionSet) return false;
+  // Skip when only the anchor moved (e.g. shift+click with same head position).
+  return update.view.state.selection.main.head !== update.startState.selection.main.head;
 }
 
 export function debounce<T extends unknown[]>(fn: (...args: T) => void, delay: number): (...args: T) => void {
