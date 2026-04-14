@@ -74,23 +74,20 @@ Cmd+V triggers Smart Paste, which converts clipboard content to Markdown before 
 
 | Clipboard Content | Result |
 |-------------------|--------|
-| URL | `[page title](url)` (title fetched asynchronously) |
+| URL | `[](url)` — cursor placed inside `[]` for quick title entry |
 | HTML | Converted to Markdown (headings, lists, links, tables, etc.) |
 | JSON | Wrapped in a `` ```json `` code block |
 | Multi-line code | Wrapped in a `` ``` `` code block |
 | Plain text | Inserted as-is |
 
-Content types are detected in this priority order: HTML → URL → JSON → Code → Plain text.
+Content types are detected in this priority order: URL → HTML → JSON → Code → Plain text.
 
 ### Settings
 
 ```yaml
 smart_paste:
-  enabled: true         # Set to false to disable (Cmd+V falls through to normal paste)
-  fetch_url_title: true  # Set to false to skip title fetching for URLs
+  enabled: true  # Set to false to disable (Cmd+V falls through to normal paste)
 ```
-
-When `fetch_url_title` is enabled, Chirami inserts `[](url)` immediately, then replaces the empty title with the fetched page title (from `og:title` or `<title>` tag) within a 5-second timeout.
 
 ## Karabiner-Elements Integration
 

@@ -147,7 +147,6 @@ Custom color scheme names can also override built-in ones (e.g. redefining `yell
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `smart_paste.enabled` | boolean | `true` | Enable Smart Paste (Cmd+Shift+V). |
-| `smart_paste.fetch_url_title` | boolean | `true` | Fetch page title when pasting URLs. |
 
 ## Karabiner
 

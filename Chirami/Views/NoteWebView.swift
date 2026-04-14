@@ -86,6 +86,10 @@ final class NoteWebView: NSView {
         bridge.onPasteImage = { [weak self] dataUrl in
             self?.onPasteImage?(dataUrl)
         }
+        bridge.onPlainPaste = { [weak self] in
+            guard let text = NSPasteboard.general.string(forType: .string), !text.isEmpty else { return }
+            self?.insertText(text)
+        }
         bridge.onFoldChanged = { [weak self] lines in
             self?.onFoldChanged?(lines)
         }

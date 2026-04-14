@@ -6,6 +6,16 @@ import { postToSwift } from "../bridge";
 const turndown = new TurndownService({ headingStyle: "atx", codeBlockStyle: "fenced" });
 turndown.use(gfm);
 
+function isUrl(text: string): boolean {
+  if (text.includes("\n")) return false;
+  try {
+    const url = new URL(text);
+    return (url.protocol === "http:" || url.protocol === "https:") && url.hostname !== "";
+  } catch {
+    return false;
+  }
+}
+
 export const smartPaste = EditorView.domEventHandlers({
   paste(event, view) {
     const data = event.clipboardData;
@@ -27,7 +37,20 @@ export const smartPaste = EditorView.domEventHandlers({
       }
     }
 
-    // 2. HTML
+    // 2. URL (takes priority over HTML per spec)
+    const plainText = data.getData("text/plain").trim();
+    if (isUrl(plainText)) {
+      event.preventDefault();
+      const markdown = `[](${plainText})`;
+      const from = view.state.selection.main.from;
+      view.dispatch({
+        ...view.state.replaceSelection(markdown),
+        selection: { anchor: from + 1, head: from + 1 },
+      });
+      return true;
+    }
+
+    // 3. HTML
     const html = data.getData("text/html");
     if (html) {
       event.preventDefault();
@@ -36,21 +59,17 @@ export const smartPaste = EditorView.domEventHandlers({
       return true;
     }
 
-    // 3. Plain text → default handling
+    // 4. Plain text → default handling
     return false;
   },
 });
 
-// Cmd+Shift+V: force plain text paste
+// Cmd+Shift+V: force plain text paste via Swift (navigator.clipboard is blocked in WKWebView)
 export const plainPasteKeymap = [
   {
     key: "Mod-Shift-v",
-    run: (view: EditorView) => {
-      navigator.clipboard.readText().then((text) => {
-        if (text) {
-          view.dispatch(view.state.replaceSelection(text));
-        }
-      });
+    run: (_view: EditorView) => {
+      postToSwift({ type: "plainPaste" });
       return true;
     },
   },

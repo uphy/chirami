@@ -15,6 +15,7 @@ final class NoteWebViewBridge: NSObject, WKScriptMessageHandler {
     var onOpenLink: ((URL) -> Void)?
     var onFontSizeChange: ((Int) -> Void)?
     var onPasteImage: ((String) -> Void)?  // dataUrl
+    var onPlainPaste: (() -> Void)?
     var onFoldChanged: (([Int]) -> Void)?  // 1-based line numbers
     var onTldrawOverlayVisibleChanged: ((Bool) -> Void)?
 
@@ -52,6 +53,8 @@ final class NoteWebViewBridge: NSObject, WKScriptMessageHandler {
                 if let dataUrl = body["dataUrl"] as? String {
                     onPasteImage?(dataUrl)
                 }
+            case "plainPaste":
+                onPlainPaste?()
             case "foldChanged":
                 if let lines = body["foldedLines"] as? [Int] {
                     onFoldChanged?(lines)

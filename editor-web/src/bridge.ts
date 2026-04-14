@@ -20,6 +20,7 @@ type JsToSwiftMessage =
   | { type: "openLink"; url: string }
   | { type: "fontSizeChange"; delta: number }
   | { type: "pasteImage"; dataUrl: string }
+  | { type: "plainPaste" }
   | { type: "foldChanged"; foldedLines: number[] }
   | { type: "log"; level: "debug" | "info" | "warn" | "error"; message: string }
   | { type: "overlayVisible"; visible: boolean };
