@@ -1,3 +1,4 @@
+import { syntaxTree } from "@codemirror/language";
 import { EditorView, ViewUpdate } from "@codemirror/view";
 
 export function cursorLineNumber(view: EditorView): number {
@@ -25,6 +26,19 @@ export function shouldRebuild(update: ViewUpdate): boolean {
   if (!update.selectionSet) return false;
   // Skip when only the anchor moved (e.g. shift+click with same head position).
   return update.view.state.selection.main.head !== update.startState.selection.main.head;
+}
+
+export function collectHtmlBlocks(view: EditorView): Array<{ from: number; to: number }> {
+  const blocks: Array<{ from: number; to: number }> = [];
+  syntaxTree(view.state).iterate({
+    enter: (node) => {
+      if (node.name === "HTMLBlock") {
+        blocks.push({ from: node.from, to: node.to });
+        return false;
+      }
+    },
+  });
+  return blocks;
 }
 
 export function debounce<T extends unknown[]>(fn: (...args: T) => void, delay: number): (...args: T) => void {

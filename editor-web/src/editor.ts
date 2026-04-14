@@ -13,6 +13,7 @@ import { tableExtension } from "./extensions/table";
 import { mermaidExtension } from "./extensions/mermaid";
 import { imageExtension } from "./extensions/image";
 import { tldrawExtension } from "./extensions/tldraw";
+import { detailsExtension } from "./extensions/details";
 import {
   markdownHeadingFold,
   markdownListFold,
@@ -125,6 +126,7 @@ export function createEditor(parent: HTMLElement, callbacks: EditorCallbacks): E
       mermaidExtension,
       imageExtension,
       tldrawExtension,
+      detailsExtension,
       slashCommandExtension,
       smartPaste,
       updateListener,

@@ -375,6 +375,41 @@ html, body {
   z-index: 9999;
 }
 
+/* Details widget */
+
+/* Hide raw <details>/<summary>/</details> text (keeps .cm-line for widget rendering) */
+.cm-details-raw {
+  display: none;
+}
+
+/* Hide entire lines (including blank lines) in collapsed details content */
+.cm-details-hidden-line {
+  display: none !important;
+}
+
+.cm-details-summary {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  user-select: none;
+  padding: 1px 0;
+}
+
+.cm-details-arrow {
+  display: inline-block;
+  width: 1em;
+  font-size: 0.75em;
+  color: var(--chirami-text);
+  opacity: 0.6;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.cm-details-summary-text {
+  color: var(--chirami-text);
+  cursor: default;
+}
+
 /* Slash command picker */
 .cm-slash-picker {
   list-style: none;
