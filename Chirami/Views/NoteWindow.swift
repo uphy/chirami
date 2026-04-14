@@ -72,7 +72,7 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
             updateNavigationButtons()
         }
 
-        panel.setupPinButton(target: self, action: #selector(togglePinAction))
+        panel.setupPinButton { [weak self] in self?.togglePinAction() }
         panel.updatePinState(isPinned: isPinned)
 
         let rootView = NoteContentView(model: contentModel, noteId: note.id, onTogglePin: { [weak self] in self?.togglePinAction() })

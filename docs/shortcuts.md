@@ -24,6 +24,7 @@ title: Keyboard Shortcuts
 | Option+Enter (on link) | Open link or bare URL at caret |
 | Ctrl+A | Move cursor to content start (press again for line start) |
 | ESC / Cmd+W | Close note |
+| Cmd+Option+P | Toggle pin (keep visible when focus moves away) |
 | Ctrl+Option+H / Ctrl+Option+← | Warp window left |
 | Ctrl+Option+L / Ctrl+Option+→ | Warp window right |
 | Ctrl+Option+K / Ctrl+Option+↑ | Warp window up |

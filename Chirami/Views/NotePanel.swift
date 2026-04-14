@@ -24,6 +24,11 @@ class NotePanel: NSPanel {
     private let logger = Logger(subsystem: "io.github.uphy.Chirami", category: "NotePanel")
 
     var onHideRequest: (() -> Void)?
+    var onTogglePin: (() -> Void)?
+
+    private var pinAction: (() -> Void)?
+
+    @objc private func pinButtonTapped() { pinAction?() }
 
     override var title: String {
         didSet { customTitleLabel?.stringValue = title }
@@ -115,7 +120,10 @@ class NotePanel: NSPanel {
     }
 
     /// Add a pin button to the right end of the titlebar.
-    func setupPinButton(target: AnyObject, action: Selector) {
+    func setupPinButton(onToggle: @escaping () -> Void) {
+        pinAction = onToggle
+        onTogglePin = onToggle
+
         guard let closeButton = standardWindowButton(.closeButton) else { return }
 
         var fullWidthView: NSView = closeButton
@@ -124,7 +132,7 @@ class NotePanel: NSPanel {
             if parent.frame.width >= frame.width - 1 { break }
         }
 
-        let button = makeNavButton(symbolName: "pin", action: action, target: target)
+        let button = makeNavButton(symbolName: "pin", action: #selector(pinButtonTapped), target: self)
         fullWidthView.addSubview(button)
         NSLayoutConstraint.activate([
             button.centerYAnchor.constraint(equalTo: closeButton.centerYAnchor),
@@ -233,6 +241,11 @@ class NotePanel: NSPanel {
             if event.keyCode == 13,
                event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command {
                 onHideRequest?()
+                return
+            }
+            if event.modifierFlags.intersection(.deviceIndependentFlagsMask) == [.command, .option],
+               event.charactersIgnoringModifiers == "p" {
+                onTogglePin?()
                 return
             }
             // ESC key (keyCode 53) with no modifiers hides the window,

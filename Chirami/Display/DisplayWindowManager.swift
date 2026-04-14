@@ -29,7 +29,7 @@ class DisplayWindowController: NSObject, NSWindowDelegate {
         panel.delegate = self
 
         if position == .cursor {
-            panel.setupPinButton(target: self, action: #selector(togglePinAction))
+            panel.setupPinButton { [weak self] in self?.togglePinAction() }
             panel.updatePinState(isPinned: isPinned)
         }
     }
