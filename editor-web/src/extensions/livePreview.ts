@@ -8,7 +8,7 @@ import {
   ViewUpdate,
   WidgetType,
 } from "@codemirror/view";
-import { cursorInSpan, cursorLineNumber, nodeContainsCursorLine, shouldRebuild } from "./utils";
+import { cursorInSpan, cursorLineNumber, nodeContainsCursorLine, parseCodeBlockInfo, shouldRebuild } from "./utils";
 
 // Markdown syntax marks to hide on non-cursor lines.
 // ListMark ("-", "*", "+") is handled separately below with bullet replacement.
@@ -227,10 +227,9 @@ class LivePreviewPlugin {
             // mermaid/tldraw/excalidraw own their rendered widgets; skip duplicate line decorations.
             const codeInfoNode = node.node.getChild("CodeInfo");
             if (codeInfoNode) {
-              const lang = view.state
-                .sliceDoc(codeInfoNode.from, codeInfoNode.to)
-                .trim()
-                .toLowerCase();
+              const { lang } = parseCodeBlockInfo(
+                view.state.sliceDoc(codeInfoNode.from, codeInfoNode.to)
+              );
               if (lang === "mermaid" || lang === "tldraw" || lang === "excalidraw") return false;
             }
 

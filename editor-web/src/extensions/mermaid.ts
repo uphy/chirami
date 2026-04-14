@@ -7,22 +7,26 @@ import {
   WidgetType,
 } from "@codemirror/view";
 import mermaid from "mermaid";
-import { cursorLineFromState, makeDecorationField } from "./utils";
+import { CodeBlockSizeOptions, applySizeOptions, cursorLineFromState, makeDecorationField, parseCodeBlockInfo, sizeOptionsEq } from "./utils";
 
 mermaid.initialize({ startOnLoad: false, theme: "neutral" });
 
 class MermaidWidget extends WidgetType {
-  constructor(private code: string) {
+  constructor(
+    private code: string,
+    private readonly sizeOptions: CodeBlockSizeOptions = {},
+  ) {
     super();
   }
 
   eq(other: MermaidWidget): boolean {
-    return other.code === this.code;
+    return other.code === this.code && sizeOptionsEq(other.sizeOptions, this.sizeOptions);
   }
 
   toDOM(view: EditorView): HTMLElement {
     const container = document.createElement("div");
     container.className = "cm-mermaid-container";
+    applySizeOptions(container, this.sizeOptions);
 
     // mermaid.render() requires a unique id for internal element creation
     const id = `mermaid-widget-${crypto.randomUUID()}`;
@@ -60,10 +64,9 @@ function buildMermaidDecorations(state: EditorState): DecorationSet {
 
       const codeInfoNode = node.node.getChild("CodeInfo");
       if (!codeInfoNode) return false;
-      const lang = state
-        .sliceDoc(codeInfoNode.from, codeInfoNode.to)
-        .trim()
-        .toLowerCase();
+      const { lang, options: sizeOptions } = parseCodeBlockInfo(
+        state.sliceDoc(codeInfoNode.from, codeInfoNode.to)
+      );
       if (lang !== "mermaid") return false;
 
       const startLine = state.doc.lineAt(node.from);
@@ -77,7 +80,7 @@ function buildMermaidDecorations(state: EditorState): DecorationSet {
 
       decorations.push(
         Decoration.replace({
-          widget: new MermaidWidget(code),
+          widget: new MermaidWidget(code, sizeOptions),
         }).range(startLine.from, endLine.to),
       );
 

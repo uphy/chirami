@@ -1,20 +1,17 @@
 import { syntaxTree } from "@codemirror/language";
-import { Prec, Range, RangeSet, RangeSetBuilder } from "@codemirror/state";
+import { Prec, Range, StateField } from "@codemirror/state";
 import {
   Decoration,
   DecorationSet,
+  EditorState,
   EditorView,
-  ViewPlugin,
-  ViewUpdate,
   WidgetType,
   keymap,
 } from "@codemirror/view";
 import { exportToSvg } from "@excalidraw/excalidraw";
 import { openExcalidrawOverlay } from "../excalidraw-overlay";
 import { isEmptyExcalidrawScene, parseExcalidrawScene } from "./excalidrawShared";
-import { shouldRebuild } from "./utils";
-
-const excalidrawHideMark = Decoration.mark({ class: "cm-excalidraw-raw" });
+import { CodeBlockSizeOptions, applySizeOptions, cursorLineFromState, makeDecorationField, parseCodeBlockInfo, sizeOptionsEq } from "./utils";
 
 interface ExcalidrawBlockRef {
   json: string;
@@ -22,6 +19,7 @@ interface ExcalidrawBlockRef {
   codeTo: number;
   blockFrom: number;
   blockTo: number;
+  sizeOptions: CodeBlockSizeOptions;
 }
 
 class ExcalidrawPreviewWidget extends WidgetType {
@@ -31,16 +29,17 @@ class ExcalidrawPreviewWidget extends WidgetType {
     private readonly json: string,
     private codeFrom: number,
     private codeTo: number,
+    private readonly sizeOptions: CodeBlockSizeOptions = {},
   ) {
     super();
   }
 
   eq(other: ExcalidrawPreviewWidget): boolean {
-    return other.json === this.json;
+    return other.json === this.json && sizeOptionsEq(other.sizeOptions, this.sizeOptions);
   }
 
   get estimatedHeight(): number {
-    return 180;
+    return this.sizeOptions.height ?? 180;
   }
 
   toDOM(view: EditorView): HTMLElement {
@@ -48,6 +47,7 @@ class ExcalidrawPreviewWidget extends WidgetType {
 
     const wrap = document.createElement("div");
     wrap.className = "cm-excalidraw-container";
+    applySizeOptions(wrap, this.sizeOptions);
 
     if (!this.json.trim() || isEmptyExcalidrawScene(this.json)) {
       const placeholder = document.createElement("div");
@@ -142,98 +142,106 @@ class ExcalidrawPreviewWidget extends WidgetType {
   }
 }
 
-class ExcalidrawPlugin {
-  decorations: DecorationSet;
-  blocks: ExcalidrawBlockRef[] = [];
-  atomicRangeSet: RangeSet<Decoration> = Decoration.none;
+function collectBlocks(state: EditorState): ExcalidrawBlockRef[] {
+  const blocks: ExcalidrawBlockRef[] = [];
+  syntaxTree(state).iterate({
+    enter: (node) => {
+      if (node.name !== "FencedCode") return;
 
-  constructor(view: EditorView) {
-    this.decorations = this.build(view);
-  }
+      const codeInfoNode = node.node.getChild("CodeInfo");
+      if (!codeInfoNode) return false;
+      const { lang, options: sizeOptions } = parseCodeBlockInfo(
+        state.sliceDoc(codeInfoNode.from, codeInfoNode.to)
+      );
+      if (lang !== "excalidraw") return false;
 
-  update(update: ViewUpdate): void {
-    if (shouldRebuild(update)) {
-      this.decorations = this.build(update.view);
-    }
-  }
+      const codeTextNode = node.node.getChild("CodeText");
+      const json = codeTextNode
+        ? state.sliceDoc(codeTextNode.from, codeTextNode.to).trim()
+        : "";
 
-  private build(view: EditorView): DecorationSet {
-    const decorations: Range<Decoration>[] = [];
-    const atomicBuilder = new RangeSetBuilder<Decoration>();
-    this.blocks = [];
+      let codeFrom: number;
+      let codeTo: number;
+      if (codeTextNode) {
+        codeFrom = codeTextNode.from;
+        codeTo = codeTextNode.to;
+      } else {
+        const openFenceLine = state.doc.lineAt(node.from);
+        codeFrom = openFenceLine.to + 1;
+        codeTo = codeFrom;
+      }
 
-    for (const { from, to } of view.visibleRanges) {
-      syntaxTree(view.state).iterate({
-        from,
-        to,
-        enter: (node) => {
-          if (node.name !== "FencedCode") return;
-
-          const codeInfoNode = node.node.getChild("CodeInfo");
-          if (!codeInfoNode) return false;
-          const lang = view.state
-            .sliceDoc(codeInfoNode.from, codeInfoNode.to)
-            .trim()
-            .toLowerCase();
-          if (lang !== "excalidraw") return false;
-
-          const codeTextNode = node.node.getChild("CodeText");
-          const json = codeTextNode
-            ? view.state.sliceDoc(codeTextNode.from, codeTextNode.to).trim()
-            : "";
-
-          let codeFrom: number;
-          let codeTo: number;
-          if (codeTextNode) {
-            codeFrom = codeTextNode.from;
-            codeTo = codeTextNode.to;
-          } else {
-            const openFenceLine = view.state.doc.lineAt(node.from);
-            codeFrom = openFenceLine.to + 1;
-            codeTo = codeFrom;
-          }
-
-          this.blocks.push({ json, codeFrom, codeTo, blockFrom: node.from, blockTo: node.to });
-          atomicBuilder.add(node.from, node.to, excalidrawHideMark);
-
-          const startLine = view.state.doc.lineAt(node.from);
-          const endLine = view.state.doc.lineAt(node.to);
-
-          decorations.push(
-            Decoration.widget({
-              widget: new ExcalidrawPreviewWidget(json, codeFrom, codeTo),
-              side: -1,
-            }).range(startLine.from)
-          );
-          decorations.push(excalidrawHideMark.range(startLine.from, endLine.to));
-
-          return false;
-        },
-      });
-    }
-
-    this.atomicRangeSet = this.blocks.length > 0 ? atomicBuilder.finish() : Decoration.none;
-    return decorations.length > 0 ? Decoration.set(decorations, true) : Decoration.none;
-  }
+      blocks.push({ json, codeFrom, codeTo, blockFrom: node.from, blockTo: node.to, sizeOptions });
+      return false;
+    },
+  });
+  return blocks;
 }
 
-const excalidrawPlugin = ViewPlugin.fromClass(ExcalidrawPlugin, {
-  decorations: (v) => v.decorations,
+const excalidrawBlocksField = StateField.define<ExcalidrawBlockRef[]>({
+  create: collectBlocks,
+  update: (blocks, tr) => (tr.docChanged ? collectBlocks(tr.state) : blocks),
 });
 
-const excalidrawAtomicRanges = EditorView.atomicRanges.of((view) => {
-  return view.plugin(excalidrawPlugin)?.atomicRangeSet ?? Decoration.none;
-});
+const jsonHideLine = Decoration.line({ attributes: { style: "display:none" } });
+
+class JsonPlaceholderWidget extends WidgetType {
+  toDOM(): HTMLElement {
+    const span = document.createElement("span");
+    span.className = "cm-excalidraw-json-placeholder";
+    span.textContent = "···";
+    return span;
+  }
+  ignoreEvent(): boolean { return true; }
+}
+
+function buildDecorations(state: EditorState): DecorationSet {
+  const cursorLine = cursorLineFromState(state);
+  const decorations: Range<Decoration>[] = [];
+
+  for (const block of state.field(excalidrawBlocksField)) {
+    const startLine = state.doc.lineAt(block.blockFrom);
+    const endLine = state.doc.lineAt(block.blockTo);
+
+    if (cursorLine > startLine.number && cursorLine < endLine.number) {
+      const jsonStartNum = startLine.number + 1;
+      const jsonEndNum = endLine.number - 1;
+      if (jsonStartNum <= jsonEndNum) {
+        const firstJsonLine = state.doc.line(jsonStartNum);
+        decorations.push(
+          Decoration.replace({ widget: new JsonPlaceholderWidget() })
+            .range(firstJsonLine.from, firstJsonLine.to)
+        );
+        let pos = firstJsonLine.to + 1;
+        const hideEnd = state.doc.line(jsonEndNum).from;
+        while (pos <= hideEnd) {
+          const line = state.doc.lineAt(pos);
+          decorations.push(jsonHideLine.range(line.from));
+          pos = line.to + 1;
+        }
+      }
+      continue;
+    }
+
+    decorations.push(
+      Decoration.replace({
+        widget: new ExcalidrawPreviewWidget(block.json, block.codeFrom, block.codeTo, block.sizeOptions),
+      }).range(startLine.from, endLine.to)
+    );
+  }
+
+  return decorations.length > 0 ? Decoration.set(decorations) : Decoration.none;
+}
+
+const excalidrawDecorations = makeDecorationField(buildDecorations);
 
 const excalidrawKeymap = keymap.of([
   {
     key: "Mod-Enter",
     run(view: EditorView): boolean {
-      const plugin = view.plugin(excalidrawPlugin);
-      if (!plugin) return false;
-
+      const blocks = view.state.field(excalidrawBlocksField);
       const cursor = view.state.selection.main.head;
-      const block = plugin.blocks.find((b) => b.blockFrom <= cursor && cursor <= b.blockTo);
+      const block = blocks.find((b) => b.blockFrom <= cursor && cursor <= b.blockTo);
       if (!block) return false;
 
       openExcalidrawOverlay(block.json, (newSnapshot) => {
@@ -247,4 +255,4 @@ const excalidrawKeymap = keymap.of([
   },
 ]);
 
-export const excalidrawExtension = [excalidrawPlugin, excalidrawAtomicRanges, Prec.high(excalidrawKeymap)];
+export const excalidrawExtension = [excalidrawBlocksField, excalidrawDecorations, Prec.high(excalidrawKeymap)];

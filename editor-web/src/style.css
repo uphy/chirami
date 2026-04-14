@@ -261,6 +261,8 @@ html, body {
 .cm-mermaid-container {
   margin: 0.5em 0;
   overflow: auto;
+  max-width: var(--cm-block-width, 100%);
+  max-height: var(--cm-block-height, none);
 }
 
 .cm-mermaid-container svg {
@@ -328,9 +330,11 @@ html, body {
   transition: opacity 0.15s;
 }
 
-/* Hide raw excalidraw markdown text when widget is shown */
-.cm-excalidraw-raw {
-  display: none;
+/* Excalidraw JSON placeholder (shown when cursor is inside the block) */
+.cm-excalidraw-json-placeholder {
+  color: rgba(128, 128, 128, 0.55);
+  font-family: var(--chirami-font);
+  font-style: italic;
 }
 
 /* excalidraw container */
@@ -342,6 +346,8 @@ html, body {
   border-radius: 6px;
   overflow: hidden;
   border: 1px solid rgba(128, 128, 128, 0.2);
+  max-width: var(--cm-block-width, 100%);
+  max-height: var(--cm-block-height, none);
 }
 
 /* excalidraw SVG preview */

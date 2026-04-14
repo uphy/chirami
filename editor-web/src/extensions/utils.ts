@@ -82,3 +82,36 @@ export function tryParseJSON<T>(json: string): T | undefined {
     return undefined;
   }
 }
+
+export interface CodeBlockSizeOptions {
+  width?: number;
+  height?: number;
+}
+
+export function parseCodeBlockInfo(infoString: string): { lang: string; options: CodeBlockSizeOptions } {
+  const parts = infoString.trim().split(/\s+/);
+  const lang = (parts[0] ?? "").toLowerCase();
+  const options: CodeBlockSizeOptions = {};
+
+  for (const part of parts.slice(1)) {
+    const eqIdx = part.indexOf("=");
+    if (eqIdx === -1) continue;
+    const key = part.slice(0, eqIdx);
+    const value = part.slice(eqIdx + 1);
+    if ((key === "width" || key === "height") && value) {
+      const num = parseInt(value, 10);
+      if (!isNaN(num) && num > 0) options[key] = num;
+    }
+  }
+
+  return { lang, options };
+}
+
+export function applySizeOptions(el: HTMLElement, opts: CodeBlockSizeOptions): void {
+  if (opts.width) el.style.setProperty("--cm-block-width", `${opts.width}px`);
+  if (opts.height) el.style.setProperty("--cm-block-height", `${opts.height}px`);
+}
+
+export function sizeOptionsEq(a: CodeBlockSizeOptions, b: CodeBlockSizeOptions): boolean {
+  return a.width === b.width && a.height === b.height;
+}
