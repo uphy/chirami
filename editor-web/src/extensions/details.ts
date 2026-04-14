@@ -1,14 +1,12 @@
-import { Prec, Range, StateEffect, StateField } from "@codemirror/state";
+import { EditorState, Prec, Range, StateEffect, StateField } from "@codemirror/state";
 import {
   Decoration,
   DecorationSet,
   EditorView,
   keymap,
-  ViewPlugin,
-  ViewUpdate,
   WidgetType,
 } from "@codemirror/view";
-import { collectHtmlBlocks, cursorLineNumber, nodeContainsCursorLine, shouldRebuild } from "./utils";
+import { collectHtmlBlocks, cursorLineFromState } from "./utils";
 import { postToSwift } from "../bridge";
 
 const DETAILS_OPEN_RE = /^<details/i;
@@ -34,8 +32,19 @@ const detailsOpenState = StateField.define<Map<number, boolean>>({
   },
 });
 
-const detailsHideMark = Decoration.mark({ class: "cm-details-raw" });
-const hiddenLineDeco = Decoration.line({ class: "cm-details-hidden-line" });
+// Decoration.mark() wraps the </details> text in a <span>, making it invisible.
+// Unlike Decoration.line(), the .cm-line wrapper is preserved with its natural
+// line-height, so ↑ navigation can still reach this position.
+// CSS is injected via baseTheme (not an external file) to avoid loading issues.
+const detailsCloseMarkDeco = Decoration.mark({ class: "cm-details-close-hidden" });
+
+const detailsTheme = EditorView.baseTheme({
+  ".cm-details-close-hidden": {
+    opacity: "0",
+    pointerEvents: "none",
+    userSelect: "none",
+  },
+});
 
 class SummaryWidget extends WidgetType {
   constructor(
@@ -98,127 +107,115 @@ class SummaryWidget extends WidgetType {
 }
 
 function findCloseTagBlock(
-  view: EditorView,
+  state: EditorState,
   openBlockTo: number,
   htmlBlocks: Array<{ from: number; to: number }>,
 ): { from: number; to: number } | null {
   for (const block of htmlBlocks) {
     if (block.from < openBlockTo) continue;
-    const text = view.state.sliceDoc(block.from, block.to).trim();
+    const text = state.sliceDoc(block.from, block.to).trim();
     if (DETAILS_CLOSE_RE.test(text)) return block;
   }
   return null;
 }
 
-class DetailsPlugin {
-  decorations: DecorationSet;
-
-  constructor(view: EditorView) {
-    this.decorations = this.build(view);
-  }
-
-  update(update: ViewUpdate) {
-    const hasToggle = update.transactions.some((tr) =>
-      tr.effects.some((e) => e.is(toggleDetailsEffect)),
-    );
-    if (shouldRebuild(update) || hasToggle) {
-      this.decorations = this.build(update.view);
-    }
-  }
-
-  private build(view: EditorView): DecorationSet {
-    try {
-      return this._build(view);
-    } catch (e) {
-      postToSwift({ type: "log", level: "error", message: `DetailsPlugin build error: ${e}` });
-      return Decoration.none;
-    }
-  }
-
-  private _build(view: EditorView): DecorationSet {
-    const cursorLine = cursorLineNumber(view);
-    const openState = view.state.field(detailsOpenState);
-    const decorations: Range<Decoration>[] = [];
-
-    // Collect all HTMLBlock nodes across the full document so we can match
-    // <details> blocks with their corresponding </details> blocks even when
-    // they appear in different viewport ranges.
-    const htmlBlocks = collectHtmlBlocks(view);
-
-    for (const block of htmlBlocks) {
-      const text = view.state.sliceDoc(block.from, block.to);
-      if (!DETAILS_OPEN_RE.test(text.trimStart())) continue;
-
-      const closeBlock = findCloseTagBlock(view, block.to, htmlBlocks);
-
-      // Raw-edit mode: cursor is anywhere within the full <details>...</details> range.
-      // Use closeBlock.to as the end so content lines and </details> also keep the editor in raw mode.
-      const rawModeEnd = closeBlock ? closeBlock.to : block.to;
-      if (nodeContainsCursorLine(view, block.from, rawModeEnd, cursorLine)) continue;
-
-      if (!closeBlock) continue;
-
-      const summaryMatch = text.match(/<summary[^>]*>([\s\S]*?)<\/summary>/i);
-      const summaryText = summaryMatch ? summaryMatch[1].trim() : "";
-      const isOpen = openState.get(block.from) ?? false;
-
-      // Insert summary widget before the <details> HTMLBlock (side: -1 = before)
-      decorations.push(
-        Decoration.widget({
-          widget: new SummaryWidget(summaryText, block.from, block.to, isOpen),
-          side: -1,
-        }).range(block.from),
-      );
-      // Hide the text of the <details>...</summary> HTMLBlock lines.
-      // Keep the .cm-line visible (use mark, not line-deco) so SummaryWidget has a container.
-      decorations.push(detailsHideMark.range(block.from, block.to));
-
-      if (!isOpen) {
-        // Collapse: hide every line from block.to up to and including the </details> line.
-        // Decoration.line (not mark) is used so blank lines also lose their height.
-        const collapseStartLine = view.state.doc.lineAt(block.to);
-        const collapseEndLine = view.state.doc.lineAt(closeBlock.from);
-        for (let n = collapseStartLine.number; n <= collapseEndLine.number; n++) {
-          decorations.push(hiddenLineDeco.range(view.state.doc.line(n).from));
-        }
-      } else {
-        // Open: only hide the </details> line unless the cursor is on it.
-        const cursorInClose = nodeContainsCursorLine(
-          view,
-          closeBlock.from,
-          closeBlock.to,
-          cursorLine,
-        );
-        if (!cursorInClose) {
-          const closeLine = view.state.doc.lineAt(closeBlock.from);
-          decorations.push(hiddenLineDeco.range(closeLine.from));
-        }
-      }
-    }
-
-    if (decorations.length === 0) return Decoration.none;
-    // Let CodeMirror sort — mixing Decoration.line with widget/mark can produce
-    // ordering that is tricky to maintain manually.
-    return Decoration.set(decorations);
+function buildDetailsDecorations(state: EditorState): DecorationSet {
+  try {
+    return _buildDetailsDecorations(state);
+  } catch (e) {
+    postToSwift({ type: "log", level: "error", message: `DetailsPlugin build error: ${e}` });
+    return Decoration.none;
   }
 }
 
-const detailsPlugin = ViewPlugin.fromClass(DetailsPlugin, {
-  decorations: (v) => v.decorations,
+function _buildDetailsDecorations(state: EditorState): DecorationSet {
+  const cursorLine = cursorLineFromState(state);
+  const openState = state.field(detailsOpenState);
+  const decorations: Range<Decoration>[] = [];
+
+  const htmlBlocks = collectHtmlBlocks(state);
+
+  for (const block of htmlBlocks) {
+    const text = state.sliceDoc(block.from, block.to);
+    if (!DETAILS_OPEN_RE.test(text.trimStart())) continue;
+
+    const closeBlock = findCloseTagBlock(state, block.to, htmlBlocks);
+
+    // Raw-edit mode: cursor is anywhere within the full <details>...</details> range.
+    // Use closeBlock.from (not .to) so the next line after </details> does NOT
+    // trigger raw mode when closeBlock.to includes the trailing newline.
+    const rawModeEnd = closeBlock ? closeBlock.from : block.to;
+    const rawStartLine = state.doc.lineAt(block.from).number;
+    const rawEndLine = state.doc.lineAt(rawModeEnd).number;
+    if (cursorLine >= rawStartLine && cursorLine <= rawEndLine) continue;
+
+    if (!closeBlock) continue;
+
+    const summaryMatch = text.match(/<summary[^>]*>([\s\S]*?)<\/summary>/i);
+    const summaryText = summaryMatch ? summaryMatch[1].trim() : "";
+    const isOpen = openState.get(block.from) ?? false;
+
+    // Replace <details>...<summary> HTMLBlock with SummaryWidget.
+    // Decoration.replace() is atomic: cursor can land at its boundary positions,
+    // allowing ↑/↓ navigation to enter the block and trigger raw mode.
+    decorations.push(
+      Decoration.replace({
+        widget: new SummaryWidget(summaryText, block.from, block.to, isOpen),
+      }).range(block.from, block.to),
+    );
+
+    if (!isOpen) {
+      // Closed: collapse content between the opening tag block and </details>.
+      // Start at block.to (not the line start) to avoid overlapping with the
+      // SummaryWidget replace decoration, which would corrupt the decoration set.
+      if (block.to < closeBlock.from) {
+        decorations.push(
+          Decoration.replace({}).range(block.to, closeBlock.from),
+        );
+      }
+    }
+    // Both open and closed: hide </details> text via a mark decoration.
+    // Decoration.mark() wraps the text in a <span class="cm-details-close-hidden">
+    // with opacity:0, while leaving the .cm-line wrapper intact so the height
+    // map keeps the full line height for ↑ navigation.
+    const closeLine = state.doc.lineAt(closeBlock.from);
+    if (closeLine.from < closeLine.to) {
+      decorations.push(detailsCloseMarkDeco.range(closeLine.from, closeLine.to));
+    }
+  }
+
+  if (decorations.length === 0) return Decoration.none;
+  return Decoration.set(decorations, true);
+}
+
+const detailsDecoField = StateField.define<DecorationSet>({
+  create: (state) => buildDetailsDecorations(state),
+  update: (deco, tr) => {
+    const hasToggle = tr.effects.some((e) => e.is(toggleDetailsEffect));
+    if (
+      hasToggle ||
+      tr.docChanged ||
+      tr.startState.selection.main.head !== tr.state.selection.main.head
+    ) {
+      return buildDetailsDecorations(tr.state);
+    }
+    return deco.map(tr.changes);
+  },
+  provide: (field) => EditorView.decorations.from(field),
 });
 
 // Returns the full {from, to} range of a <details>...</details> block that
 // contains the given position, or null if the position is not inside one.
 function findDetailsRangeAt(
-  view: EditorView,
+  state: EditorState,
   pos: number,
 ): { from: number; to: number } | null {
-  const htmlBlocks = collectHtmlBlocks(view);
+  const htmlBlocks = collectHtmlBlocks(state);
 
   for (const block of htmlBlocks) {
-    const text = view.state.sliceDoc(block.from, block.to);
+    const text = state.sliceDoc(block.from, block.to);
     if (!DETAILS_OPEN_RE.test(text.trimStart())) continue;
-    const closeBlock = findCloseTagBlock(view, block.to, htmlBlocks);
+    const closeBlock = findCloseTagBlock(state, block.to, htmlBlocks);
     if (!closeBlock) continue;
     if (pos >= block.from && pos <= closeBlock.to) {
       return { from: block.from, to: closeBlock.to };
@@ -235,7 +232,7 @@ function enterInDetails(view: EditorView): boolean {
   const sel = state.selection.main;
   if (!sel.empty) return false;
 
-  if (!findDetailsRangeAt(view, sel.head)) return false;
+  if (!findDetailsRangeAt(view.state, sel.head)) return false;
 
   const line = state.doc.lineAt(sel.head);
   const indent = /^(\s*)/.exec(line.text)?.[1] ?? "";
@@ -250,6 +247,7 @@ function enterInDetails(view: EditorView): boolean {
 
 export const detailsExtension = [
   detailsOpenState,
-  detailsPlugin,
+  detailsDecoField,
+  detailsTheme,
   Prec.highest(keymap.of([{ key: "Enter", run: enterInDetails }])),
 ];

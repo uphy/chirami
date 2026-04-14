@@ -367,16 +367,6 @@ html, body {
 
 /* Details widget */
 
-/* Hide raw <details>/<summary>/</details> text (keeps .cm-line for widget rendering) */
-.cm-details-raw {
-  display: none;
-}
-
-/* Hide entire lines (including blank lines) in collapsed details content */
-.cm-details-hidden-line {
-  display: none !important;
-}
-
 .cm-details-summary {
   display: flex;
   align-items: baseline;

@@ -29,9 +29,9 @@ export function shouldRebuild(update: ViewUpdate): boolean {
   return update.view.state.selection.main.head !== update.startState.selection.main.head;
 }
 
-export function collectHtmlBlocks(view: EditorView): Array<{ from: number; to: number }> {
+export function collectHtmlBlocks(state: EditorState): Array<{ from: number; to: number }> {
   const blocks: Array<{ from: number; to: number }> = [];
-  syntaxTree(view.state).iterate({
+  syntaxTree(state).iterate({
     enter: (node) => {
       if (node.name === "HTMLBlock") {
         blocks.push({ from: node.from, to: node.to });
