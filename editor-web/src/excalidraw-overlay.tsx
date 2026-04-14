@@ -87,7 +87,10 @@ function ExcalidrawOverlay({ initialSnapshot, initialLibraryItems, externalItemI
       return;
     }
 
-    const snapshotJson = serializeAsJSON(elements, api.getAppState(), api.getFiles(), "local");
+    // serializeAsJSON produces pretty-printed JSON; re-stringify to minimize it.
+    const snapshotJson = JSON.stringify(
+      JSON.parse(serializeAsJSON(elements, api.getAppState(), api.getFiles(), "local"))
+    );
 
     onClose(snapshotJson === initialSnapshot ? initialSnapshot : snapshotJson);
   }, [initialSnapshot, onClose]);
