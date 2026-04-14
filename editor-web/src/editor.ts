@@ -8,7 +8,7 @@ import { EditorView, ViewUpdate, keymap } from "@codemirror/view";
 import { GFM } from "@lezer/markdown";
 import { classHighlighter, tags } from "@lezer/highlight";
 import { checkboxExtension } from "./extensions/checkbox";
-import { chiramiKeymap, tightListEnterKeymap } from "./extensions/keymap";
+import { chiramiKeymap, tightListEnterKeymap, surroundSelectionHandler } from "./extensions/keymap";
 import { livePreview } from "./extensions/livePreview";
 import { tableExtension } from "./extensions/table";
 import { mermaidExtension } from "./extensions/mermaid";
@@ -70,6 +70,7 @@ export function createEditor(parent: HTMLElement, callbacks: EditorCallbacks): E
       indentUnit.of("\t"),
       EditorState.tabSize.of(3),
       Prec.highest(keymap.of(tightListEnterKeymap)),
+      Prec.high(surroundSelectionHandler),
       keymap.of([
         indentWithTab,
         ...plainPasteKeymap,

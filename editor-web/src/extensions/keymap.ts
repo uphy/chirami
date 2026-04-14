@@ -44,19 +44,24 @@ function tightListEnter(view: EditorView): boolean {
   return true;
 }
 
-function wrapSelection(view: EditorView, marker: string): boolean {
+function wrapSelection(
+  view: EditorView,
+  open: string,
+  close = open,
+  opts: { userEvent?: string; skipEmpty?: boolean } = {}
+): boolean {
   const changes = view.state.changeByRange((range) => {
-    const text = view.state.sliceDoc(range.from, range.to);
-    const wrapped = `${marker}${text}${marker}`;
+    if (opts.skipEmpty && range.empty) return { range, changes: [] };
+    const content = view.state.sliceDoc(range.from, range.to);
     return {
-      changes: { from: range.from, to: range.to, insert: wrapped },
-      range: EditorSelection.range(
-        range.from + marker.length,
-        range.to + marker.length,
-      ),
+      changes: { from: range.from, to: range.to, insert: `${open}${content}${close}` },
+      range: EditorSelection.range(range.from + open.length, range.to + open.length),
     };
   });
-  view.dispatch(view.state.update(changes, { scrollIntoView: true }));
+  view.dispatch(view.state.update(changes, {
+    scrollIntoView: true,
+    ...(opts.userEvent && { userEvent: opts.userEvent }),
+  }));
   return true;
 }
 
@@ -218,3 +223,27 @@ export const chiramiKeymap: KeyBinding[] = [
   { key: "Mod-l", run: toggleTaskAtCursor },
   { key: "Mod-Enter", run: openLinkAtCursor },
 ];
+
+const SURROUND_PAIRS: Record<string, string> = {
+  "*": "*",
+  "`": "`",
+  "_": "_",
+  "~": "~",
+  "(": ")",
+  "[": "]",
+  "{": "}",
+  '"': '"',
+  "'": "'",
+};
+
+export const surroundSelectionHandler = EditorView.inputHandler.of(
+  (view, from, to, text) => {
+    if (from === to) return false;
+    if (text.length !== 1) return false;
+
+    const close = SURROUND_PAIRS[text];
+    if (!close) return false;
+
+    return wrapSelection(view, text, close, { userEvent: "input.surroundSelection", skipEmpty: true });
+  }
+);
