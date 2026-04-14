@@ -18,6 +18,8 @@ final class NoteWebViewBridge: NSObject, WKScriptMessageHandler {
     var onPlainPaste: (() -> Void)?
     var onFoldChanged: (([Int]) -> Void)?  // 1-based line numbers
     var onTldrawOverlayVisibleChanged: ((Bool) -> Void)?
+    var onPluginStateRequest: ((_ pluginId: String) -> Void)?
+    var onPluginStateChanged: ((_ pluginId: String, _ stateJson: String) -> Void)?
 
     nonisolated func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
         MainActor.assumeIsolated {
@@ -62,6 +64,15 @@ final class NoteWebViewBridge: NSObject, WKScriptMessageHandler {
             case "overlayVisible":
                 if let visible = body["visible"] as? Bool {
                     onTldrawOverlayVisibleChanged?(visible)
+                }
+            case "pluginStateRequest":
+                if let pluginId = body["pluginId"] as? String {
+                    onPluginStateRequest?(pluginId)
+                }
+            case "pluginStateChanged":
+                if let pluginId = body["pluginId"] as? String,
+                   let stateJson = body["stateJson"] as? String {
+                    onPluginStateChanged?(pluginId, stateJson)
                 }
             case "log":
                 let level = body["level"] as? String ?? "info"

@@ -96,6 +96,12 @@ final class NoteWebView: NSView {
         bridge.onTldrawOverlayVisibleChanged = { [weak self] visible in
             self?.overlayVisible = visible
         }
+        bridge.onPluginStateRequest = { [weak self] pluginId in
+            self?.sendPluginState(pluginId: pluginId)
+        }
+        bridge.onPluginStateChanged = { pluginId, stateJson in
+            PluginStateStore.shared.save(pluginId: pluginId, json: stateJson)
+        }
 
         webView.translatesAutoresizingMaskIntoConstraints = false
         addSubview(webView)
@@ -254,6 +260,19 @@ final class NoteWebView: NSView {
                 self?.logger.error("setContent failed: \(error.localizedDescription, privacy: .public)")
             }
         }
+    }
+
+    private func sendPluginState(pluginId: String) {
+        let stateArg: String
+        if let state = PluginStateStore.shared.load(pluginId: pluginId) {
+            stateArg = jsonString(state)
+        } else {
+            stateArg = "null"
+        }
+        webView.evaluateJavaScript(
+            "window.__chiramiPluginReady(\(jsonString(pluginId)), \(stateArg));",
+            completionHandler: nil
+        )
     }
 
     private func jsonString(_ text: String) -> String {

@@ -94,7 +94,7 @@ class ExcalidrawPreviewWidget extends WidgetType {
           viewBackgroundColor: "transparent",
         },
         files: scene.files ?? {},
-        exportPadding: 0,
+        exportPadding: 8,
         renderEmbeddables: true,
       });
 

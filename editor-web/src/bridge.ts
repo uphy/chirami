@@ -23,7 +23,9 @@ type JsToSwiftMessage =
   | { type: "plainPaste" }
   | { type: "foldChanged"; foldedLines: number[] }
   | { type: "log"; level: "debug" | "info" | "warn" | "error"; message: string }
-  | { type: "overlayVisible"; visible: boolean };
+  | { type: "overlayVisible"; visible: boolean }
+  | { type: "pluginStateRequest"; pluginId: string }
+  | { type: "pluginStateChanged"; pluginId: string; stateJson: string };
 
 declare global {
   interface Window {
@@ -36,6 +38,7 @@ declare global {
     };
     chirami: SwiftToJsApi;
     __chiramiNotePath?: string;
+    __chiramiPluginReady?: (pluginId: string, stateJson: string | null) => void;
   }
 }
 
@@ -45,4 +48,25 @@ export function postToSwift(msg: JsToSwiftMessage) {
 
 export function exposeApi(api: SwiftToJsApi) {
   window.chirami = api;
+}
+
+// Per-plugin state callbacks, keyed by pluginId.
+// Called by Swift via: window.__chiramiPluginReady(pluginId, stateJson)
+const pluginStateCallbacks = new Map<string, (json: string | null) => void>();
+
+window.__chiramiPluginReady = (pluginId, stateJson) => {
+  const callback = pluginStateCallbacks.get(pluginId);
+  if (callback) {
+    pluginStateCallbacks.delete(pluginId);
+    callback(stateJson);
+  }
+};
+
+export function requestPluginState(pluginId: string, callback: (json: string | null) => void): void {
+  pluginStateCallbacks.set(pluginId, callback);
+  postToSwift({ type: "pluginStateRequest", pluginId });
+}
+
+export function savePluginState(pluginId: string, stateJson: string): void {
+  postToSwift({ type: "pluginStateChanged", pluginId, stateJson });
 }
