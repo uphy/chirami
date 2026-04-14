@@ -6,12 +6,12 @@ While you work, you always need something else at hand. Chirami floats it above 
 
 ## Features
 
-- **Markdown Live Preview** — Obsidian-style editing: raw Markdown at the cursor, rendered everywhere else (Mermaid diagrams, tldraw / Excalidraw drawings, collapsible `<details>` blocks)
+- **Markdown Live Preview** — Obsidian-style editing: raw Markdown at the cursor, rendered everywhere else (Mermaid diagrams, Excalidraw drawings, Obsidian callouts, collapsible `<details>` blocks)
 - **Always-on-top floating windows** — `NSPanel`-based sticky notes that stay above all windows (tiling WM friendly)
 - **Global hotkeys** — Summon any note instantly from any application
 - **Pure `.md` files** — No metadata, no front matter. Full Obsidian / VS Code compatibility
 - **Periodic notes** — Date-based file paths with rollover delay and templates
-- **Slash command** — Type `/` at line start to insert blocks (tldraw / Excalidraw diagram, Mermaid diagram, table) via a command picker
+- **Slash command** — Type `/` at line start to insert blocks (Excalidraw diagram, Mermaid diagram, table) via a command picker
 - **Smart Paste** — Cmd+Shift+V converts URLs, HTML, and JSON to Markdown on paste
 - **Image Paste & Resize** — Cmd+V to paste images as PNG; drag the right edge to resize
 - **Window Warp** — Modifier+H/J/K/L to snap windows to a 3×3 grid

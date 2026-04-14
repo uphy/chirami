@@ -22,9 +22,9 @@ Chirami renders Markdown in an Obsidian-style Live Preview: the block containing
 - Task lists (`- [ ]`, `- [x]`) — clickable checkboxes
 - Nested lists
 - Blockquotes (`>`)
+- Obsidian callouts (`> [!type] title`) — styled callout blocks with colored border, background, and icon
 - Code blocks with syntax highlighting (triple backticks with optional language)
 - Mermaid diagrams (` ```mermaid ` blocks) — rendered as SVG when cursor is outside the block
-- tldraw diagrams (` ```tldraw ` blocks) — rendered as SVG preview; hover to show Edit button, click to open fullscreen tldraw editor overlay
 - Excalidraw diagrams (` ```excalidraw ` blocks) — rendered as SVG preview; hover to show Edit button, click to open fullscreen Excalidraw editor overlay
 - Tables (GitHub Flavored Markdown pipe syntax)
 - Thematic breaks (`---`, `***`, `___`)
@@ -48,27 +48,14 @@ Chirami renders Markdown in an Obsidian-style Live Preview: the block containing
 
 **Slash command** — Type `/` at the start of an empty line to open a command picker. Type to filter, ↑/↓ to navigate, Enter to insert, Escape to dismiss. Available commands:
 
-- `/tldraw` — Insert a tldraw diagram block and open the editor overlay immediately
 - `/excalidraw` — Insert an Excalidraw diagram block and open the editor overlay immediately
 - `/mermaid` — Insert a Mermaid code block with a starter template
 - `/details` — Insert a collapsible `<details>` block with the summary text selected
 - `/table` — Insert a 2×2 Markdown table template
 
-**Embedded diagram blocks** — tldraw and Excalidraw diagrams can be embedded in fenced code blocks and edited without leaving the note.
+**Excalidraw diagrams** — Use `/excalidraw` to insert a ` ```excalidraw ` block and open the fullscreen editor immediately. When the cursor is outside the block, the diagram renders as an SVG preview. Hover and click **Edit**, or press **Mod+Enter** inside the block, to reopen the editor. Diagram data is stored as JSON in the code block — the `.md` file stays plain text.
 
-- ` ```tldraw ` — vector drawing canvas (tldraw)
-- ` ```excalidraw ` — hand-drawn style diagram editor (Excalidraw)
-
-Workflow:
-
-1. Type `/tldraw` or `/excalidraw` on an empty line to insert a block — the fullscreen editor opens immediately
-2. Draw your diagram, then close with the × button or Escape
-3. When the cursor is outside the block, the diagram renders as an SVG preview
-4. To edit an existing diagram, hover the preview and click **Edit**, or place the cursor inside the block and press **Mod+Enter**
-
-Diagram data is stored as JSON inside the code block, so the `.md` file remains plain text and the diagram survives round-trips through any editor.
-
-**Excalidraw Library** — Add reusable shape libraries to the Excalidraw panel via `config.yaml`. Libraries from [libraries.excalidraw.com](https://libraries.excalidraw.com/) can be downloaded as `.excalidrawlib` files and loaded directly.
+**Excalidraw Library** — Add reusable shape libraries via `config.yaml`. Libraries from [libraries.excalidraw.com](https://libraries.excalidraw.com/) can be downloaded as `.excalidrawlib` files and loaded directly. Items added inside the editor are saved separately and persist across sessions.
 
 ```yaml
 excalidraw:
@@ -76,7 +63,7 @@ excalidraw:
     - ~/.config/chirami/excalidraw/my-library.excalidrawlib
 ```
 
-Both version 1 and version 2 `.excalidrawlib` formats are supported. Items you add to the library inside the editor are saved separately and persist across sessions.
+**Obsidian Callouts** — Blockquotes starting with `> [!type]` are rendered as styled callout blocks (colored border, background, icon). All standard Obsidian callout types are supported: `note`, `tip`, `warning`, `danger`, `success`, `question`, `failure`, `abstract`, `example`, `quote`, and their aliases. The title defaults to the type name if omitted.
 
 **Task list toggle** — Cmd+L converts the current line to/from a task list item (`- [ ]`). Click a checkbox to toggle it.
 
