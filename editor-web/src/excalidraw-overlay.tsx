@@ -2,13 +2,18 @@ import React, { useCallback, useEffect, useMemo, useRef } from "react";
 import { createRoot, Root } from "react-dom/client";
 import { Excalidraw, serializeAsJSON } from "@excalidraw/excalidraw";
 import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
-import type { LibraryItems } from "@excalidraw/excalidraw";
+import type { LibraryItems } from "@excalidraw/excalidraw/types";
 import { postToSwift, requestPluginState, savePluginState } from "./bridge";
 import { tryParseJSON } from "./extensions/utils";
 import { parseExcalidrawScene } from "./extensions/excalidrawShared";
 
 const PLUGIN_ID = "excalidraw";
 const LIBRARY_SAVE_DEBOUNCE_MS = 150;
+
+type ExcalidrawPluginState = {
+  userItems: LibraryItems;
+  externalItems: LibraryItems;
+};
 
 let librarySaveTimeout: number | null = null;
 let pendingLibraryStateJson: string | null = null;
@@ -39,10 +44,11 @@ function scheduleLibraryStateSave(stateJson: string): void {
 interface ExcalidrawOverlayProps {
   initialSnapshot: string;
   initialLibraryItems: LibraryItems;
+  externalItemIds: ReadonlySet<string>;
   onClose: (snapshot: string) => void;
 }
 
-function ExcalidrawOverlay({ initialSnapshot, initialLibraryItems, onClose }: ExcalidrawOverlayProps) {
+function ExcalidrawOverlay({ initialSnapshot, initialLibraryItems, externalItemIds, onClose }: ExcalidrawOverlayProps) {
   const apiRef = useRef<ExcalidrawImperativeAPI | null>(null);
   const libraryReadyRef = useRef(false);
 
@@ -89,7 +95,8 @@ function ExcalidrawOverlay({ initialSnapshot, initialLibraryItems, onClose }: Ex
         }}
         onLibraryChange={(items) => {
           if (!libraryReadyRef.current) return;
-          scheduleLibraryStateSave(JSON.stringify(items));
+          const userItems = items.filter((item) => !externalItemIds.has(item.id));
+          scheduleLibraryStateSave(JSON.stringify(userItems));
         }}
       />
       <button
@@ -129,10 +136,13 @@ function ExcalidrawOverlay({ initialSnapshot, initialLibraryItems, onClose }: Ex
 let overlayRoot: Root | null = null;
 let overlayContainer: HTMLElement | null = null;
 
-function parseLibraryItems(json: string | null): LibraryItems {
-  if (!json) return [];
-  const parsed = tryParseJSON<LibraryItems>(json);
-  return Array.isArray(parsed) ? parsed : [];
+function parsePluginState(json: string | null): ExcalidrawPluginState {
+  if (!json) return { userItems: [], externalItems: [] };
+  const state = tryParseJSON<ExcalidrawPluginState>(json);
+  return {
+    userItems: Array.isArray(state?.userItems) ? state.userItems : [],
+    externalItems: Array.isArray(state?.externalItems) ? state.externalItems : [],
+  };
 }
 
 export function openExcalidrawOverlay(initialSnapshot: string, onClose: (snapshot: string) => void): void {
@@ -144,13 +154,16 @@ export function openExcalidrawOverlay(initialSnapshot: string, onClose: (snapsho
   overlayContainer = container;
 
   requestPluginState(PLUGIN_ID, (stateJson) => {
-    const libraryItems = parseLibraryItems(stateJson);
+    const { userItems, externalItems } = parsePluginState(stateJson);
+    const allItems = [...externalItems, ...userItems];
+    const externalItemIds = new Set(externalItems.map((item) => item.id));
 
     overlayRoot = createRoot(container);
     overlayRoot.render(
       <ExcalidrawOverlay
         initialSnapshot={initialSnapshot}
-        initialLibraryItems={libraryItems}
+        initialLibraryItems={allItems}
+        externalItemIds={externalItemIds}
         onClose={(snapshot) => {
           closeExcalidrawOverlay();
           onClose(snapshot);

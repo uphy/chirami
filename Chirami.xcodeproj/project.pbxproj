@@ -43,6 +43,7 @@
 		9B6671BA6B0A70C4F2FADF85 /* GlobalHotkeyService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02F9256C8060115572AE6928 /* GlobalHotkeyService.swift */; };
 		9D97BDE960424A0B1AB96586 /* DisplayContentModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1ABF49BCE03CB5D5D8E5314E /* DisplayContentModel.swift */; };
 		9DEED2E2BE2095AE950FBF10 /* ColorSchemeRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F067E2928430591A4D9EC7A /* ColorSchemeRegistry.swift */; };
+		AB68361762012A126B962A5C /* ExcalidrawLibraryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79A787AD04437B1C5B66A3DF /* ExcalidrawLibraryStore.swift */; };
 		B2ABECDA8B05B81B189F62FC /* ColorSchemeCSSConverter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31832D845D15CEEA1BD34120 /* ColorSchemeCSSConverter.swift */; };
 		B31410DFD874046CD21D71D1 /* Assistant-Regular-PLF2XOGW.woff2 in Resources */ = {isa = PBXBuildFile; fileRef = 850CD2308E22D4B723B88ABD /* Assistant-Regular-PLF2XOGW.woff2 */; };
 		BFCCAB2D9367154CBB54D12E /* WindowManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0578EC63E7BF57954B30DB4E /* WindowManager.swift */; };
@@ -103,6 +104,7 @@
 		6D3DE244BA7DCE44138C9CBE /* color_schemes.yaml */ = {isa = PBXFileReference; lastKnownFileType = text.yaml; path = color_schemes.yaml; sourceTree = "<group>"; };
 		719434DCF50B3E94798E7C17 /* ContextHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContextHandler.swift; sourceTree = "<group>"; };
 		719C8C6D2FA67CF5419DF100 /* NoteWebView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteWebView.swift; sourceTree = "<group>"; };
+		79A787AD04437B1C5B66A3DF /* ExcalidrawLibraryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExcalidrawLibraryStore.swift; sourceTree = "<group>"; };
 		80AC5462545113CBC9452EF1 /* NoteListPopover.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteListPopover.swift; sourceTree = "<group>"; };
 		850CD2308E22D4B723B88ABD /* Assistant-Regular-PLF2XOGW.woff2 */ = {isa = PBXFileReference; path = "Assistant-Regular-PLF2XOGW.woff2"; sourceTree = "<group>"; };
 		8F189C5BAA79DFEF168CC87E /* Assistant-Medium-DZ25RZU3.woff2 */ = {isa = PBXFileReference; path = "Assistant-Medium-DZ25RZU3.woff2"; sourceTree = "<group>"; };
@@ -253,6 +255,7 @@
 				03EDDD5314821A0DC2BBC68E /* AppConfig.swift */,
 				25FA43C09A9A3CFC2A8C4AD3 /* AppState.swift */,
 				AC9BA77EEBC2A81E596E5527 /* ConfigModels.swift */,
+				79A787AD04437B1C5B66A3DF /* ExcalidrawLibraryStore.swift */,
 				E4B5FE1CBE1B48C55CC3E9FE /* PluginStateStore.swift */,
 				01E8ABD7FB8CCE47E50218C7 /* YAMLStore.swift */,
 			);
@@ -422,6 +425,7 @@
 				2AC7F852F87878D58384C253 /* DisplayPanel.swift in Sources */,
 				D3CB17FDD13CC5DD9F79DFC9 /* DisplayWindowManager.swift in Sources */,
 				05FDD9A2682E4334B1C77931 /* DurationParser.swift in Sources */,
+				AB68361762012A126B962A5C /* ExcalidrawLibraryStore.swift in Sources */,
 				48BA0BCE57FFECC4ED62059A /* FileWatcher.swift in Sources */,
 				9B6671BA6B0A70C4F2FADF85 /* GlobalHotkeyService.swift in Sources */,
 				81B25C0F86415B9E0EC5D1F6 /* ImagePasteService.swift in Sources */,

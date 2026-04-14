@@ -64,6 +64,10 @@ struct ColorSchemeConfig: Codable {
     let light: ColorSchemeVariantConfig
 }
 
+struct ExcalidrawConfig: Codable {
+    var libraries: [String]?
+}
+
 struct ChiramiConfig: Codable {
     var appearance: AppearanceMode?
     var font: String?
@@ -77,9 +81,10 @@ struct ChiramiConfig: Codable {
     var smartPaste: SmartPasteConfig?
     var dragModifier: String?
     var warpModifier: String?
+    var excalidraw: ExcalidrawConfig?
 
     enum CodingKeys: String, CodingKey {
-        case appearance, font, hotkey, notes, adhoc, karabiner
+        case appearance, font, hotkey, notes, adhoc, karabiner, excalidraw
         case colorSchemes = "color_schemes"
         case launchAtLogin = "launch_at_login"
         case showMenuBarIcon = "show_menu_bar_icon"

@@ -1,4 +1,5 @@
-import type { AppState, BinaryFiles, ExcalidrawElement, LibraryItems } from "@excalidraw/excalidraw";
+import type { AppState, BinaryFiles, LibraryItems } from "@excalidraw/excalidraw/types";
+import type { ExcalidrawElement } from "@excalidraw/excalidraw/element/types";
 import { tryParseJSON } from "./utils";
 
 export type ExcalidrawSceneData = {

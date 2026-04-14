@@ -142,6 +142,23 @@ notes:
 
 Custom color scheme names can also override built-in ones (e.g. redefining `yellow`). Changes to `color_schemes` in config.yaml take effect immediately without restarting.
 
+## Excalidraw
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `excalidraw.libraries` | string[] | `[]` | Paths to `.excalidrawlib` files to load as read-only libraries in the Excalidraw editor. Both version 1 and version 2 formats are supported. Paths support `~` expansion. |
+
+Example:
+
+```yaml
+excalidraw:
+  libraries:
+    - ~/.config/chirami/excalidraw/system-design.excalidrawlib
+    - ~/.config/chirami/excalidraw/aws-icons.excalidrawlib
+```
+
+Libraries from [libraries.excalidraw.com](https://libraries.excalidraw.com/) can be downloaded as `.excalidrawlib` files and placed here.
+
 ## Smart Paste
 
 | Field | Type | Default | Description |

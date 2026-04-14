@@ -95,6 +95,34 @@ Live Preview is implemented with WKWebView + CodeMirror 6.
 | CodeMirror 6 | Live Preview editor engine |
 | mermaid | Mermaid diagram rendering |
 | turndown | HTML → Markdown conversion (Smart Paste) |
+| @excalidraw/excalidraw | Excalidraw diagram editor |
+
+### Excalidraw Block
+
+` ```excalidraw ` コードブロックで Excalidraw ダイアグラムを埋め込める。ブロックをクリックまたは `Cmd+Enter` でフルスクリーンのオーバーレイエディタが開く。
+
+**データ保存**: ダイアグラムデータ（JSON）はコードブロック内にインラインで保存される。
+
+**ライブラリ**:
+
+- ユーザーが Excalidraw 内で保存したライブラリアイテムは `~/.local/state/chirami/plugins/excalidraw.json` に永続化（`PluginStateStore` 経由）
+- 外部ライブラリ（`.excalidrawlib` ファイル）は `config.yaml` の `excalidraw.libraries` で指定する。version 1 / version 2 両形式に対応
+
+```yaml
+# config.yaml
+excalidraw:
+  libraries:
+    - ~/.config/chirami/excalidraw/my-library.excalidrawlib
+```
+
+**関連ファイル**:
+
+- `editor-web/src/excalidraw-overlay.tsx` — React オーバーレイコンポーネント
+- `editor-web/src/extensions/excalidraw.ts` — CodeMirror プラグイン（プレビュー・ウィジェット）
+- `editor-web/src/extensions/excalidrawShared.ts` — 共有型・パース関数
+- `Chirami/Config/ExcalidrawLibraryStore.swift` — 外部ライブラリの読み込みとユーザーアイテムとのマージ
+
+**プラグイン状態ブリッジ**: JS ↔ Swift 間のライブラリ状態は `pluginStateRequest` / `pluginStateChanged` メッセージで交換する。`requestPluginState("excalidraw")` のレスポンスは `{ userItems: LibraryItem[], externalItems: LibraryItem[] }` 形式。
 
 ## Logging Rules
 

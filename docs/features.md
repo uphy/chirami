@@ -68,6 +68,16 @@ Workflow:
 
 Diagram data is stored as JSON inside the code block, so the `.md` file remains plain text and the diagram survives round-trips through any editor.
 
+**Excalidraw Library** — Add reusable shape libraries to the Excalidraw panel via `config.yaml`. Libraries from [libraries.excalidraw.com](https://libraries.excalidraw.com/) can be downloaded as `.excalidrawlib` files and loaded directly.
+
+```yaml
+excalidraw:
+  libraries:
+    - ~/.config/chirami/excalidraw/my-library.excalidrawlib
+```
+
+Both version 1 and version 2 `.excalidrawlib` formats are supported. Items you add to the library inside the editor are saved separately and persist across sessions.
+
 **Task list toggle** — Cmd+L converts the current line to/from a task list item (`- [ ]`). Click a checkbox to toggle it.
 
 **List auto-continuation** — Press Enter on a list item to continue the list with the next marker. Press Enter on an empty list item to end the list.

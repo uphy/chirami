@@ -262,13 +262,15 @@ final class NoteWebView: NSView {
         }
     }
 
-    private func sendPluginState(pluginId: String) {
-        let stateArg: String
-        if let state = PluginStateStore.shared.load(pluginId: pluginId) {
-            stateArg = jsonString(state)
-        } else {
-            stateArg = "null"
+    private func pluginStateJSON(for pluginId: String) -> String? {
+        if pluginId == ExcalidrawLibraryStore.pluginId {
+            return ExcalidrawLibraryStore.shared.load()
         }
+        return PluginStateStore.shared.load(pluginId: pluginId)
+    }
+
+    private func sendPluginState(pluginId: String) {
+        let stateArg = pluginStateJSON(for: pluginId).map { jsonString($0) } ?? "null"
         webView.evaluateJavaScript(
             "window.__chiramiPluginReady(\(jsonString(pluginId)), \(stateArg));",
             completionHandler: nil
