@@ -1,9 +1,10 @@
-import { syntaxTree } from "@codemirror/language";
+import { syntaxTree, indentUnit } from "@codemirror/language";
 import { EditorSelection } from "@codemirror/state";
 import { EditorView, KeyBinding } from "@codemirror/view";
 import { insertNewlineContinueMarkup } from "@codemirror/lang-markdown";
-import { indentMore, indentLess } from "@codemirror/commands";
 import { postToSwift } from "../bridge";
+
+const LIST_ITEM_RE = /^([ \t]*)([-*+])([ \t]+)/;
 
 // Wraps insertNewlineContinueMarkup to prevent spurious blank lines in tight lists.
 // CodeMirror's nonTightList heuristic sometimes misclassifies long (visually
@@ -115,69 +116,66 @@ function moveVerticalOnListLine(view: EditorView, dir: 1 | -1): boolean {
   return true;
 }
 
-// Indents a list item and immediately places the cursor after the list mark.
-// Without this, indentMore puts the cursor between \t and "-" (before the mark),
-// then livePreview's cm-list-raw-hanging decoration changes the layout a frame
-// later, making the cursor visually jump to after "- ". This eliminates that flicker
-// by moving the cursor to the content start in the same transaction as the indent.
-function indentListItem(view: EditorView): boolean {
+// Shared setup for indent/dedent: resolves the list item context at the cursor.
+// Returns null if the cursor is not on a list item or the selection is non-empty.
+function resolveListItemContext(view: EditorView) {
   const state = view.state;
   const sel = state.selection.main;
-  if (!sel.empty) return false;
+  if (!sel.empty) return null;
 
   const line = state.doc.lineAt(sel.head);
-  const match = /^([ \t]*)([-*+])([ \t]+)/.exec(line.text);
-  if (!match) return false;
+  const match = LIST_ITEM_RE.exec(line.text);
+  if (!match) return null;
 
+  const unit = state.facet(indentUnit);
   const contentStart = line.from + match[0].length;
   const cursorBeforeContent = sel.head < contentStart;
 
-  const result = indentMore(view);
-  if (!result) return false;
+  return { line, match, unit, contentStart, cursorBeforeContent, sel };
+}
 
-  if (cursorBeforeContent) {
-    const newState = view.state;
-    const newLine = newState.doc.lineAt(newState.selection.main.head);
-    const newMatch = /^([ \t]*)([-*+])([ \t]+)/.exec(newLine.text);
-    if (newMatch) {
-      view.dispatch({
-        selection: EditorSelection.cursor(newLine.from + newMatch[0].length),
-        scrollIntoView: true,
-      });
-    }
-  }
+// Indents a list item in a single dispatch to avoid visual flicker.
+// Using indentMore followed by a separate cursor dispatch caused the cursor to
+// briefly appear before the list mark, then jump to after "- " one frame later.
+// By inserting the indent unit and setting the final cursor position together,
+// the two-step flicker is eliminated.
+function indentListItem(view: EditorView): boolean {
+  const ctx = resolveListItemContext(view);
+  if (!ctx) return false;
+  const { line, unit, contentStart, cursorBeforeContent, sel } = ctx;
+
+  view.dispatch({
+    changes: { from: line.from, insert: unit },
+    selection: EditorSelection.cursor(
+      cursorBeforeContent ? contentStart + unit.length : sel.head + unit.length
+    ),
+    scrollIntoView: true,
+  });
 
   return true;
 }
 
-// Dedents a list item and places the cursor after the list mark.
-// Mirrors indentListItem to avoid the same visual flicker on Shift+Tab.
+// Dedents a list item in a single dispatch to avoid visual flicker.
+// Mirrors indentListItem — same two-step flicker fix for Shift+Tab.
 function dedentListItem(view: EditorView): boolean {
-  const state = view.state;
-  const sel = state.selection.main;
-  if (!sel.empty) return false;
+  const ctx = resolveListItemContext(view);
+  if (!ctx) return false;
+  const { line, match, unit, contentStart, cursorBeforeContent, sel } = ctx;
 
-  const line = state.doc.lineAt(sel.head);
-  const match = /^([ \t]*)([-*+])([ \t]+)/.exec(line.text);
-  if (!match) return false;
+  const currentIndent = match[1];
+  if (currentIndent.length === 0) return false;
 
-  const contentStart = line.from + match[0].length;
-  const cursorBeforeContent = sel.head < contentStart;
+  const removeLen = Math.min(unit.length, currentIndent.length);
 
-  const result = indentLess(view);
-  if (!result) return false;
-
-  if (cursorBeforeContent) {
-    const newState = view.state;
-    const newLine = newState.doc.lineAt(newState.selection.main.head);
-    const newMatch = /^([ \t]*)([-*+])([ \t]+)/.exec(newLine.text);
-    if (newMatch) {
-      view.dispatch({
-        selection: EditorSelection.cursor(newLine.from + newMatch[0].length),
-        scrollIntoView: true,
-      });
-    }
-  }
+  view.dispatch({
+    changes: { from: line.from, to: line.from + removeLen },
+    selection: EditorSelection.cursor(
+      cursorBeforeContent
+        ? contentStart - removeLen
+        : Math.max(line.from, sel.head - removeLen)
+    ),
+    scrollIntoView: true,
+  });
 
   return true;
 }

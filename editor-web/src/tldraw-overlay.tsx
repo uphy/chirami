@@ -44,7 +44,6 @@ function TldrawOverlay({ initialSnapshot, onClose }: TldrawOverlayProps) {
     <div style={{ position: "fixed", inset: 0, zIndex: 9999 }}>
       <Tldraw
         snapshot={parsedSnapshot}
-        darkMode={false}
         onMount={(editor) => {
           editorRef.current = editor;
         }}

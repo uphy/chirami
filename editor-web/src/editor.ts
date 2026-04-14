@@ -4,7 +4,7 @@ import { markdown } from "@codemirror/lang-markdown";
 import { languages } from "@codemirror/language-data";
 import { search, searchKeymap } from "@codemirror/search";
 import { EditorState, Prec, Transaction } from "@codemirror/state";
-import { EditorView, ViewUpdate, keymap } from "@codemirror/view";
+import { EditorView, ViewUpdate, keymap, drawSelection } from "@codemirror/view";
 import { GFM } from "@lezer/markdown";
 import { classHighlighter, tags } from "@lezer/highlight";
 import { chiramiKeymap, tightListEnterKeymap, surroundSelectionHandler } from "./extensions/keymap";
@@ -71,9 +71,9 @@ export function createEditor(parent: HTMLElement, callbacks: EditorCallbacks): E
       Prec.highest(keymap.of(tightListEnterKeymap)),
       Prec.high(surroundSelectionHandler),
       keymap.of([
-        indentWithTab,
         ...plainPasteKeymap,
         ...chiramiKeymap,
+        indentWithTab,
         ...defaultKeymap,
         ...historyKeymap,
         ...searchKeymap,
@@ -114,6 +114,7 @@ export function createEditor(parent: HTMLElement, callbacks: EditorCallbacks): E
           opacity: "0.6",
         },
       }),
+      drawSelection(),
       EditorView.lineWrapping,
       livePreview,
       markdownHeadingFold,

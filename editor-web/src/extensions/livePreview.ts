@@ -183,12 +183,8 @@ class LivePreviewPlugin {
             const gutterEm = 1.0;
             const totalEm  = depth * 0.5 + gutterEm;
 
-            // Apply hanging indent to ALL lines (cursor and non-cursor).
-            // Non-cursor: --list-gutter = gutterEm → text-indent = -gutterEm, placing
-            //   the bullet/checkbox widget at (totalEm - gutterEm) from the border edge.
-            // Cursor: --list-gutter = totalEm → text-indent = -totalEm, so the raw
-            //   prefix starts at 0em where tab stops are predictable, minimising the
-            //   horizontal jump relative to the rendered text position.
+            // Cursor lines: --list-gutter = totalEm so the raw prefix starts at 0em
+            // (predictable tab stops). Other lines: gutterEm so rendered text aligns normally.
             const cssGutter = onCursorLine ? totalEm : gutterEm;
             decorations.push(
               Decoration.line({
