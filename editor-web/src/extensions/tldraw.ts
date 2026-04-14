@@ -13,7 +13,7 @@ import { createElement } from "react";
 import { createRoot, Root } from "react-dom/client";
 import { TldrawImage, TLEditorSnapshot, TLStoreSnapshot } from "tldraw";
 import { openTldrawOverlay } from "../tldraw-overlay";
-import { cursorLineNumber, nodeContainsCursorLine, shouldRebuild, tryParseJSON } from "./utils";
+import { shouldRebuild, tryParseJSON } from "./utils";
 
 // Returns true if the snapshot JSON has no shape records (empty canvas).
 function isEmptyTldrawSnapshot(json: string): boolean {
@@ -156,7 +156,6 @@ class TldrawPlugin {
   }
 
   private build(view: EditorView): DecorationSet {
-    const cursorLine = cursorLineNumber(view);
     const decorations: Range<Decoration>[] = [];
     this.blocks = [];
 
@@ -195,8 +194,6 @@ class TldrawPlugin {
 
           // Track all tldraw blocks for keymap access (regardless of cursor position)
           this.blocks.push({ json, codeFrom, codeTo, blockFrom: node.from, blockTo: node.to });
-
-          if (nodeContainsCursorLine(view, node.from, node.to, cursorLine)) return false;
 
           const startLine = view.state.doc.lineAt(node.from);
           const endLine = view.state.doc.lineAt(node.to);

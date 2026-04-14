@@ -91,6 +91,66 @@ const CODE_BLOCK_LINE_LAST  = Decoration.line({ class: "cm-code-block-line cm-co
 const CODE_BLOCK_LINE_ONLY  = Decoration.line({ class: "cm-code-block-line cm-code-block-first cm-code-block-last" });
 const QUOTE_LINE            = Decoration.line({ class: "cm-quote" });
 
+// Obsidian callout: map type → color category
+const CALLOUT_CATEGORY: Record<string, string> = {
+  note: "note", info: "note",
+  abstract: "abstract", summary: "abstract", tldr: "abstract",
+  tip: "tip", hint: "tip", important: "tip",
+  success: "success", check: "success", done: "success",
+  question: "question", help: "question", faq: "question",
+  warning: "warning", caution: "warning", attention: "warning",
+  failure: "failure", fail: "failure", missing: "failure",
+  danger: "danger", error: "danger", bug: "danger",
+  example: "example",
+  quote: "quote", cite: "quote",
+};
+
+const CALLOUT_ICONS: Record<string, string> = {
+  note:     "✎",
+  abstract: "≡",
+  tip:      "✦",
+  success:  "✓",
+  question: "?",
+  warning:  "⚠",
+  failure:  "✗",
+  danger:   "⚡",
+  example:  "⊕",
+  quote:    "❝",
+};
+
+const BLOCKQUOTE_CONTENT_RE = /^>\s*(.*)/;
+const CALLOUT_HEADER_RE     = /^\[!([\w-]+)\][ \t]*(.*)/;
+
+class CalloutTitleWidget extends WidgetType {
+  constructor(
+    private calloutType: string,
+    private title: string,
+  ) { super(); }
+
+  eq(other: CalloutTitleWidget): boolean {
+    return other.calloutType === this.calloutType && other.title === this.title;
+  }
+
+  toDOM(): HTMLElement {
+    const category = CALLOUT_CATEGORY[this.calloutType] ?? "note";
+    const el = document.createElement("span");
+    el.className = "cm-callout-title";
+
+    const icon = document.createElement("span");
+    icon.className = "cm-callout-icon";
+    icon.textContent = CALLOUT_ICONS[category] ?? "ℹ";
+
+    const text = document.createElement("span");
+    text.textContent = this.title || (this.calloutType.charAt(0).toUpperCase() + this.calloutType.slice(1));
+
+    el.appendChild(icon);
+    el.appendChild(text);
+    return el;
+  }
+
+  ignoreEvent(): boolean { return false; }
+}
+
 
 class LivePreviewPlugin {
   decorations: DecorationSet;
@@ -109,6 +169,7 @@ class LivePreviewPlugin {
     const decorations: Range<Decoration>[] = [];
     const tree = syntaxTree(view.state);
     const processedCodeLines = new Set<number>();
+    const calloutReplacedLineStarts = new Set<number>();
 
     for (const { from, to } of view.visibleRanges) {
       tree.iterate({
@@ -116,11 +177,48 @@ class LivePreviewPlugin {
         to,
         enter: (node) => {
           if (node.name === "Blockquote") {
-            const startLine = view.state.doc.lineAt(Math.max(node.from, from)).number;
-            const endLine   = view.state.doc.lineAt(Math.min(node.to, to)).number;
-            for (let lineNum = startLine; lineNum <= endLine; lineNum++) {
-              const line = view.state.doc.line(lineNum);
-              decorations.push(QUOTE_LINE.range(line.from));
+            const firstLine    = view.state.doc.lineAt(node.from);
+            const startLineNum = view.state.doc.lineAt(Math.max(node.from, from)).number;
+            const endLineNum   = view.state.doc.lineAt(Math.min(node.to, to)).number;
+
+            // Detect Obsidian callout: first line matches "> [!TYPE] optional title"
+            const firstContent = BLOCKQUOTE_CONTENT_RE.exec(firstLine.text)?.[1] ?? "";
+            const calloutMatch = CALLOUT_HEADER_RE.exec(firstContent);
+
+            if (calloutMatch) {
+              const calloutType = calloutMatch[1].toLowerCase();
+              const calloutTitle = calloutMatch[2].trim();
+              const category = CALLOUT_CATEGORY[calloutType] ?? "note";
+              const cursorOnHeader = cursorLine === firstLine.number;
+
+              const fullEndLineNum = view.state.doc.lineAt(node.to).number;
+              for (let lineNum = startLineNum; lineNum <= endLineNum; lineNum++) {
+                const line = view.state.doc.line(lineNum);
+                const isHeader = lineNum === firstLine.number;
+                const isLast   = lineNum === fullEndLineNum;
+                const extra    = isHeader && isLast ? " cm-callout-header cm-callout-last"
+                               : isHeader           ? " cm-callout-header"
+                               : isLast             ? " cm-callout-last"
+                               :                      "";
+                decorations.push(
+                  Decoration.line({ class: `cm-callout cm-callout-${category}${extra}` })
+                    .range(line.from)
+                );
+              }
+
+              // Full line range avoids adjacent-decoration conflicts with QuoteMark HIDDEN_DECORATION.
+              if (!cursorOnHeader && firstLine.number >= startLineNum && firstLine.number <= endLineNum) {
+                calloutReplacedLineStarts.add(firstLine.from);
+                decorations.push(
+                  Decoration.replace({ widget: new CalloutTitleWidget(calloutType, calloutTitle) })
+                    .range(firstLine.from, firstLine.to)
+                );
+              }
+            } else {
+              for (let lineNum = startLineNum; lineNum <= endLineNum; lineNum++) {
+                const line = view.state.doc.line(lineNum);
+                decorations.push(QUOTE_LINE.range(line.from));
+              }
             }
             return; // Continue into children for QuoteMark handling
           }
@@ -178,10 +276,15 @@ class LivePreviewPlugin {
 
           if (node.name === "ListItem") {
             const itemLine = view.state.doc.lineAt(node.from);
-            const match = /^([ \t]*)([-*+])/.exec(itemLine.text);
+            // node.from points to the actual list marker in the document, which may be
+            // after a blockquote prefix ("> "). Slice from node.from so the regex works
+            // correctly regardless of whether the item is inside a blockquote.
+            const nodeOffset = node.from - itemLine.from;
+            const textFromNode = itemLine.text.slice(nodeOffset);
+            const match = /^([ \t]*)([-*+])/.exec(textFromNode);
             if (!match) return;
 
-            const afterMark = itemLine.text.slice(match[0].length);
+            const afterMark = textFromNode.slice(match[0].length);
             const taskMatch = /^ \[([ xX])\] ?/.exec(afterMark);
 
             const onCursorLine = itemLine.number === cursorLine;
@@ -191,12 +294,14 @@ class LivePreviewPlugin {
             const gutterEm = 1.0;
             const totalEm  = depth * 0.5 + gutterEm;
 
+            // Use node.from (not itemLine.from) as the base so positions are correct
+            // both inside and outside blockquotes.
             let prefixTo: number;
             if (taskMatch) {
-              prefixTo = itemLine.from + match[0].length + taskMatch[0].length;
+              prefixTo = node.from + match[0].length + taskMatch[0].length;
             } else {
-              const markCharEnd = itemLine.from + match[0].length;
-              const trailingChar = itemLine.text[match[0].length] ?? "";
+              const markCharEnd = node.from + match[0].length;
+              const trailingChar = textFromNode[match[0].length] ?? "";
               prefixTo = (trailingChar === " " || trailingChar === "\t") ? markCharEnd + 1 : markCharEnd;
             }
 
@@ -219,18 +324,18 @@ class LivePreviewPlugin {
                 }
                 // Replace prefix (whitespace + "- " + "[ ]") with a checkbox widget.
                 // Exclude the trailing space from the widget range so it stays visible.
-                const innerPos = itemLine.from + match[0].length + 2; // skip ' [' to reach checkbox char
+                const innerPos = node.from + match[0].length + 2; // skip ' [' to reach checkbox char
                 const widgetEnd = taskMatch[0].endsWith(" ") ? prefixTo - 1 : prefixTo;
                 decorations.push(
                   Decoration.replace({ widget: new CheckboxWidget(checked, innerPos) })
-                    .range(itemLine.from, widgetEnd)
+                    .range(node.from, widgetEnd)
                 );
               } else {
                 // Replace the full prefix (whitespace + mark char + trailing space)
                 // with a BulletWidget of width gutterEm.
                 decorations.push(
                   Decoration.replace({ widget: new BulletWidget(gutterEm) })
-                    .range(itemLine.from, prefixTo)
+                    .range(node.from, prefixTo)
                 );
               }
             }
@@ -241,7 +346,9 @@ class LivePreviewPlugin {
             const parent = node.node.parent;
             const spanFrom = parent?.from ?? node.from;
             const spanTo   = parent?.to   ?? node.to;
+            // Also show raw when cursor is on the same line (e.g. "[!NOTE]" in callout headers).
             if (cursorInSpan(cursorPos, spanFrom, spanTo)) return;
+            if (view.state.doc.lineAt(node.from).number === cursorLine) return;
             decorations.push(HIDDEN_DECORATION.range(node.from, node.to));
             return;
           }
@@ -256,7 +363,10 @@ class LivePreviewPlugin {
           }
 
           // QuoteMark (">") goes raw when cursor is on the same blockquote line.
+          // Skip if the line is fully replaced by a callout widget to avoid overlap.
           if (node.name === "QuoteMark") {
+            const lineStart = view.state.doc.lineAt(node.from).from;
+            if (calloutReplacedLineStarts.has(lineStart)) return;
             if (nodeContainsCursorLine(view, node.from, node.to, cursorLine)) return;
             decorations.push(HIDDEN_DECORATION.range(node.from, node.to));
           }
