@@ -49,6 +49,7 @@ Chirami renders Markdown in an Obsidian-style Live Preview: the block containing
 
 - `/tldraw` — Insert a tldraw diagram block and open the editor overlay immediately
 - `/mermaid` — Insert a Mermaid code block with a starter template
+- `/details` — Insert a collapsible `<details>` block with the summary text selected
 - `/table` — Insert a 2×2 Markdown table template
 
 **Task list toggle** — Cmd+L converts the current line to/from a task list item (`- [ ]`). Click a checkbox to toggle it.

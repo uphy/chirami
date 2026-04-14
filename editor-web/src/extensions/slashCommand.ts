@@ -45,6 +45,22 @@ const COMMANDS: SlashCommand[] = [
     },
   },
   {
+    id: "details",
+    label: "/details",
+    description: "Insert a collapsible details block",
+    execute(view, lineFrom) {
+      const summaryPlaceholder = "Summary";
+      const block = `<details>\n<summary>${summaryPlaceholder}</summary>\n\n</details>`;
+      const lineTo = view.state.doc.lineAt(lineFrom).to;
+      const summaryFrom = lineFrom + "<details>\n<summary>".length;
+      const summaryTo = summaryFrom + summaryPlaceholder.length;
+      view.dispatch({
+        changes: { from: lineFrom, to: lineTo, insert: block },
+        selection: { anchor: summaryFrom, head: summaryTo },
+      });
+    },
+  },
+  {
     id: "table",
     label: "/table",
     description: "Insert a Markdown table template",
