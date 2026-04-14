@@ -48,7 +48,7 @@ final class NoteWebView: NSView {
         let userContentController = WKUserContentController()
         config.userContentController = userContentController
 
-        self.webView = WKWebView(frame: .zero, configuration: config)
+        self.webView = FirstMouseWKWebView(frame: .zero, configuration: config)
         // Suppress the WKWebView background so the SwiftUI background shows through
         self.webView.setValue(false, forKey: "drawsBackground")
         self.webView.underPageBackgroundColor = .clear
@@ -263,6 +263,15 @@ final class NoteWebView: NSView {
         }
         return json
     }
+}
+
+// MARK: - FirstMouseWKWebView
+
+/// A WKWebView subclass that accepts the first mouse click even when the window is not key.
+/// This allows clicks on interactive elements (e.g. checkboxes) to register without requiring
+/// a separate click to focus the window first.
+private final class FirstMouseWKWebView: WKWebView {
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 }
 
 // MARK: - NoteWebViewRepresentable
