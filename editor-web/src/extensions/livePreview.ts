@@ -202,7 +202,7 @@ class LivePreviewPlugin {
 
             // Cursor lines: --list-gutter = totalEm so the raw prefix starts at 0em
             // (predictable tab stops). Other positions: gutterEm so rendered text aligns normally.
-            const cursorInPrefix = onCursorLine && cursorPos >= itemLine.from && cursorPos <= prefixTo;
+            const cursorInPrefix = onCursorLine && cursorPos >= itemLine.from && cursorPos < prefixTo;
             const cssGutter = cursorInPrefix ? totalEm : gutterEm;
             decorations.push(
               Decoration.line({
@@ -217,11 +217,13 @@ class LivePreviewPlugin {
                 if (checked) {
                   decorations.push(Decoration.line({ class: "cm-task-checked" }).range(itemLine.from));
                 }
-                // Replace entire prefix (whitespace + "- " + "[ ] ") with a checkbox widget.
+                // Replace prefix (whitespace + "- " + "[ ]") with a checkbox widget.
+                // Exclude the trailing space from the widget range so it stays visible.
                 const innerPos = itemLine.from + match[0].length + 2; // skip ' [' to reach checkbox char
+                const widgetEnd = taskMatch[0].endsWith(" ") ? prefixTo - 1 : prefixTo;
                 decorations.push(
                   Decoration.replace({ widget: new CheckboxWidget(checked, innerPos) })
-                    .range(itemLine.from, prefixTo)
+                    .range(itemLine.from, widgetEnd)
                 );
               } else {
                 // Replace the full prefix (whitespace + mark char + trailing space)
