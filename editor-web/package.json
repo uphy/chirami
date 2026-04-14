@@ -20,7 +20,6 @@
     "@excalidraw/excalidraw": "^0.18.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
-    "tldraw": "^4.5.8",
     "turndown": "^7",
     "turndown-plugin-gfm": "^1"
   },

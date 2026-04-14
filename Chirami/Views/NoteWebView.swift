@@ -34,7 +34,7 @@ final class NoteWebView: NSView {
     var onPasteImage: ((String) -> Void)?  // dataUrl
     var onFoldChanged: (([Int]) -> Void)?  // 1-based line numbers
 
-    /// True while the tldraw editor overlay is open in the WebView.
+    /// True while an overlay (e.g. Excalidraw) is open in the WebView.
     private(set) var overlayVisible: Bool = false
 
     override init(frame frameRect: NSRect) {
@@ -93,7 +93,7 @@ final class NoteWebView: NSView {
         bridge.onFoldChanged = { [weak self] lines in
             self?.onFoldChanged?(lines)
         }
-        bridge.onTldrawOverlayVisibleChanged = { [weak self] visible in
+        bridge.onOverlayVisibleChanged = { [weak self] visible in
             self?.overlayVisible = visible
         }
         bridge.onPluginStateRequest = { [weak self] pluginId in

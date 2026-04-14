@@ -17,7 +17,7 @@ final class NoteWebViewBridge: NSObject, WKScriptMessageHandler {
     var onPasteImage: ((String) -> Void)?  // dataUrl
     var onPlainPaste: (() -> Void)?
     var onFoldChanged: (([Int]) -> Void)?  // 1-based line numbers
-    var onTldrawOverlayVisibleChanged: ((Bool) -> Void)?
+    var onOverlayVisibleChanged: ((Bool) -> Void)?
     var onPluginStateRequest: ((_ pluginId: String) -> Void)?
     var onPluginStateChanged: ((_ pluginId: String, _ stateJson: String) -> Void)?
 
@@ -63,7 +63,7 @@ final class NoteWebViewBridge: NSObject, WKScriptMessageHandler {
                 }
             case "overlayVisible":
                 if let visible = body["visible"] as? Bool {
-                    onTldrawOverlayVisibleChanged?(visible)
+                    onOverlayVisibleChanged?(visible)
                 }
             case "pluginStateRequest":
                 if let pluginId = body["pluginId"] as? String {

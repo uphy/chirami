@@ -1,6 +1,5 @@
 import { EditorView, ViewPlugin, ViewUpdate, keymap } from "@codemirror/view";
 import { Prec } from "@codemirror/state";
-import { openTldrawOverlay } from "../tldraw-overlay";
 import { openExcalidrawOverlay } from "../excalidraw-overlay";
 
 export interface SlashCommand {
@@ -11,26 +10,6 @@ export interface SlashCommand {
 }
 
 const COMMANDS: SlashCommand[] = [
-  {
-    id: "tldraw",
-    label: "/tldraw",
-    description: "Insert a tldraw diagram block",
-    execute(view, lineFrom) {
-      const block = "```tldraw\n\n```";
-      const lineTo = view.state.doc.lineAt(lineFrom).to;
-      view.dispatch({
-        changes: { from: lineFrom, to: lineTo, insert: block },
-        selection: { anchor: lineFrom + block.length },
-      });
-      const codeFrom = lineFrom + "```tldraw\n".length;
-      openTldrawOverlay("", (newSnapshot) => {
-        if (!newSnapshot) return;
-        view.dispatch({
-          changes: { from: codeFrom, to: codeFrom, insert: newSnapshot + "\n" },
-        });
-      });
-    },
-  },
   {
     id: "excalidraw",
     label: "/excalidraw",

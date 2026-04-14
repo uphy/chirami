@@ -10,6 +10,21 @@ import { parseExcalidrawScene } from "./extensions/excalidrawShared";
 const PLUGIN_ID = "excalidraw";
 const LIBRARY_SAVE_DEBOUNCE_MS = 150;
 
+// Stable reference — none of these depend on props or state.
+const EXCALIDRAW_UI_OPTIONS = {
+  canvasActions: {
+    loadScene: false,
+    saveToActiveFile: false,
+    export: false,
+    saveAsImage: false,
+    // Prevent accidental data loss; undo/redo is available as an alternative.
+    clearCanvas: false,
+  },
+  tools: {
+    image: false,
+  },
+} as const;
+
 type ExcalidrawPluginState = {
   userItems: LibraryItems;
   externalItems: LibraryItems;
@@ -98,6 +113,8 @@ function ExcalidrawOverlay({ initialSnapshot, initialLibraryItems, externalItemI
           const userItems = items.filter((item) => !externalItemIds.has(item.id));
           scheduleLibraryStateSave(JSON.stringify(userItems));
         }}
+        aiEnabled={false}
+        UIOptions={EXCALIDRAW_UI_OPTIONS}
       />
       <button
         onClick={handleClose}
