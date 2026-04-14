@@ -1,5 +1,6 @@
 import { syntaxTree } from "@codemirror/language";
-import { EditorView, ViewUpdate } from "@codemirror/view";
+import { EditorState, StateField } from "@codemirror/state";
+import { DecorationSet, EditorView, ViewUpdate } from "@codemirror/view";
 
 export function cursorLineNumber(view: EditorView): number {
   if (!view.hasFocus) return -1;
@@ -39,6 +40,30 @@ export function collectHtmlBlocks(view: EditorView): Array<{ from: number; to: n
     },
   });
   return blocks;
+}
+
+export function cursorLineFromState(state: EditorState): number {
+  return state.doc.lineAt(state.selection.main.head).number;
+}
+
+// Factory for decoration StateFields. Rebuilds only when doc changes or
+// the cursor head crosses a line boundary — not on every anchor/selection change.
+export function makeDecorationField(
+  build: (state: EditorState) => DecorationSet,
+): StateField<DecorationSet> {
+  return StateField.define<DecorationSet>({
+    create: build,
+    update: (deco, tr) => {
+      if (
+        tr.docChanged ||
+        tr.startState.selection.main.head !== tr.state.selection.main.head
+      ) {
+        return build(tr.state);
+      }
+      return deco.map(tr.changes);
+    },
+    provide: (field) => EditorView.decorations.from(field),
+  });
 }
 
 export function debounce<T extends unknown[]>(fn: (...args: T) => void, delay: number): (...args: T) => void {

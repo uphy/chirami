@@ -1,14 +1,11 @@
 import { syntaxTree } from "@codemirror/language";
-import { Range } from "@codemirror/state";
+import { EditorState, Range } from "@codemirror/state";
 import {
   Decoration,
   DecorationSet,
-  EditorView,
-  ViewPlugin,
-  ViewUpdate,
   WidgetType,
 } from "@codemirror/view";
-import { cursorLineNumber, shouldRebuild } from "./utils";
+import { cursorLineFromState, makeDecorationField } from "./utils";
 
 class TableWidget extends WidgetType {
   constructor(private markdown: string) {
@@ -62,53 +59,27 @@ function buildTable(md: string): HTMLTableElement {
   return table;
 }
 
-const tableHideMark = Decoration.mark({ class: "cm-table-raw" });
+function buildTableDecorations(state: EditorState): DecorationSet {
+  const cursorLine = cursorLineFromState(state);
+  const decorations: Range<Decoration>[] = [];
 
-class TablePlugin {
-  decorations: DecorationSet;
+  syntaxTree(state).iterate({
+    enter: (node) => {
+      if (node.name !== "Table") return;
+      const startLine = state.doc.lineAt(node.from);
+      const endLine = state.doc.lineAt(node.to);
+      if (cursorLine >= startLine.number && cursorLine <= endLine.number) return;
 
-  constructor(view: EditorView) {
-    this.decorations = this.build(view);
-  }
+      const tableMarkdown = state.sliceDoc(node.from, node.to);
+      decorations.push(
+        Decoration.replace({
+          widget: new TableWidget(tableMarkdown),
+        }).range(startLine.from, endLine.to),
+      );
+    },
+  });
 
-  update(update: ViewUpdate) {
-    if (shouldRebuild(update)) {
-      this.decorations = this.build(update.view);
-    }
-  }
-
-  private build(view: EditorView): DecorationSet {
-    const cursorLine = cursorLineNumber(view);
-    const decorations: Range<Decoration>[] = [];
-
-    for (const { from, to } of view.visibleRanges) {
-      syntaxTree(view.state).iterate({
-        from,
-        to,
-        enter: (node) => {
-          if (node.name !== "Table") return;
-          const startLine = view.state.doc.lineAt(node.from);
-          const endLine = view.state.doc.lineAt(node.to);
-          if (cursorLine >= startLine.number && cursorLine <= endLine.number) return;
-
-          const tableMarkdown = view.state.sliceDoc(node.from, node.to);
-
-          // block: false — inline widget inserted at start of table
-          decorations.push(
-            Decoration.widget({
-              widget: new TableWidget(tableMarkdown),
-              side: -1,
-            }).range(startLine.from),
-          );
-          decorations.push(tableHideMark.range(startLine.from, endLine.to));
-        },
-      });
-    }
-
-    return decorations.length > 0 ? Decoration.set(decorations, true) : Decoration.none;
-  }
+  return decorations.length > 0 ? Decoration.set(decorations) : Decoration.none;
 }
 
-export const tableExtension = ViewPlugin.fromClass(TablePlugin, {
-  decorations: (v) => v.decorations,
-});
+export const tableExtension = makeDecorationField(buildTableDecorations);

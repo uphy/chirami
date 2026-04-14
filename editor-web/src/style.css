@@ -211,16 +211,6 @@ html, body {
   margin: 0.25em 0;
 }
 
-/* Hide raw table markdown text when widget is shown */
-.cm-table-raw {
-  display: none;
-}
-
-/* Hide raw mermaid markdown text when widget is shown */
-.cm-mermaid-raw {
-  display: none;
-}
-
 /* Mermaid diagram container */
 .cm-mermaid-container {
   margin: 0.5em 0;

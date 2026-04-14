@@ -1,19 +1,15 @@
 import { syntaxTree } from "@codemirror/language";
-import { Range } from "@codemirror/state";
+import { EditorState, Range } from "@codemirror/state";
 import {
   Decoration,
   DecorationSet,
   EditorView,
-  ViewPlugin,
-  ViewUpdate,
   WidgetType,
 } from "@codemirror/view";
 import mermaid from "mermaid";
-import { cursorLineNumber, nodeContainsCursorLine, shouldRebuild } from "./utils";
+import { cursorLineFromState, makeDecorationField } from "./utils";
 
 mermaid.initialize({ startOnLoad: false, theme: "neutral" });
-
-const mermaidHideMark = Decoration.mark({ class: "cm-mermaid-raw" });
 
 class MermaidWidget extends WidgetType {
   constructor(private code: string) {
@@ -24,7 +20,7 @@ class MermaidWidget extends WidgetType {
     return other.code === this.code;
   }
 
-  toDOM(): HTMLElement {
+  toDOM(view: EditorView): HTMLElement {
     const container = document.createElement("div");
     container.className = "cm-mermaid-container";
 
@@ -33,12 +29,16 @@ class MermaidWidget extends WidgetType {
     mermaid
       .render(id, this.code)
       .then(({ svg }) => {
-        if (container.isConnected) container.innerHTML = svg;
+        if (container.isConnected) {
+          container.innerHTML = svg;
+          view.requestMeasure();
+        }
       })
       .catch((err: Error) => {
         if (container.isConnected) {
           container.textContent = err.message;
           container.className = "cm-mermaid-error";
+          view.requestMeasure();
         }
       });
 
@@ -50,67 +50,42 @@ class MermaidWidget extends WidgetType {
   }
 }
 
-class MermaidPlugin {
-  decorations: DecorationSet;
+function buildMermaidDecorations(state: EditorState): DecorationSet {
+  const cursorLine = cursorLineFromState(state);
+  const decorations: Range<Decoration>[] = [];
 
-  constructor(view: EditorView) {
-    this.decorations = this.build(view);
-  }
+  syntaxTree(state).iterate({
+    enter: (node) => {
+      if (node.name !== "FencedCode") return;
 
-  update(update: ViewUpdate) {
-    if (shouldRebuild(update)) {
-      this.decorations = this.build(update.view);
-    }
-  }
+      const codeInfoNode = node.node.getChild("CodeInfo");
+      if (!codeInfoNode) return false;
+      const lang = state
+        .sliceDoc(codeInfoNode.from, codeInfoNode.to)
+        .trim()
+        .toLowerCase();
+      if (lang !== "mermaid") return false;
 
-  private build(view: EditorView): DecorationSet {
-    const cursorLine = cursorLineNumber(view);
-    const decorations: Range<Decoration>[] = [];
+      const startLine = state.doc.lineAt(node.from);
+      const endLine = state.doc.lineAt(node.to);
+      if (cursorLine >= startLine.number && cursorLine <= endLine.number) return false;
 
-    for (const { from, to } of view.visibleRanges) {
-      syntaxTree(view.state).iterate({
-        from,
-        to,
-        enter: (node) => {
-          if (node.name !== "FencedCode") return;
+      const codeTextNode = node.node.getChild("CodeText");
+      const code = codeTextNode
+        ? state.sliceDoc(codeTextNode.from, codeTextNode.to).trim()
+        : "";
 
-          const codeInfoNode = node.node.getChild("CodeInfo");
-          if (!codeInfoNode) return false;
-          const lang = view.state
-            .sliceDoc(codeInfoNode.from, codeInfoNode.to)
-            .trim()
-            .toLowerCase();
-          if (lang !== "mermaid") return false;
+      decorations.push(
+        Decoration.replace({
+          widget: new MermaidWidget(code),
+        }).range(startLine.from, endLine.to),
+      );
 
-          if (nodeContainsCursorLine(view, node.from, node.to, cursorLine)) return false;
+      return false;
+    },
+  });
 
-          const startLine = view.state.doc.lineAt(node.from);
-          const endLine = view.state.doc.lineAt(node.to);
-
-          const codeTextNode = node.node.getChild("CodeText");
-          const code = codeTextNode
-            ? view.state.sliceDoc(codeTextNode.from, codeTextNode.to).trim()
-            : "";
-
-          decorations.push(
-            Decoration.widget({
-              widget: new MermaidWidget(code),
-              side: -1,
-            }).range(startLine.from),
-          );
-          decorations.push(mermaidHideMark.range(startLine.from, endLine.to));
-
-          return false;
-        },
-      });
-    }
-
-    return decorations.length > 0
-      ? Decoration.set(decorations, true)
-      : Decoration.none;
-  }
+  return decorations.length > 0 ? Decoration.set(decorations) : Decoration.none;
 }
 
-export const mermaidExtension = ViewPlugin.fromClass(MermaidPlugin, {
-  decorations: (v) => v.decorations,
-});
+export const mermaidExtension = makeDecorationField(buildMermaidDecorations);
