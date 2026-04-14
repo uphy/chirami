@@ -7,7 +7,6 @@ import { EditorState, Prec, Transaction } from "@codemirror/state";
 import { EditorView, ViewUpdate, keymap } from "@codemirror/view";
 import { GFM } from "@lezer/markdown";
 import { classHighlighter, tags } from "@lezer/highlight";
-import { checkboxExtension } from "./extensions/checkbox";
 import { chiramiKeymap, tightListEnterKeymap, surroundSelectionHandler } from "./extensions/keymap";
 import { livePreview } from "./extensions/livePreview";
 import { tableExtension } from "./extensions/table";
@@ -117,7 +116,6 @@ export function createEditor(parent: HTMLElement, callbacks: EditorCallbacks): E
       }),
       EditorView.lineWrapping,
       livePreview,
-      checkboxExtension,
       markdownHeadingFold,
       markdownListFold,
       foldGutter(),

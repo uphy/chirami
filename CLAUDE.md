@@ -98,23 +98,38 @@ Live Preview is implemented with WKWebView + CodeMirror 6.
 
 ## Logging Rules
 
+Logging differs between the Swift layer and the WebView (JS/TypeScript) layer.
+
+### Swift
+
 - `NSLog` / `print` are prohibited. Always use `os.Logger`
 - subsystem: `"io.github.uphy.Chirami"` (consistent across all loggers)
 - category: match to the class or file name
 - Dynamic values (paths, errors, URLs): specify `privacy: .public`
-
-### Logger Definition
-
 - Define as an instance property or `static let` (for enums) within the class
+
+### WebView (editor-web/)
+
+- `console.log` / `console.error` etc. are prohibited
+- Use the bridge: call `postToSwift({ type: "log", level, message })` from `bridge.ts`
+- `level` must be one of: `"debug"` | `"info"` | `"warn"` | `"error"`
+- Log messages are forwarded to Swift via `NoteWebViewBridge` and emitted through `os.Logger` with the prefix `[JS {level}]`
+- They appear in the same `log stream` output as Swift logs (category: `NoteWebViewBridge`)
+
+```typescript
+import { postToSwift } from "./bridge";
+
+postToSwift({ type: "log", level: "debug", message: "editor ready" });
+```
 
 ### Log Level Guidelines
 
 | Situation | Level |
 |-----------|-------|
-| Debug info (URL received, process started, etc.) | `.debug` |
-| Successful completion (N items deleted, save succeeded) | `.info` |
-| Misconfiguration or missing resource | `.warning` |
-| Processing failure or error | `.error` |
+| Debug info (URL received, process started, etc.) | `debug` |
+| Successful completion (N items deleted, save succeeded) | `info` |
+| Misconfiguration or missing resource | `warn` / `.warning` |
+| Processing failure or error | `error` |
 
 ### Viewing Logs
 

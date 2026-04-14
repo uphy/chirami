@@ -24,10 +24,42 @@ const HIDDEN_MARK_NODES = new Set([
 ]);
 
 const HIDDEN_DECORATION = Decoration.replace({ inclusive: false });
-// Used to hide the list mark ("- ") before task items. A mark decoration keeps
-// the span in the DOM but CSS display:none removes it from the inline formatting
-// context — no element boundary remains to act as a soft-wrap opportunity.
-const LIST_MARK_HIDDEN = Decoration.mark({ class: "cm-list-mark-hidden" });
+
+// Replaces the full task-item prefix ("  - [ ] " or "  - [x] ") with a native
+// checkbox input. innerPos points to the character inside the brackets so the
+// click handler can toggle it in-document.
+class CheckboxWidget extends WidgetType {
+  constructor(
+    private checked: boolean,
+    private innerPos: number,
+  ) {
+    super();
+  }
+
+  eq(other: CheckboxWidget): boolean {
+    return other.checked === this.checked && other.innerPos === this.innerPos;
+  }
+
+  toDOM(view: EditorView): HTMLElement {
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.checked = this.checked;
+    input.tabIndex = -1;
+    input.addEventListener("mousedown", (e) => e.preventDefault());
+    input.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const nextChar = this.checked ? " " : "x";
+      view.dispatch({
+        changes: { from: this.innerPos, to: this.innerPos + 1, insert: nextChar },
+      });
+    });
+    return input;
+  }
+
+  ignoreEvent(): boolean {
+    return false;
+  }
+}
 
 // Replaces the leading prefix (whitespace + "- " + trailing space) of a list
 // item with an inline-block bullet widget. The widget width equals the total
@@ -140,9 +172,9 @@ class LivePreviewPlugin {
             const itemLine = view.state.doc.lineAt(node.from);
             const match = /^([ \t]*)([-*+])/.exec(itemLine.text);
             if (!match) return;
-            // Exclude task items — checkbox.ts handles their visual marker
-            const isTaskItem = /^ \[[ xX]\]/.test(itemLine.text.slice(match[0].length));
-            if (isTaskItem) return;
+
+            const afterMark = itemLine.text.slice(match[0].length);
+            const taskMatch = /^ \[([ xX])\] ?/.exec(afterMark);
 
             const onCursorLine = itemLine.number === cursorLine;
             const tabSize = view.state.tabSize;
@@ -153,7 +185,7 @@ class LivePreviewPlugin {
 
             // Apply hanging indent to ALL lines (cursor and non-cursor).
             // Non-cursor: --list-gutter = gutterEm → text-indent = -gutterEm, placing
-            //   the bullet widget at (totalEm - gutterEm) from the border edge.
+            //   the bullet/checkbox widget at (totalEm - gutterEm) from the border edge.
             // Cursor: --list-gutter = totalEm → text-indent = -totalEm, so the raw
             //   prefix starts at 0em where tab stops are predictable, minimising the
             //   horizontal jump relative to the rendered text position.
@@ -166,35 +198,30 @@ class LivePreviewPlugin {
             );
 
             if (!onCursorLine) {
-              // Replace the full prefix (whitespace + mark char + trailing space)
-              // with a BulletWidget of width gutterEm.
-              const markCharEnd = itemLine.from + match[0].length;
-              const trailingChar = itemLine.text[match[0].length] ?? "";
-              const prefixTo = (trailingChar === " " || trailingChar === "\t")
-                ? markCharEnd + 1 : markCharEnd;
-              decorations.push(
-                Decoration.replace({ widget: new BulletWidget(gutterEm) })
-                  .range(itemLine.from, prefixTo)
-              );
-            }
-            // Continue into children so task-item ListMark is still processed
-            return;
-          }
-
-          if (node.name === "ListMark") {
-            const markText = view.state.sliceDoc(node.from, node.to);
-            if (/^\d+[.)]$/.test(markText)) return; // ordered marks: no-op
-
-            // Non-task unordered marks are handled by BulletWidget (non-cursor lines)
-            // or shown as raw text (cursor lines). Only task items need LIST_MARK_HIDDEN.
-            const afterMark = view.state.sliceDoc(node.to, node.to + 4);
-            const isTaskItem = /^ \[[ xX]\]/.test(afterMark);
-            if (!isTaskItem) return;
-
-            // Hide "- " before the checkbox widget on non-cursor lines
-            const end = (afterMark[0] === " " || afterMark[0] === "\t") ? node.to + 1 : node.to;
-            if (!nodeContainsCursorLine(view, node.from, node.to, cursorLine)) {
-              decorations.push(LIST_MARK_HIDDEN.range(node.from, end));
+              if (taskMatch) {
+                const checked = taskMatch[1] !== " ";
+                if (checked) {
+                  decorations.push(Decoration.line({ class: "cm-task-checked" }).range(itemLine.from));
+                }
+                // Replace entire prefix (whitespace + "- " + "[ ] ") with a checkbox widget.
+                const prefixTo = itemLine.from + match[0].length + taskMatch[0].length;
+                const innerPos = itemLine.from + match[0].length + 2; // skip ' [' to reach checkbox char
+                decorations.push(
+                  Decoration.replace({ widget: new CheckboxWidget(checked, innerPos) })
+                    .range(itemLine.from, prefixTo)
+                );
+              } else {
+                // Replace the full prefix (whitespace + mark char + trailing space)
+                // with a BulletWidget of width gutterEm.
+                const markCharEnd = itemLine.from + match[0].length;
+                const trailingChar = itemLine.text[match[0].length] ?? "";
+                const prefixTo = (trailingChar === " " || trailingChar === "\t")
+                  ? markCharEnd + 1 : markCharEnd;
+                decorations.push(
+                  Decoration.replace({ widget: new BulletWidget(gutterEm) })
+                    .range(itemLine.from, prefixTo)
+                );
+              }
             }
             return;
           }

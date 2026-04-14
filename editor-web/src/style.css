@@ -80,12 +80,6 @@ html, body {
 .cm-editor .tok-list { color: var(--chirami-link); }
 
 
-/* Hide top-level list mark ("- ") via display:none so the span is removed from
-   the inline formatting context and creates no element-boundary break opportunity. */
-.cm-editor .cm-list-mark-hidden {
-  display: none;
-}
-
 /* Bullet widget: static styles. width is set inline per nesting level. */
 .cm-bullet-widget {
   display: inline-block;
@@ -166,15 +160,17 @@ html, body {
   padding: 0;
 }
 
-/* Checkbox widget */
-.cm-checkbox-widget input[type="checkbox"] {
-  -webkit-appearance: none;
+/* Task item checkbox — appearance:none so the checked state is stable even when
+   the window is inactive (macOS dims native controls on focus loss).
+   Uses CSS system colors to follow the OS light/dark/accent-color settings. */
+.cm-editor input[type="checkbox"] {
   appearance: none;
+  -webkit-appearance: none;
   width: 13px;
   height: 13px;
-  border: 1.5px solid color-mix(in srgb, var(--chirami-text) 40%, transparent);
+  border: 1.5px solid color-mix(in srgb, currentColor 40%, transparent);
   border-radius: 3px;
-  background-color: transparent;
+  background: transparent;
   cursor: pointer;
   vertical-align: middle;
   margin: 0 3px 1px 0;
@@ -182,19 +178,19 @@ html, body {
   flex-shrink: 0;
 }
 
-.cm-checkbox-widget input[type="checkbox"]:checked {
-  background-color: color-mix(in srgb, var(--chirami-text) 55%, transparent);
-  border-color: color-mix(in srgb, var(--chirami-text) 55%, transparent);
+.cm-editor input[type="checkbox"]:checked {
+  background: AccentColor;
+  border-color: AccentColor;
 }
 
-.cm-checkbox-widget input[type="checkbox"]:checked::after {
+.cm-editor input[type="checkbox"]:checked::after {
   content: '';
   position: absolute;
   left: 50%;
   top: 45%;
   width: 5px;
   height: 8px;
-  border: 1.5px solid var(--chirami-bg);
+  border: 1.5px solid white;
   border-top: none;
   border-left: none;
   transform: translate(-50%, -60%) rotate(45deg);
