@@ -85,6 +85,8 @@ class BulletWidget extends WidgetType {
 
   ignoreEvent(): boolean { return true; }
 }
+const HR_DECORATION = Decoration.mark({ class: "chirami-hr" });
+
 const CODE_BLOCK_LINE       = Decoration.line({ class: "cm-code-block-line" });
 const CODE_BLOCK_LINE_FIRST = Decoration.line({ class: "cm-code-block-line cm-code-block-first" });
 const CODE_BLOCK_LINE_LAST  = Decoration.line({ class: "cm-code-block-line cm-code-block-last" });
@@ -355,6 +357,12 @@ class LivePreviewPlugin {
             const spanTo   = parent?.to   ?? node.to;
             if (cursorInSpan(cursorPos, spanFrom, spanTo)) return;
             decorations.push(HIDDEN_DECORATION.range(node.from, node.to));
+            return;
+          }
+
+          if (node.name === "HorizontalRule") {
+            if (view.state.doc.lineAt(node.from).number === cursorLine) return;
+            decorations.push(HR_DECORATION.range(node.from, node.to));
             return;
           }
 
