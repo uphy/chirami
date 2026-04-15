@@ -147,14 +147,17 @@ export function setEditorContent(view: EditorView, text: string) {
   // Preserve fold state across document replacement.
   // Replacing the entire document invalidates all fold ranges in CodeMirror,
   // so we save the folded line numbers and reapply them after the dispatch.
+  const ranges = foldedRanges(view.state);
   const foldedLineNumbers: number[] = [];
-  foldedRanges(view.state).between(0, view.state.doc.length, (from) => {
-    foldedLineNumbers.push(view.state.doc.lineAt(from).number);
-  });
+  if (ranges.size > 0) {
+    ranges.between(0, view.state.doc.length, (from) => {
+      foldedLineNumbers.push(view.state.doc.lineAt(from).number);
+    });
+  }
 
   view.dispatch({
     changes: { from: 0, to: view.state.doc.length, insert: text },
-    annotations: Transaction.userEvent.of("external"),
+    annotations: [Transaction.userEvent.of("external"), Transaction.addToHistory.of(false)],
   });
 
   if (foldedLineNumbers.length > 0) {
