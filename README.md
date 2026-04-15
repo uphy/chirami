@@ -16,7 +16,7 @@ While you work, you always need something else at hand. Chirami floats it above 
 - **Image Paste & Resize** — Cmd+V to paste images as PNG; drag the right edge to resize
 - **Window Warp** — Modifier+H/J/K/L to snap windows to a 3×3 grid
 - **External Editor Sync** — Live file watching; edits in Obsidian or VS Code reflect instantly
-- **Per-note styling** — Background color, transparency, and font size for each note
+- **Per-note styling** — Themes and transparency configured per note; global CSS customization via `--chirami-*` variables
 - **CLI** — `chirami display` to show Markdown in a floating window from the terminal; `chirami context` to read the focused note's context as JSON for use with external tools
 
 See [Features](docs/features.md) for the full feature guide and keyboard shortcuts.
@@ -57,12 +57,12 @@ Config file: **`~/.config/chirami/config.yaml`**
 notes:
   - path: ~/Notes/todo.md
     title: TODO
-    color_scheme: blue
+    theme: blue
     hotkey: cmd+shift+t
 
   - path: ~/Notes/daily/{yyyy-MM-dd}.md
     title: Daily
-    color_scheme: green
+    theme: green
     hotkey: cmd+shift+d
     rollover_delay: 2h
 
@@ -78,6 +78,7 @@ See [Configuration](docs/configuration.md) for the full field reference.
 - [Getting Started](docs/getting-started.md) — Installation through first note display
 - [Configuration](docs/configuration.md) — Full config.yaml field reference
 - [Features](docs/features.md) — Feature guide and keyboard shortcuts
+- [CSS Theming](docs/css-theming.md) — Customize colors, fonts, and themes via CSS variables
 - [Advanced](docs/advanced.md) — Periodic Notes, Smart Paste, Images, Transient Note, Karabiner integration
 - [Product Vision](docs/product-vision.md) — Why Chirami exists
 

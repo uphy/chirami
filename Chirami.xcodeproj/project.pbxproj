@@ -12,6 +12,7 @@
 		0BFD323D33976AB58364DE99 /* HotKey in Frameworks */ = {isa = PBXBuildFile; productRef = DF065867ED3ACE9BBB266BA7 /* HotKey */; };
 		0F7E6FD8C20B6BA4B2EA28B6 /* PathTemplateResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1DACC907AD069A73A59708A /* PathTemplateResolver.swift */; };
 		0FF9B6E97C97F2F626261179 /* Yams in Frameworks */ = {isa = PBXBuildFile; productRef = A27B1620D2145E76C7BD8962 /* Yams */; };
+		1B830F827F423CCEFA08BA79 /* chirami-default.css in Resources */ = {isa = PBXBuildFile; fileRef = AF33B15DEC1677221BC468E6 /* chirami-default.css */; };
 		25AC572CF87FEAD3F0DB50A1 /* AttachmentCleanupServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59AAC7000F6FBA6725F013E6 /* AttachmentCleanupServiceTests.swift */; };
 		29365952EB5482732A641AA5 /* AttachmentsDirTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3B855C43CCE9764B4419E66 /* AttachmentsDirTests.swift */; };
 		296CC268B853E77EFF5B0E92 /* index.html in Resources */ = {isa = PBXBuildFile; fileRef = 3411E97273BFEB3A9CDF7DDA /* index.html */; };
@@ -23,7 +24,6 @@
 		42ECA3879B5A9E7606B6998B /* LocalImageSchemeHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2936EB59B5B6BE24528D67AB /* LocalImageSchemeHandler.swift */; };
 		43A18C3712E30AEEE5864430 /* PluginStateStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4B5FE1CBE1B48C55CC3E9FE /* PluginStateStore.swift */; };
 		48BA0BCE57FFECC4ED62059A /* FileWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5FDF5DD4D54BF8F9A9E2B8D /* FileWatcher.swift */; };
-		5621A231F49B88759CED9FE1 /* color_schemes.yaml in Resources */ = {isa = PBXBuildFile; fileRef = 6D3DE244BA7DCE44138C9CBE /* color_schemes.yaml */; };
 		5D5F47963F31B04A70CF1151 /* NoteStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20B175172C4EC713B05A7AF6 /* NoteStore.swift */; };
 		5E3B20DFE5E4E5CE221973DE /* PeriodicFileNavigatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0326B7CDA5B2F550D01040 /* PeriodicFileNavigatorTests.swift */; };
 		616C1992322F5B11C50D203A /* bundle.css in Resources */ = {isa = PBXBuildFile; fileRef = 096E47CC80BB32685D7EB8B2 /* bundle.css */; };
@@ -42,9 +42,7 @@
 		921C090AC8A08D675B1269DE /* KarabinerService.swift in Sources */ = {isa = PBXBuildFile; fileRef = BDECF2729D40306B630F8406 /* KarabinerService.swift */; };
 		9B6671BA6B0A70C4F2FADF85 /* GlobalHotkeyService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02F9256C8060115572AE6928 /* GlobalHotkeyService.swift */; };
 		9D97BDE960424A0B1AB96586 /* DisplayContentModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1ABF49BCE03CB5D5D8E5314E /* DisplayContentModel.swift */; };
-		9DEED2E2BE2095AE950FBF10 /* ColorSchemeRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F067E2928430591A4D9EC7A /* ColorSchemeRegistry.swift */; };
 		AB68361762012A126B962A5C /* ExcalidrawLibraryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79A787AD04437B1C5B66A3DF /* ExcalidrawLibraryStore.swift */; };
-		B2ABECDA8B05B81B189F62FC /* ColorSchemeCSSConverter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31832D845D15CEEA1BD34120 /* ColorSchemeCSSConverter.swift */; };
 		B31410DFD874046CD21D71D1 /* Assistant-Regular-PLF2XOGW.woff2 in Resources */ = {isa = PBXBuildFile; fileRef = 850CD2308E22D4B723B88ABD /* Assistant-Regular-PLF2XOGW.woff2 */; };
 		BFCCAB2D9367154CBB54D12E /* WindowManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0578EC63E7BF57954B30DB4E /* WindowManager.swift */; };
 		C1F28E6A44CA5164EA471BF0 /* NoteWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19D408CE9CF5E73181D332BF /* NoteWindow.swift */; };
@@ -89,11 +87,9 @@
 		2936EB59B5B6BE24528D67AB /* LocalImageSchemeHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalImageSchemeHandler.swift; sourceTree = "<group>"; };
 		29B2CA1FBD4805FEFC2A9DA1 /* Assistant-SemiBold-CZ5MX6FK.woff2 */ = {isa = PBXFileReference; path = "Assistant-SemiBold-CZ5MX6FK.woff2"; sourceTree = "<group>"; };
 		2B8C541ABFE53048C0EB50D2 /* Chirami.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Chirami.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		31832D845D15CEEA1BD34120 /* ColorSchemeCSSConverter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorSchemeCSSConverter.swift; sourceTree = "<group>"; };
 		3411E97273BFEB3A9CDF7DDA /* index.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = index.html; sourceTree = "<group>"; };
 		3CA855E446061538CC13E343 /* ChiramiApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChiramiApp.swift; sourceTree = "<group>"; };
 		3E9B976426256BB8C2C64D69 /* ImagePasteService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImagePasteService.swift; sourceTree = "<group>"; };
-		4F067E2928430591A4D9EC7A /* ColorSchemeRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorSchemeRegistry.swift; sourceTree = "<group>"; };
 		53ACA2ECCFB0B4CF4F6D62E2 /* bundle.js.map */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.module-map"; path = bundle.js.map; sourceTree = "<group>"; };
 		542A23A975A7EAAD9A26372C /* DurationParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DurationParser.swift; sourceTree = "<group>"; };
 		59AAC7000F6FBA6725F013E6 /* AttachmentCleanupServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttachmentCleanupServiceTests.swift; sourceTree = "<group>"; };
@@ -101,7 +97,6 @@
 		62B0A82E4A9516E13A19248E /* ConfigModelsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfigModelsTests.swift; sourceTree = "<group>"; };
 		63D578984796D93E1CFD8909 /* NotePanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotePanel.swift; sourceTree = "<group>"; };
 		69BA5531F6C7AE8515A16268 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
-		6D3DE244BA7DCE44138C9CBE /* color_schemes.yaml */ = {isa = PBXFileReference; lastKnownFileType = text.yaml; path = color_schemes.yaml; sourceTree = "<group>"; };
 		719434DCF50B3E94798E7C17 /* ContextHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContextHandler.swift; sourceTree = "<group>"; };
 		719C8C6D2FA67CF5419DF100 /* NoteWebView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteWebView.swift; sourceTree = "<group>"; };
 		79A787AD04437B1C5B66A3DF /* ExcalidrawLibraryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExcalidrawLibraryStore.swift; sourceTree = "<group>"; };
@@ -113,6 +108,7 @@
 		AB0326B7CDA5B2F550D01040 /* PeriodicFileNavigatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PeriodicFileNavigatorTests.swift; sourceTree = "<group>"; };
 		AC9BA77EEBC2A81E596E5527 /* ConfigModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfigModels.swift; sourceTree = "<group>"; };
 		AD53C2CB1801B2A25F4DD1F3 /* NoteWebViewBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteWebViewBridge.swift; sourceTree = "<group>"; };
+		AF33B15DEC1677221BC468E6 /* chirami-default.css */ = {isa = PBXFileReference; lastKnownFileType = text.css; path = "chirami-default.css"; sourceTree = "<group>"; };
 		B23AE53355635F2C5179A350 /* PeriodicFileNavigator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PeriodicFileNavigator.swift; sourceTree = "<group>"; };
 		B5FDF5DD4D54BF8F9A9E2B8D /* FileWatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileWatcher.swift; sourceTree = "<group>"; };
 		B69FC9A51CA17968D62C30B2 /* ImagePasteServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImagePasteServiceTests.swift; sourceTree = "<group>"; };
@@ -163,7 +159,6 @@
 			isa = PBXGroup;
 			children = (
 				0644F372AB4F8FCBC53526C9 /* AttachmentCleanupService.swift */,
-				31832D845D15CEEA1BD34120 /* ColorSchemeCSSConverter.swift */,
 				719434DCF50B3E94798E7C17 /* ContextHandler.swift */,
 				542A23A975A7EAAD9A26372C /* DurationParser.swift */,
 				B5FDF5DD4D54BF8F9A9E2B8D /* FileWatcher.swift */,
@@ -195,7 +190,7 @@
 			isa = PBXGroup;
 			children = (
 				D89A733128E36FF0FAEDE446 /* Assets.xcassets */,
-				6D3DE244BA7DCE44138C9CBE /* color_schemes.yaml */,
+				AF33B15DEC1677221BC468E6 /* chirami-default.css */,
 				4C5B526CDE8ECA34199302F3 /* editor */,
 			);
 			path = Resources;
@@ -204,7 +199,6 @@
 		3C756F4D7DBAF01BAA965A34 /* Models */ = {
 			isa = PBXGroup;
 			children = (
-				4F067E2928430591A4D9EC7A /* ColorSchemeRegistry.swift */,
 				A26FD0DF06B9D9A35311A9DB /* Note.swift */,
 				20B175172C4EC713B05A7AF6 /* NoteStore.swift */,
 			);
@@ -378,7 +372,7 @@
 				616C1992322F5B11C50D203A /* bundle.css in Resources */,
 				6D07E0648356B3F98CB562E9 /* bundle.js in Resources */,
 				E06AE51869D8EF941F885E19 /* bundle.js.map in Resources */,
-				5621A231F49B88759CED9FE1 /* color_schemes.yaml in Resources */,
+				1B830F827F423CCEFA08BA79 /* chirami-default.css in Resources */,
 				296CC268B853E77EFF5B0E92 /* index.html in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -416,8 +410,6 @@
 				67C9A90FD0334AD5D4F99565 /* AppState.swift in Sources */,
 				F60B7F4CCC6006BA702ADB11 /* AttachmentCleanupService.swift in Sources */,
 				31184FD7FE3922B29D63BC35 /* ChiramiApp.swift in Sources */,
-				B2ABECDA8B05B81B189F62FC /* ColorSchemeCSSConverter.swift in Sources */,
-				9DEED2E2BE2095AE950FBF10 /* ColorSchemeRegistry.swift in Sources */,
 				7633CB7FD9D0F957533CC50E /* ConfigModels.swift in Sources */,
 				E744262D1A1474B98D139D1F /* ContextHandler.swift in Sources */,
 				9D97BDE960424A0B1AB96586 /* DisplayContentModel.swift in Sources */,

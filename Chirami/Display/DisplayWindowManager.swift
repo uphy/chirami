@@ -187,12 +187,11 @@ class DisplayWindowManager {
 
         // Resolve profile settings
         let profile = profileName.flatMap { AppConfig.shared.config.adhoc?.profiles?[$0] }
-        let color = profile?.resolveNoteColorScheme() ?? .yellow
         let transparency = profile?.resolveTransparency() ?? 0.9
-        let fontSize = profile?.resolveFontSize() ?? 14
         let position = profile?.resolvePosition() ?? .fixed
         let alwaysOnTop = profile?.resolveAlwaysOnTop() ?? true
         let customTitle = profile?.title
+        let theme = profile?.theme
 
         // Validate callback_pipe: only allow paths under /tmp/ or $TMPDIR
         let validPipe: String? = callbackPipePath.flatMap { isValidCallbackPipe($0) ? $0 : nil }
@@ -224,14 +223,14 @@ class DisplayWindowManager {
         }
 
         let isPinned = position != .cursor
-        let panel = DisplayPanel(callbackPipePath: validPipe, isReadOnly: readOnly, color: color, transparency: transparency, customTitle: customTitle, alwaysOnTop: alwaysOnTop)
+        let panel = DisplayPanel(callbackPipePath: validPipe, isReadOnly: readOnly, transparency: transparency, customTitle: customTitle, alwaysOnTop: alwaysOnTop)
         panel.centerTitle()
         panel.setupCloseButtonHover()
         let contentModel = DisplayContentModel(content: displayContent, fileURL: fileURL)
-        let contentView = DisplayContentView(model: contentModel, isReadOnly: readOnly, colorScheme: color, fontSize: fontSize, fontName: AppConfig.shared.config.font)
+        let contentView = DisplayContentView(model: contentModel, isReadOnly: readOnly, theme: theme)
         let hostingView = NSHostingView(rootView: contentView)
         hostingView.wantsLayer = true
-        hostingView.layer?.backgroundColor = color.nsColor.cgColor
+        hostingView.layer?.backgroundColor = NSColor.clear.cgColor
         panel.contentView = hostingView
         let controller = DisplayWindowController(
             panel: panel,

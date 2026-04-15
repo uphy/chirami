@@ -32,10 +32,6 @@ class NoteStore: ObservableObject {
 
         let config = appConfig.config
 
-        if let userColorSchemes = config.colorSchemes {
-            ColorSchemeRegistry.shared.loadUserColorSchemes(userColorSchemes)
-        }
-
         notes = config.notes.compactMap { noteConfig in
             if noteConfig.isPeriodicNote {
                 let rolloverDelay = DurationParser.parse(noteConfig.rolloverDelay)
@@ -51,12 +47,8 @@ class NoteStore: ObservableObject {
             let title = noteConfig.title
                 ?? URL(fileURLWithPath: noteConfig.resolvedPath)
                     .deletingPathExtension().lastPathComponent
-            let color = noteConfig.resolveNoteColorScheme()
             let transparency = noteConfig.resolveTransparency()
-            let fontSize = noteConfig.resolveFontSize()
-
             let alwaysOnTop = noteConfig.resolveAlwaysOnTop()
-
             let notePosition = noteConfig.resolvePosition()
 
             let attachmentsDir = noteConfig.resolveAttachmentsDir(
@@ -65,8 +57,8 @@ class NoteStore: ObservableObject {
             )
 
             return Note(
-                id: id, path: url, title: title, colorScheme: color,
-                transparency: transparency, fontSize: fontSize,
+                id: id, path: url, title: title, theme: noteConfig.theme,
+                transparency: transparency,
                 alwaysOnTop: alwaysOnTop, hotkey: noteConfig.hotkey,
                 position: notePosition,
                 attachmentsDir: attachmentsDir
@@ -116,9 +108,7 @@ class NoteStore: ObservableObject {
             title = fileName
         }
 
-        let color = config.resolveNoteColorScheme()
         let transparency = config.resolveTransparency()
-        let fontSize = config.resolveFontSize()
         let alwaysOnTop = config.resolveAlwaysOnTop()
         let notePosition = config.resolvePosition()
 
@@ -138,8 +128,8 @@ class NoteStore: ObservableObject {
         )
 
         return Note(
-            id: id, path: url, title: title, colorScheme: color,
-            transparency: transparency, fontSize: fontSize,
+            id: id, path: url, title: title, theme: config.theme,
+            transparency: transparency,
             alwaysOnTop: alwaysOnTop, hotkey: config.hotkey,
             position: notePosition,
             periodicInfo: periodicInfo,
@@ -181,15 +171,6 @@ class NoteStore: ObservableObject {
 
     func isVisible(_ note: Note) -> Bool {
         appState.windowState(for: note.id)?.visible ?? true
-    }
-
-    func updateNoteColorScheme(_ colorScheme: NoteColorScheme, for note: Note) {
-        appConfig.update { config in
-            if let idx = config.notes.firstIndex(where: { $0.noteId == note.id }) {
-                config.notes[idx].colorScheme = colorScheme.rawValue
-            }
-        }
-        loadFromConfig()
     }
 
     func updateTransparency(_ value: Double, for note: Note) {

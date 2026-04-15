@@ -120,24 +120,6 @@ struct NoteConfigResolveTests {
         #expect(config.resolvePosition() == .fixed)
     }
 
-    @Test("color_scheme: returns note-level value")
-    func resolveColorSchemeFromNote() {
-        let config = NoteConfig(path: "~/a.md", colorScheme: "blue")
-        #expect(config.resolveNoteColorScheme() == .blue)
-    }
-
-    @Test("color_scheme: defaults to yellow when unset")
-    func resolveColorSchemeDefaultsToYellow() {
-        let config = NoteConfig(path: "~/a.md")
-        #expect(config.resolveNoteColorScheme() == .yellow)
-    }
-
-    @Test("color_scheme: falls back to yellow for invalid value")
-    func resolveColorSchemeInvalidFallsBack() {
-        let config = NoteConfig(path: "~/a.md", colorScheme: "invalid_color")
-        #expect(config.resolveNoteColorScheme() == .yellow)
-    }
-
     @Test("transparency: returns note-level value")
     func resolveTransparencyFromNote() {
         let config = NoteConfig(path: "~/a.md", transparency: 0.5)
@@ -150,17 +132,6 @@ struct NoteConfigResolveTests {
         #expect(config.resolveTransparency() == 0.9)
     }
 
-    @Test("fontSize: returns note-level value")
-    func resolveFontSizeFromNote() {
-        let config = NoteConfig(path: "~/a.md", fontSize: 20)
-        #expect(config.resolveFontSize() == 20)
-    }
-
-    @Test("fontSize: defaults to 14 when unset")
-    func resolveFontSizeDefault() {
-        let config = NoteConfig(path: "~/a.md")
-        #expect(config.resolveFontSize() == 14)
-    }
 }
 
 // MARK: - WindowState pinned

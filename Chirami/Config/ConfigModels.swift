@@ -6,25 +6,14 @@ import CryptoKit
 // MARK: - NoteAppearanceResolvable
 
 protocol NoteAppearanceResolvable {
-    var colorScheme: String? { get }
     var transparency: Double? { get }
-    var fontSize: Int? { get }
     var position: String? { get }
     var alwaysOnTop: Bool? { get }
 }
 
 extension NoteAppearanceResolvable {
-    func resolveNoteColorScheme() -> NoteColorScheme {
-        if let c = colorScheme, let scheme = NoteColorScheme(rawValue: c) { return scheme }
-        return .yellow
-    }
-
     func resolveTransparency() -> Double {
         transparency ?? 0.9
-    }
-
-    func resolveFontSize() -> CGFloat {
-        CGFloat(fontSize ?? 14)
     }
 
     func resolvePosition() -> NotePosition {
@@ -52,16 +41,38 @@ enum AppearanceMode: String, Codable {
     }
 }
 
-struct ColorSchemeVariantConfig: Codable {
-    let background: [Double]
-    let text: [Double]
-    let link: [Double]
-    let code: [Double]
-}
+/// Global appearance configuration: display mode and optional CSS file path.
+/// Supports both legacy string format (`appearance: auto`) and object format.
+struct AppearanceConfig: Codable, Equatable {
+    var mode: AppearanceMode = .auto
+    var cssFile: String?
+    var variables: [String: String]?
 
-struct ColorSchemeConfig: Codable {
-    let dark: ColorSchemeVariantConfig
-    let light: ColorSchemeVariantConfig
+    enum CodingKeys: String, CodingKey {
+        case mode
+        case cssFile = "css_file"
+        case variables
+    }
+
+    init(mode: AppearanceMode = .auto, cssFile: String? = nil, variables: [String: String]? = nil) {
+        self.mode = mode
+        self.cssFile = cssFile
+        self.variables = variables
+    }
+
+    init(from decoder: Decoder) throws {
+        // Try the legacy scalar form first (`appearance: auto`) — it's narrow and decodes
+        // unambiguously. Fall back to the keyed object form for the current schema.
+        if let single = try? decoder.singleValueContainer(),
+           let mode = try? single.decode(AppearanceMode.self) {
+            self.mode = mode
+            return
+        }
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        mode = (try? container.decode(AppearanceMode.self, forKey: .mode)) ?? .auto
+        cssFile = try? container.decode(String.self, forKey: .cssFile)
+        variables = try? container.decode([String: String].self, forKey: .variables)
+    }
 }
 
 struct ExcalidrawConfig: Codable {
@@ -69,12 +80,10 @@ struct ExcalidrawConfig: Codable {
 }
 
 struct ChiramiConfig: Codable {
-    var appearance: AppearanceMode?
-    var font: String?
+    var appearance: AppearanceConfig?
     var hotkey: String?
     var launchAtLogin: Bool?
     var showMenuBarIcon: Bool?
-    var colorSchemes: [String: ColorSchemeConfig]?
     var notes: [NoteConfig] = []
     var adhoc: AdhocConfig?
     var karabiner: KarabinerConfig?
@@ -84,8 +93,7 @@ struct ChiramiConfig: Codable {
     var excalidraw: ExcalidrawConfig?
 
     enum CodingKeys: String, CodingKey {
-        case appearance, font, hotkey, notes, adhoc, karabiner, excalidraw
-        case colorSchemes = "color_schemes"
+        case appearance, hotkey, notes, adhoc, karabiner, excalidraw
         case launchAtLogin = "launch_at_login"
         case showMenuBarIcon = "show_menu_bar_icon"
         case smartPaste = "smart_paste"
@@ -177,9 +185,8 @@ enum KarabinerValue: Codable, Equatable {
 struct NoteConfig: Codable, NoteAppearanceResolvable {
     var path: String
     var title: String?
-    var colorScheme: String?
+    var theme: String?
     var transparency: Double?
-    var fontSize: Int?
     var hotkey: String?
     var position: String?
     var alwaysOnTop: Bool?
@@ -205,9 +212,7 @@ struct NoteConfig: Codable, NoteAppearanceResolvable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case path, title, transparency, hotkey, position, template, attachment
-        case colorScheme = "color_scheme"
-        case fontSize = "font_size"
+        case path, title, theme, transparency, hotkey, position, template, attachment
         case alwaysOnTop = "always_on_top"
         case rolloverDelay = "rollover_delay"
     }
@@ -254,17 +259,14 @@ struct AdhocConfig: Codable {
 
 struct AdhocProfile: Codable, NoteAppearanceResolvable {
     var title: String?
-    var colorScheme: String?
+    var theme: String?
     var transparency: Double?
-    var fontSize: Int?
     var position: String?       // "cursor" | nil
     var alwaysOnTop: Bool?
     var hotkey: String?
 
     enum CodingKeys: String, CodingKey {
-        case title, transparency, position, hotkey
-        case colorScheme = "color_scheme"
-        case fontSize = "font_size"
+        case title, theme, transparency, position, hotkey
         case alwaysOnTop = "always_on_top"
     }
 

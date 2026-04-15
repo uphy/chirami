@@ -1,6 +1,5 @@
 import { createEditor, setEditorContent, getEditorContext } from "./editor";
 import { postToSwift, exposeApi } from "./bridge";
-import { applyCSSVariables, applyFont } from "./theme";
 import { debounce } from "./extensions/utils";
 import { applyFoldingFromLines } from "./extensions/foldMarkdown";
 
@@ -31,8 +30,6 @@ exposeApi({
       suppressChangeNotification = false;
     }
   },
-  setTheme: applyCSSVariables,
-  setFont: applyFont,
   focus: () => { view.focus(); },
   setCursorPosition: (offset) => {
     const docLength = view.state.doc.length;

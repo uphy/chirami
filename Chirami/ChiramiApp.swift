@@ -108,7 +108,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applyAppearance() {
-        switch AppConfig.shared.config.appearance ?? .auto {
+        switch AppConfig.shared.config.appearance?.mode ?? .auto {
         case .auto:
             NSApp.appearance = nil
         case .light:

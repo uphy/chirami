@@ -18,6 +18,13 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
     private var isPinned: Bool
     private var isFadingOut: Bool = false
     private var fadeOutToken: Int = 0
+    /// True once the WebView has signalled readiness for display at least once.
+    /// Subsequent `show()` calls fade in immediately.
+    private var hasBecomeReadyOnce: Bool = false
+    /// Set when `show()` runs before the WebView is ready; the fade-in runs when ready fires.
+    private var pendingFadeIn: Bool = false
+    /// Safety timer that forces fade-in if the WebView never signals readiness.
+    private var fadeInTimeoutTask: Task<Void, Never>?
     nonisolated(unsafe) private var warpEventMonitor: Any?
     nonisolated(unsafe) private var fontSizeEventMonitor: Any?
 
@@ -48,7 +55,7 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panel.level = note.alwaysOnTop ? .floating : .normal
         panel.alphaValue = note.transparency
-        panel.backgroundColor = note.colorScheme.nsColor
+        panel.backgroundColor = NoteWindowController.defaultPanelBackground
         panel.isRestorable = false
 
         panel.standardWindowButton(.miniaturizeButton)?.isHidden = true
@@ -60,6 +67,9 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
         panel.delegate = self
         panel.onHideRequest = { [weak self] in
             self?.hide()
+        }
+        contentModel.onWebViewReady = { [weak self] in
+            self?.handleWebViewReady()
         }
 
         if note.periodicInfo != nil {
@@ -89,15 +99,6 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
                 Task { @MainActor [weak self] in
                     self?.applyNoteUpdate(updated)
                 }
-            }
-            .store(in: &cancellables)
-
-        // Monitor global font changes independently from note updates
-        AppConfig.shared.$data
-            .dropFirst()
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] config in
-                self?.contentModel.fontName = config.font
             }
             .store(in: &cancellables)
 
@@ -151,10 +152,22 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
         if let monitor = fontSizeEventMonitor {
             NSEvent.removeMonitor(monitor)
         }
+        fadeInTimeoutTask?.cancel()
     }
 
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError() }
+
+    /// Default panel background color matching the CSS default (yellow theme).
+    /// MUST stay in sync with `--chirami-bg` in `Chirami/Resources/chirami-default.css`.
+    /// Used as the pre-WebView panel color so the window doesn't flash a mismatched
+    /// hue before `fetchAndApplyPanelBackground` reads the computed CSS value.
+    static let defaultPanelBackground: NSColor = NSColor(name: nil) { appearance in
+        let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+        return isDark
+            ? NSColor(red: 77/255, green: 71/255, blue: 38/255, alpha: 1.0)    // --chirami-bg dark
+            : NSColor(red: 255/255, green: 245/255, blue: 184/255, alpha: 1.0) // --chirami-bg light
+    }
 
     // MARK: - Visibility
 
@@ -200,9 +213,44 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
 
         noteStore.setVisible(true, for: note)
 
+        if hasBecomeReadyOnce {
+            performFadeIn()
+        } else {
+            // Defer fade-in until the WebView reports ready so the panel doesn't flash
+            // the default theme colour before the configured theme is applied.
+            pendingFadeIn = true
+            scheduleFadeInTimeout()
+        }
+    }
+
+    private func performFadeIn() {
+        guard let panel = window as? NotePanel else { return }
         NSAnimationContext.runAnimationGroup { context in
             context.duration = 0.2
             panel.animator().alphaValue = note.transparency
+        }
+    }
+
+    private func handleWebViewReady() {
+        hasBecomeReadyOnce = true
+        fadeInTimeoutTask?.cancel()
+        fadeInTimeoutTask = nil
+        if pendingFadeIn {
+            pendingFadeIn = false
+            performFadeIn()
+        }
+    }
+
+    /// Forces fade-in after a grace period so a broken WebView never leaves the window invisible.
+    private func scheduleFadeInTimeout() {
+        fadeInTimeoutTask?.cancel()
+        fadeInTimeoutTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: 3_000_000_000)
+            guard let self, !Task.isCancelled else { return }
+            guard self.pendingFadeIn else { return }
+            self.pendingFadeIn = false
+            self.logger.warning("WebView ready timeout; forcing fade-in")
+            self.performFadeIn()
         }
     }
 
@@ -256,6 +304,11 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
 
         saveEditorState()
 
+        // Cancel any fade-in still waiting on WebView ready
+        pendingFadeIn = false
+        fadeInTimeoutTask?.cancel()
+        fadeInTimeoutTask = nil
+
         isFadingOut = true
         let token = fadeOutToken
         let targetTransparency = note.transparency
@@ -304,15 +357,12 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
 
     private func applyNoteUpdate(_ updated: Note) {
         guard let panel = window as? NotePanel else { return }
-        panel.backgroundColor = updated.colorScheme.nsColor
         // Skip alpha update during fade-out to avoid interrupting animation
         if !isFadingOut {
             panel.alphaValue = updated.transparency
         }
         panel.title = updated.title
         panel.level = updated.alwaysOnTop ? .floating : .normal
-        contentModel.fontSize = updated.fontSize
-        contentModel.colorScheme = updated.colorScheme
         note.position = updated.position
         note.transparency = updated.transparency  // Keep in sync for fade-in target
     }
@@ -544,6 +594,9 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
         }
 
         contentModel = NoteContentModel(note: note)
+        contentModel.onWebViewReady = { [weak self] in
+            self?.handleWebViewReady()
+        }
         let rootView = NoteContentView(model: contentModel, noteId: note.id, onTogglePin: { [weak self] in self?.togglePinAction() })
             .environmentObject(NoteStore.shared)
         if let panel = window as? NotePanel {
@@ -597,7 +650,7 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
     private func applyContentView<V: View>(_ rootView: V, to panel: NotePanel) {
         let hostingView = NSHostingView(rootView: rootView)
         hostingView.wantsLayer = true
-        hostingView.layer?.backgroundColor = note.colorScheme.nsColor.cgColor
+        hostingView.layer?.backgroundColor = NSColor.clear.cgColor
         panel.contentView = hostingView
         debugLogContentViewIfNeeded(panel: panel, hostingView: hostingView)
     }
@@ -621,13 +674,15 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
 @MainActor
 class NoteContentModel: ObservableObject {
     @Published var text: String = ""
-    @Published var fontSize: CGFloat
-    @Published var colorScheme: NoteColorScheme
-    @Published var fontName: String?
+    @Published var fontSize: CGFloat = 14
+    @Published var theme: String?
     nonisolated(unsafe) var savedCursorLocation: Int = 0
     nonisolated(unsafe) var savedScrollOffset: CGPoint = .zero
     var focusWebView: (() -> Void)?
     var getEditorContext: ((@escaping (Result<String, Error>) -> Void) -> Void)?
+    /// Fires once after the WebView is ready and its panel background matches the theme.
+    /// The window controller uses this to defer the initial fade-in and avoid a yellow flash.
+    var onWebViewReady: (() -> Void)?
     /// Resolved file path of the note (used by image widget for relative path resolution).
     var notePath: String?
     /// Folded line numbers to apply on next WebView update (cleared after applying).
@@ -641,9 +696,7 @@ class NoteContentModel: ObservableObject {
 
     init(note: Note) {
         self.note = note
-        self.fontSize = note.fontSize
-        self.colorScheme = note.colorScheme
-        self.fontName = AppConfig.shared.config.font
+        self.theme = note.theme
         self.notePath = note.path.path
         let content = NoteStore.shared.readContent(of: note)
         text = content
@@ -724,13 +777,9 @@ struct NoteContentView: View {
     var onTogglePin: (() -> Void)?
     @EnvironmentObject private var noteStore: NoteStore
 
-    private var note: Note? {
-        noteStore.notes.first(where: { $0.id == noteId })
-    }
-
     var body: some View {
         ZStack {
-            (note?.colorScheme.nsColor ?? NoteColorScheme.yellow.nsColor).swiftUI
+            Color.clear
                 .ignoresSafeArea()
             NoteWebViewRepresentable(model: model)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)

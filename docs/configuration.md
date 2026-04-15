@@ -12,7 +12,12 @@ Chirami uses two files:
 ## Full Example
 
 ```yaml
-appearance: auto
+appearance:
+  mode: auto
+  css_file: ~/.config/chirami/custom.css
+  variables:
+    font-size: 14px
+    font: '"JetBrains Mono", monospace'
 
 launch_at_login: true
 
@@ -31,37 +36,23 @@ karabiner:
   on_unfocus: 0
   cli_path: /Library/Application Support/org.pqrs/Karabiner-Elements/bin/karabiner_cli
 
-color_schemes:
-  monokai:
-    dark:
-      background: [0.149, 0.157, 0.129]
-      text: [0.973, 0.973, 0.949]
-      link: [0.400, 0.851, 0.937]
-      code: [0.663, 0.882, 0.071]
-    light:
-      background: [0.980, 0.976, 0.965]
-      text: [0.149, 0.157, 0.129]
-      link: [0.157, 0.451, 0.702]
-      code: [0.400, 0.553, 0.031]
-
 notes:
   - path: ~/Notes/todo.md
     title: TODO
-    color_scheme: blue
+    theme: blue
     transparency: 0.95
-    font_size: 14
     hotkey: cmd+shift+t
     position: fixed
 
   - path: ~/Notes/daily/{yyyy-MM-dd}.md
     title: Daily
-    color_scheme: green
+    theme: green
     hotkey: cmd+shift+d
     rollover_delay: 2h
     template: ~/Notes/templates/daily.md
 
   - path: ~/Desktop/scratch.md
-    color_scheme: yellow
+    theme: yellow
     hotkey: cmd+shift+s
     position: cursor
 ```
@@ -70,7 +61,7 @@ notes:
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `appearance` | string | `auto` | Appearance mode. `auto` (follow system), `light`, or `dark`. |
+| `appearance` | string or object | `auto` | Appearance configuration. Accepts the legacy string form (`auto` / `light` / `dark`) or an object with `mode`, `css_file`, and `variables`. See [Appearance](#appearance). |
 | `launch_at_login` | bool | `false` | Launch Chirami automatically on macOS login. |
 | `show_menu_bar_icon` | bool | `true` | Show the Chirami icon in the macOS menu bar. Set to `false` to hide it (use global hotkey to access notes). |
 | `hotkey` | string | — | Global hotkey to toggle all note windows. Format: modifier keys + key (e.g. `cmd+shift+n`). |
@@ -78,7 +69,6 @@ notes:
 | `warp_modifier` | string | `ctrl+option` | Modifier key combination for Window Warp (HJKL grid movement). Specify modifiers joined with `+` (e.g. `ctrl+option`, `command+shift`). Allowed tokens: `ctrl`/`control`, `option`/`opt`, `command`/`cmd`, `shift`. |
 | `smart_paste` | object | — | Smart Paste configuration. See [Smart Paste](advanced.md#smart-paste). |
 | `karabiner` | object | — | Karabiner-Elements integration. See [Karabiner](advanced.md#karabiner-elements-integration). |
-| `color_schemes` | object | — | Custom color scheme definitions. See [Custom Color Schemes](#custom-color-schemes). |
 | `notes` | array | `[]` | List of Registered Note configurations. |
 
 ## Note Settings (Registered Notes)
@@ -89,9 +79,8 @@ Each entry in `notes` configures one Registered Note — a sticky note window ma
 |-------|------|---------|----------|-------------|
 | `path` | string | — | yes | File path. Absolute or `~/` relative. Supports `{date-format}` placeholders for periodic notes. |
 | `title` | string | filename | no | Window title shown in the title bar. |
-| `color_scheme` | string | `yellow` | no | Color scheme name. Built-in: `yellow`, `blue`, `green`, `pink`, `purple`, `gray`. Custom color schemes defined in `color_schemes` are also accepted. |
+| `theme` | string | — | no | Theme name, applied to the note via the `data-chirami-theme` attribute. Built-in: `yellow`, `blue`, `green`, `pink`, `purple`, `gray`. Custom themes defined in `appearance.css_file` are also accepted. See [CSS Theming](css-theming.md). |
 | `transparency` | number | `0.9` | no | Window opacity (0.0–1.0). |
-| `font_size` | integer | `14` | no | Font size in points. Range: 8–32. |
 | `hotkey` | string | — | no | Global hotkey to toggle this note (e.g. `cmd+shift+m`). |
 | `position` | string | `fixed` | no | `fixed` (remembers last position) or `cursor` (appears at mouse cursor). |
 | `always_on_top` | boolean | `true` | no | Whether the note window floats above all other windows. |
@@ -106,41 +95,30 @@ Hotkeys are specified as modifier keys joined with `+`, followed by the key:
 - Modifiers: `cmd`, `shift`, `option`/`alt`, `control`/`ctrl`
 - Examples: `cmd+shift+m`, `cmd+option+n`
 
-### Built-in Color Schemes
+## Appearance
 
-Six built-in color schemes are available: `yellow`, `blue`, `green`, `pink`, `purple`, `gray`.
-
-## Custom Color Schemes
-
-Define custom color schemes in the `color_schemes` block. Each color scheme requires `dark` and `light` variants, each with four color channels as RGB arrays (0.0–1.0).
+The `appearance` field configures global display mode and CSS-based theming.
 
 ```yaml
-color_schemes:
-  monokai:
-    dark:
-      background: [0.149, 0.157, 0.129]
-      text: [0.973, 0.973, 0.949]
-      link: [0.400, 0.851, 0.937]
-      code: [0.663, 0.882, 0.071]
-    light:
-      background: [0.980, 0.976, 0.965]
-      text: [0.149, 0.157, 0.129]
-      link: [0.157, 0.451, 0.702]
-      code: [0.400, 0.553, 0.031]
-
-notes:
-  - path: ~/Notes/daily/{yyyy-MM-dd}.md
-    color_scheme: monokai
+appearance:
+  mode: auto                          # auto | light | dark
+  css_file: ~/.config/chirami/custom.css
+  variables:
+    font-size: 14px
+    font: '"JetBrains Mono", monospace'
 ```
 
-| Field | Description |
-|-------|-------------|
-| `background` | Window and editor background color |
-| `text` | Body text color |
-| `link` | Hyperlink color |
-| `code` | Inline code and code block text color |
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `mode` | string | `auto` | Appearance mode: `auto` (follow system), `light`, or `dark`. |
+| `css_file` | string | — | Path to a user CSS file layered on top of the built-in styles. Supports `~/` expansion. |
+| `variables` | object | — | Quick overrides for `--chirami-*` CSS custom properties. Keys without a `--` prefix are treated as `--chirami-<key>`. Injected as inline style on `<html>`, so these win over every stylesheet rule. |
 
-Custom color scheme names can also override built-in ones (e.g. redefining `yellow`). Changes to `color_schemes` in config.yaml take effect immediately without restarting.
+Six built-in themes are available via the per-note `theme` field: `yellow`, `blue`, `green`, `pink`, `purple`, `gray`.
+
+Changes to `appearance.variables`, `appearance.css_file`, and the CSS file it references are hot-reloaded — no restart needed.
+
+See [CSS Theming](css-theming.md) for the full list of `--chirami-*` variables, how to define custom themes, and dark-mode handling.
 
 ## Excalidraw
 

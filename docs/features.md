@@ -36,7 +36,7 @@ Chirami renders Markdown in an Obsidian-style Live Preview: the block containing
 
 **Dragging** — Hold the drag modifier key (default: Cmd) and drag anywhere in the note window to move it. The modifier can be changed with `drag_modifier` in config.yaml.
 
-**Color** — Configured per note in config.yaml (`color_scheme: yellow/blue/green/pink/purple/gray`).
+**Theme** — Configured per note in config.yaml (`theme: yellow/blue/green/pink/purple/gray`). Themes are defined via CSS custom properties — see [CSS Theming](css-theming.md) for customization.
 
 **Transparency** — Configured per note in config.yaml (`transparency: 0.0–1.0`).
 

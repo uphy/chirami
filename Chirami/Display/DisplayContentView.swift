@@ -5,20 +5,16 @@ import AppKit
 struct DisplayContentView: View {
     @ObservedObject var model: DisplayContentModel
     let isReadOnly: Bool
-    let colorScheme: NoteColorScheme
-    let fontSize: CGFloat
-    let fontName: String?
+    let theme: String?
 
     var body: some View {
         ZStack {
-            Color(nsColor: colorScheme.nsColor)
+            Color.clear
                 .ignoresSafeArea()
             DisplayWebViewRepresentable(
                 model: model,
                 isReadOnly: isReadOnly,
-                colorScheme: colorScheme,
-                fontSize: fontSize,
-                fontName: fontName
+                theme: theme
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
@@ -31,9 +27,7 @@ struct DisplayContentView: View {
 private struct DisplayWebViewRepresentable: NSViewRepresentable {
     @ObservedObject var model: DisplayContentModel
     let isReadOnly: Bool
-    let colorScheme: NoteColorScheme
-    let fontSize: CGFloat
-    let fontName: String?
+    let theme: String?
 
     func makeNSView(context: Context) -> NoteWebView {
         let view = NoteWebView(frame: .zero)
@@ -63,7 +57,6 @@ private struct DisplayWebViewRepresentable: NSViewRepresentable {
 
     func updateNSView(_ nsView: NoteWebView, context: Context) {
         nsView.setContent(model.text)
-        nsView.setTheme(colorScheme, isDark: nsView.effectiveAppearance.isDark)
-        nsView.setFont(name: fontName, size: Double(fontSize))
+        nsView.setThemeAttribute(theme)
     }
 }

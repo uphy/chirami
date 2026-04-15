@@ -1,0 +1,165 @@
+/* chirami-default.css — built-in theme definitions for Chirami
+ *
+ * Defines --chirami-* CSS custom properties for light and dark modes.
+ * The default (no theme attribute) is the yellow theme.
+ * Per-note themes are applied via [data-chirami-theme="<name>"].
+ *
+ * Public API variables:
+ *   --chirami-bg         Note background color
+ *   --chirami-text       Body text color
+ *   --chirami-link       Link color
+ *   --chirami-code       Inline code text color
+ *   --chirami-code-bg    Inline code background color
+ *   --chirami-selection  Text selection color
+ *   --chirami-font       Font family
+ *   --chirami-font-size  Font size
+ */
+
+/* Default theme: yellow */
+:root {
+  --chirami-bg: rgb(255, 245, 184);
+  --chirami-text: rgb(115, 97, 26);
+  --chirami-link: rgb(140, 94, 26);
+  --chirami-code: rgb(51, 184, 71);
+  --chirami-code-bg: rgba(0, 0, 0, 0.07);
+  --chirami-selection: rgba(115, 97, 26, 0.15);
+  --chirami-font: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+  --chirami-font-size: 14px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --chirami-bg: rgb(77, 71, 38);
+    --chirami-text: rgb(235, 224, 166);
+    --chirami-link: rgb(242, 204, 115);
+    --chirami-code: rgb(56, 181, 77);
+    --chirami-code-bg: rgba(255, 255, 255, 0.08);
+    --chirami-selection: rgba(235, 224, 166, 0.30);
+  }
+}
+
+/* yellow */
+[data-chirami-theme="yellow"] {
+  --chirami-bg: rgb(255, 245, 184);
+  --chirami-text: rgb(115, 97, 26);
+  --chirami-link: rgb(140, 94, 26);
+  --chirami-code: rgb(51, 184, 71);
+  --chirami-code-bg: rgba(0, 0, 0, 0.07);
+  --chirami-selection: rgba(115, 97, 26, 0.15);
+}
+
+@media (prefers-color-scheme: dark) {
+  [data-chirami-theme="yellow"] {
+    --chirami-bg: rgb(77, 71, 38);
+    --chirami-text: rgb(235, 224, 166);
+    --chirami-link: rgb(242, 204, 115);
+    --chirami-code: rgb(56, 181, 77);
+    --chirami-code-bg: rgba(255, 255, 255, 0.08);
+    --chirami-selection: rgba(235, 224, 166, 0.30);
+  }
+}
+
+/* blue */
+[data-chirami-theme="blue"] {
+  --chirami-bg: rgb(184, 224, 255);
+  --chirami-text: rgb(31, 64, 115);
+  --chirami-link: rgb(33, 56, 140);
+  --chirami-code: rgb(26, 115, 204);
+  --chirami-code-bg: rgba(0, 0, 0, 0.07);
+  --chirami-selection: rgba(31, 64, 115, 0.15);
+}
+
+@media (prefers-color-scheme: dark) {
+  [data-chirami-theme="blue"] {
+    --chirami-bg: rgb(38, 56, 77);
+    --chirami-text: rgb(179, 209, 242);
+    --chirami-link: rgb(153, 204, 255);
+    --chirami-code: rgb(77, 191, 242);
+    --chirami-code-bg: rgba(255, 255, 255, 0.08);
+    --chirami-selection: rgba(179, 209, 242, 0.30);
+  }
+}
+
+/* green */
+[data-chirami-theme="green"] {
+  --chirami-bg: rgb(194, 245, 194);
+  --chirami-text: rgb(38, 89, 38);
+  --chirami-link: rgb(20, 89, 79);
+  --chirami-code: rgb(26, 133, 64);
+  --chirami-code-bg: rgba(0, 0, 0, 0.07);
+  --chirami-selection: rgba(38, 89, 38, 0.15);
+}
+
+@media (prefers-color-scheme: dark) {
+  [data-chirami-theme="green"] {
+    --chirami-bg: rgb(38, 71, 38);
+    --chirami-text: rgb(179, 235, 179);
+    --chirami-link: rgb(115, 217, 194);
+    --chirami-code: rgb(89, 224, 140);
+    --chirami-code-bg: rgba(255, 255, 255, 0.08);
+    --chirami-selection: rgba(179, 235, 179, 0.30);
+  }
+}
+
+/* pink */
+[data-chirami-theme="pink"] {
+  --chirami-bg: rgb(255, 194, 214);
+  --chirami-text: rgb(128, 38, 56);
+  --chirami-link: rgb(153, 38, 74);
+  --chirami-code: rgb(204, 38, 89);
+  --chirami-code-bg: rgba(0, 0, 0, 0.07);
+  --chirami-selection: rgba(128, 38, 56, 0.15);
+}
+
+@media (prefers-color-scheme: dark) {
+  [data-chirami-theme="pink"] {
+    --chirami-bg: rgb(77, 46, 56);
+    --chirami-text: rgb(242, 184, 199);
+    --chirami-link: rgb(255, 153, 176);
+    --chirami-code: rgb(250, 140, 179);
+    --chirami-code-bg: rgba(255, 255, 255, 0.08);
+    --chirami-selection: rgba(242, 184, 199, 0.30);
+  }
+}
+
+/* purple */
+[data-chirami-theme="purple"] {
+  --chirami-bg: rgb(224, 194, 255);
+  --chirami-text: rgb(77, 38, 115);
+  --chirami-link: rgb(94, 38, 140);
+  --chirami-code: rgb(115, 38, 191);
+  --chirami-code-bg: rgba(0, 0, 0, 0.07);
+  --chirami-selection: rgba(77, 38, 115, 0.15);
+}
+
+@media (prefers-color-scheme: dark) {
+  [data-chirami-theme="purple"] {
+    --chirami-bg: rgb(56, 46, 77);
+    --chirami-text: rgb(217, 191, 242);
+    --chirami-link: rgb(199, 163, 255);
+    --chirami-code: rgb(184, 140, 250);
+    --chirami-code-bg: rgba(255, 255, 255, 0.08);
+    --chirami-selection: rgba(217, 191, 242, 0.30);
+  }
+}
+
+/* gray */
+[data-chirami-theme="gray"] {
+  --chirami-bg: rgb(224, 224, 224);
+  --chirami-text: rgb(64, 64, 64);
+  --chirami-link: rgb(56, 66, 89);
+  --chirami-code: rgb(51, 102, 140);
+  --chirami-code-bg: rgba(0, 0, 0, 0.07);
+  --chirami-selection: rgba(64, 64, 64, 0.15);
+}
+
+@media (prefers-color-scheme: dark) {
+  [data-chirami-theme="gray"] {
+    --chirami-bg: rgb(64, 64, 64);
+    --chirami-text: rgb(209, 209, 209);
+    --chirami-link: rgb(171, 186, 209);
+    --chirami-code: rgb(140, 191, 217);
+    --chirami-code-bg: rgba(255, 255, 255, 0.08);
+    --chirami-selection: rgba(209, 209, 209, 0.30);
+  }
+}

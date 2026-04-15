@@ -1,15 +1,7 @@
 @import '../node_modules/@excalidraw/excalidraw/dist/prod/index.css';
 
-:root {
-  --chirami-bg: transparent;
-  --chirami-text: #222;
-  --chirami-link: #2e538f;
-  --chirami-code: #6b3d1c;
-  --chirami-code-bg: rgba(0, 0, 0, 0.07);
-  --chirami-selection: rgba(34, 34, 34, 0.15);
-  --chirami-font: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
-  --chirami-font-size: 14px;
-}
+/* --chirami-* variables are defined in chirami-default.css (injected by Swift via WKUserScript).
+   This file only contains structural styles that reference those variables. */
 
 html, body, #editor {
   margin: 0;

@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import WebKit
 import SwiftUI
 import os
@@ -18,10 +19,17 @@ final class NoteWebView: NSView {
     // Fold lines are applied after content to avoid being wiped by setContent.
     private var pendingFoldLines: [Int]?
 
-    private var currentColorScheme: NoteColorScheme = .yellow
-    private var currentIsDark: Bool = false
-    private var currentFontName: String?
     private var currentFontSize: Double = 14
+    private var appliedTheme: String?
+    private var hasAppliedTheme: Bool = false
+
+    // Appearance hot-reload state
+    private var cancellables = Set<AnyCancellable>()
+    private var appliedAppearance: AppearanceConfig?
+    private var appliedVariables: [String: String] = [:]
+    private var appliedUserCSSContent: String?
+    private var userCSSWatcher: FileWatcher?
+    private var watchedUserCSSPath: String?
 
     private var initialCursorOffset: Int = 0
     private var initialScrollOffset: Double = 0
@@ -33,6 +41,11 @@ final class NoteWebView: NSView {
     var onFontSizeChange: ((Int) -> Void)?
     var onPasteImage: ((String) -> Void)?  // dataUrl
     var onFoldChanged: (([Int]) -> Void)?  // 1-based line numbers
+    /// Fires once after the editor is ready and the NSPanel background has been synced
+    /// to the theme's `--chirami-bg`. Lets the window controller defer fade-in until the
+    /// final theme colour is in place, avoiding a default-yellow flash at startup.
+    var onReadyForDisplay: (() -> Void)?
+    private var didNotifyReadyForDisplay: Bool = false
 
     /// True while an overlay (e.g. Excalidraw) is open in the WebView.
     private(set) var overlayVisible: Bool = false
@@ -48,14 +61,45 @@ final class NoteWebView: NSView {
         let userContentController = WKUserContentController()
         config.userContentController = userContentController
 
+        // Inject the built-in CSS at document start (loaded once, reused across all webviews).
+        if let script = NoteWebView.defaultCSSScript {
+            userContentController.addUserScript(script)
+        }
+
+        // Load user CSS file if configured in appearance.cssFile
+        let initialUserCSSContent = NoteWebView.readUserCSS(
+            path: AppConfig.shared.config.appearance?.cssFile
+        )
+        if let userCSSContent = initialUserCSSContent,
+           let script = NoteWebView.makeStyleScript(from: userCSSContent, id: NoteWebView.userCSSElementID) {
+            userContentController.addUserScript(script)
+        }
+
+        // Apply appearance.variables as inline style on <html>.
+        // Inline style has the highest specificity so it wins over any stylesheet rule
+        // (including theme selectors), while Cmd+/- runtime font-size overrides still take
+        // effect because they write to the same inline style slot after this script runs.
+        let initialVariables = NoteWebView.resolvedVariables(
+            AppConfig.shared.config.appearance?.variables ?? [:]
+        )
+        if !initialVariables.isEmpty {
+            if let script = NoteWebView.makeVariablesScript(initialVariables) {
+                userContentController.addUserScript(script)
+            }
+        }
+
         self.webView = FirstMouseWKWebView(frame: .zero, configuration: config)
-        // Suppress the WKWebView background so the SwiftUI background shows through
+        // Suppress the WKWebView background so the native panel background shows through
         self.webView.setValue(false, forKey: "drawsBackground")
         self.webView.underPageBackgroundColor = .clear
         self.bridge = NoteWebViewBridge()
         userContentController.add(bridge, name: "chirami")
 
         super.init(frame: frameRect)
+
+        self.appliedAppearance = AppConfig.shared.config.appearance
+        self.appliedUserCSSContent = initialUserCSSContent
+        self.appliedVariables = initialVariables
 
         wantsLayer = true
         layer?.backgroundColor = NSColor.clear.cgColor
@@ -112,6 +156,20 @@ final class NoteWebView: NSView {
             webView.bottomAnchor.constraint(equalTo: bottomAnchor)
         ])
 
+        startWatchingUserCSS(path: AppConfig.shared.config.appearance?.cssFile)
+
+        // Hot-reload appearance.css_file and appearance.variables on config changes.
+        // removeDuplicates avoids re-applying when unrelated config fields change.
+        AppConfig.shared.$data
+            .map(\.appearance)
+            .removeDuplicates()
+            .dropFirst()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] appearance in
+                self?.applyAppearanceChanges(appearance)
+            }
+            .store(in: &cancellables)
+
         loadEditor()
     }
 
@@ -143,11 +201,11 @@ final class NoteWebView: NSView {
     }
 
     func setNotePath(_ path: String) {
-        enqueueOrEval("window.chirami.setNotePath(\(jsonString(path)));")
+        enqueueOrEval("window.chirami.setNotePath(\(Self.jsonString(path)));")
     }
 
     func insertText(_ text: String) {
-        enqueueOrEval("window.chirami.insertText(\(jsonString(text)));")
+        enqueueOrEval("window.chirami.insertText(\(Self.jsonString(text)));")
     }
 
     func applyFolding(lines: [Int]) {
@@ -161,20 +219,25 @@ final class NoteWebView: NSView {
         webView.evaluateJavaScript("window.chirami.applyFolding([\(linesJSON)]);", completionHandler: nil)
     }
 
-    func setTheme(_ colorScheme: NoteColorScheme, isDark: Bool) {
-        guard colorScheme != currentColorScheme || isDark != currentIsDark else { return }
-        currentColorScheme = colorScheme
-        currentIsDark = isDark
-        let cssVars = ColorSchemeCSSConverter.cssVariables(for: colorScheme, isDark: isDark)
-        enqueueOrEval("window.chirami.setTheme(\(jsonString(cssVars)));")
+    /// Updates the --chirami-font-size CSS variable directly on the html element.
+    func setFontSize(_ size: Double) {
+        guard size != currentFontSize else { return }
+        currentFontSize = size
+        enqueueOrEval("document.documentElement.style.setProperty('--chirami-font-size', '\(size)px');")
     }
 
-    func setFont(name: String?, size: Double) {
-        guard name != currentFontName || size != currentFontSize else { return }
-        currentFontName = name
-        currentFontSize = size
-        let family = FontCSSConverter.cssFontFamily(from: name)
-        enqueueOrEval("window.chirami.setFont(\(jsonString(family)), \(size));")
+    /// Injects data-chirami-theme attribute on <html> for per-note theme selection.
+    /// nil removes the attribute so CSS :root defaults apply.
+    func setThemeAttribute(_ theme: String?) {
+        guard !hasAppliedTheme || theme != appliedTheme else { return }
+        appliedTheme = theme
+        hasAppliedTheme = true
+        if let theme {
+            enqueueOrEval("document.documentElement.setAttribute('data-chirami-theme', \(Self.jsonString(theme)));")
+        } else {
+            enqueueOrEval("document.documentElement.removeAttribute('data-chirami-theme');")
+        }
+        if isReady { fetchAndApplyPanelBackground() }
     }
 
     func setInitialState(cursor: Int, scroll: Double) {
@@ -214,11 +277,6 @@ final class NoteWebView: NSView {
         }
     }
 
-    override func viewDidChangeEffectiveAppearance() {
-        super.viewDidChangeEffectiveAppearance()
-        setTheme(currentColorScheme, isDark: effectiveAppearance.isDark)
-    }
-
     private func enqueueOrEval(_ script: String) {
         if !isReady {
             pendingScripts.append(script)
@@ -229,7 +287,7 @@ final class NoteWebView: NSView {
 
     private func handleReady() {
         isReady = true
-        // Apply theme/font/notePath before content so ImagePlugin resolves paths correctly
+        // Apply theme attribute / font size / notePath before content so ImagePlugin resolves paths correctly
         for script in pendingScripts {
             webView.evaluateJavaScript(script, completionHandler: nil)
         }
@@ -245,6 +303,31 @@ final class NoteWebView: NSView {
             webView.evaluateJavaScript("window.chirami.applyFolding([\(linesJSON)]);", completionHandler: nil)
         }
         applyInitialState()
+        fetchAndApplyPanelBackground()
+    }
+
+    /// Reads the computed --chirami-bg value from CSS and applies it to the containing NSPanel.
+    /// This keeps the native title bar colour in sync with the WebView background theme.
+    /// Also fires `onReadyForDisplay` the first time it completes so the window controller can
+    /// safely fade in knowing both the WebView and the NSPanel background reflect the theme.
+    private func fetchAndApplyPanelBackground() {
+        let js = "getComputedStyle(document.documentElement).getPropertyValue('\(Self.bgVariable)').trim()"
+        webView.evaluateJavaScript(js) { [weak self] result, _ in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                if let colorStr = result as? String, !colorStr.isEmpty {
+                    if let color = NSColor(cssRGB: colorStr) {
+                        self.window?.backgroundColor = color
+                    } else {
+                        self.logger.warning("Could not parse \(Self.bgVariable, privacy: .public) value: \(colorStr, privacy: .public)")
+                    }
+                }
+                if !self.didNotifyReadyForDisplay {
+                    self.didNotifyReadyForDisplay = true
+                    self.onReadyForDisplay?()
+                }
+            }
+        }
     }
 
     private func applyInitialState() {
@@ -253,7 +336,7 @@ final class NoteWebView: NSView {
     }
 
     private func evalSetContent(_ text: String) {
-        let escaped = jsonString(text)
+        let escaped = Self.jsonString(text)
         lastSetContent = text
         webView.evaluateJavaScript("window.chirami.setContent(\(escaped));") { [weak self] _, error in
             if let error {
@@ -270,19 +353,174 @@ final class NoteWebView: NSView {
     }
 
     private func sendPluginState(pluginId: String) {
-        let stateArg = pluginStateJSON(for: pluginId).map { jsonString($0) } ?? "null"
+        let stateArg = pluginStateJSON(for: pluginId).map { Self.jsonString($0) } ?? "null"
         webView.evaluateJavaScript(
-            "window.__chiramiPluginReady(\(jsonString(pluginId)), \(stateArg));",
+            "window.__chiramiPluginReady(\(Self.jsonString(pluginId)), \(stateArg));",
             completionHandler: nil
         )
     }
 
-    private func jsonString(_ text: String) -> String {
+    // MARK: - Static helpers
+
+    private static let staticLogger = Logger(subsystem: "io.github.uphy.Chirami", category: "NoteWebView")
+
+    /// CSS custom property tracked by the Swift layer for NSPanel background sync.
+    fileprivate static let bgVariable = "--chirami-bg"
+
+    /// Font-size variable is owned by `setFontSize` (Cmd+/- runtime control);
+    /// `applyVariablesDiff` must not overwrite it.
+    private static let fontSizeVariable = "--chirami-font-size"
+
+    /// DOM id assigned to the injected user CSS `<style>` element so it can be diffed on hot-reload.
+    fileprivate static let userCSSElementID = "chirami-user-css"
+
+    /// Built-in theme CSS loaded once from the bundle and reused by every webview.
+    private static let defaultCSSScript: WKUserScript? = {
+        guard let cssURL = Bundle.module.url(forResource: "chirami-default", withExtension: "css"),
+              let css = try? String(contentsOf: cssURL, encoding: .utf8) else {
+            staticLogger.error("chirami-default.css not found in bundle")
+            return nil
+        }
+        return makeStyleScript(from: css)
+    }()
+
+    /// Encodes a Swift string as a JSON string literal suitable for embedding in a JS expression.
+    fileprivate static func jsonString(_ text: String) -> String {
         guard let data = try? JSONEncoder().encode(text),
               let json = String(data: data, encoding: .utf8) else {
             return "\"\""
         }
         return json
+    }
+
+    /// Expands a `~/`-prefixed path to an absolute file URL.
+    private static func expandedURL(from path: String) -> URL {
+        URL(fileURLWithPath: (path as NSString).expandingTildeInPath)
+    }
+
+    /// Reads the user CSS file referenced by `appearance.css_file`, logging a warning if missing.
+    private static func readUserCSS(path: String?) -> String? {
+        guard let path else { return nil }
+        let url = expandedURL(from: path)
+        if let content = try? String(contentsOf: url, encoding: .utf8) {
+            return content
+        }
+        staticLogger.warning("cssFile not found or unreadable: \(url.path, privacy: .public)")
+        return nil
+    }
+
+    /// Resolves variable keys to full CSS custom property names (prepends `--chirami-` when missing).
+    private static func resolvedVariables(_ dict: [String: String]) -> [String: String] {
+        var result: [String: String] = [:]
+        for (k, v) in dict {
+            let key = k.hasPrefix("--") ? k : "--chirami-\(k)"
+            result[key] = v
+        }
+        return result
+    }
+
+    /// Creates a WKUserScript that injects the given CSS content as a <style> element at document start.
+    /// When `id` is non-nil, the element receives that id so it can be located and replaced later.
+    private static func makeStyleScript(from cssContent: String, id: String? = nil) -> WKUserScript? {
+        let idLine = id.map { "s.id = \(jsonString($0));" } ?? ""
+        let js = """
+        (function() {
+          var s = document.createElement('style');
+          \(idLine)
+          s.textContent = \(jsonString(cssContent));
+          (document.head || document.documentElement).appendChild(s);
+        })();
+        """
+        return WKUserScript(source: js, injectionTime: .atDocumentStart, forMainFrameOnly: true)
+    }
+
+    /// Creates a WKUserScript that sets CSS custom properties as inline style on <html>.
+    /// Keys must already be fully resolved (e.g. `--chirami-bg`).
+    private static func makeVariablesScript(_ resolved: [String: String]) -> WKUserScript? {
+        guard !resolved.isEmpty else { return nil }
+        let statements = resolved.map { key, value in
+            "document.documentElement.style.setProperty(\(jsonString(key)), \(jsonString(value)));"
+        }
+        let js = """
+        (function() {
+          \(statements.joined(separator: "\n  "))
+        })();
+        """
+        return WKUserScript(source: js, injectionTime: .atDocumentStart, forMainFrameOnly: true)
+    }
+
+    // MARK: - Appearance Hot-Reload
+
+    private func applyAppearanceChanges(_ appearance: AppearanceConfig?) {
+        let newPath = appearance?.cssFile
+        startWatchingUserCSS(path: newPath)
+        applyUserCSSChange(path: newPath)
+
+        let newVars = NoteWebView.resolvedVariables(appearance?.variables ?? [:])
+        applyVariablesDiff(new: newVars)
+        appliedAppearance = appearance
+    }
+
+    private func applyVariablesDiff(new: [String: String]) {
+        guard new != appliedVariables else { return }
+        var bgAffected = false
+        let old = appliedVariables
+        // Removed keys
+        for key in old.keys where new[key] == nil {
+            // Skip font-size: `setFontSize` owns this slot at runtime.
+            guard key != Self.fontSizeVariable else { continue }
+            enqueueOrEval("document.documentElement.style.removeProperty(\(Self.jsonString(key)));")
+            if key == Self.bgVariable { bgAffected = true }
+        }
+        // Added or changed keys
+        for (key, value) in new where old[key] != value {
+            guard key != Self.fontSizeVariable else { continue }
+            enqueueOrEval("document.documentElement.style.setProperty(\(Self.jsonString(key)), \(Self.jsonString(value)));")
+            if key == Self.bgVariable { bgAffected = true }
+        }
+        appliedVariables = new
+        if bgAffected && isReady { fetchAndApplyPanelBackground() }
+    }
+
+    private func applyUserCSSChange(path: String?) {
+        let newContent = NoteWebView.readUserCSS(path: path)
+        guard newContent != appliedUserCSSContent else { return }
+
+        let idJSON = Self.jsonString(NoteWebView.userCSSElementID)
+        let removeJS = "{var el=document.getElementById(\(idJSON));if(el)el.remove();}"
+        if let content = newContent {
+            let js = """
+            (function() {
+              \(removeJS)
+              var s = document.createElement('style');
+              s.id = \(idJSON);
+              s.textContent = \(Self.jsonString(content));
+              (document.head || document.documentElement).appendChild(s);
+            })();
+            """
+            enqueueOrEval(js)
+        } else {
+            enqueueOrEval("(function(){\(removeJS)})();")
+        }
+
+        appliedUserCSSContent = newContent
+
+        // Theme rules in user CSS may affect --chirami-bg; resync the panel background.
+        if isReady { fetchAndApplyPanelBackground() }
+    }
+
+    private func startWatchingUserCSS(path: String?) {
+        guard path != watchedUserCSSPath else { return }
+        watchedUserCSSPath = path
+        userCSSWatcher = nil
+        guard let path else { return }
+        let url = NoteWebView.expandedURL(from: path)
+        userCSSWatcher = FileWatcher(url: url) { [weak self] in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.applyUserCSSChange(path: AppConfig.shared.config.appearance?.cssFile)
+            }
+        }
     }
 }
 
@@ -327,6 +565,9 @@ struct NoteWebViewRepresentable: NSViewRepresentable {
         view.onFoldChanged = { [model] lines in
             model.updateFoldingState(lines: lines)
         }
+        view.onReadyForDisplay = { [model] in
+            model.onWebViewReady?()
+        }
         model.focusWebView = { [weak view] in
             view?.focus()
         }
@@ -347,8 +588,8 @@ struct NoteWebViewRepresentable: NSViewRepresentable {
 
     func updateNSView(_ nsView: NoteWebView, context: Context) {
         nsView.setContent(model.text)
-        nsView.setTheme(model.colorScheme, isDark: nsView.effectiveAppearance.isDark)
-        nsView.setFont(name: model.fontName, size: Double(model.fontSize))
+        nsView.setFontSize(Double(model.fontSize))
+        nsView.setThemeAttribute(model.theme)
         if let notePath = model.notePath {
             nsView.setNotePath(notePath)
         }
@@ -356,5 +597,29 @@ struct NoteWebViewRepresentable: NSViewRepresentable {
             nsView.applyFolding(lines: foldedLines)
             model.pendingFoldedLines = nil
         }
+    }
+}
+
+// MARK: - NSColor CSS helpers
+
+private extension NSColor {
+    /// Parses a CSS `rgb(R, G, B)` or `rgba(R, G, B, A)` string into an NSColor.
+    convenience init?(cssRGB string: String) {
+        let s = string.trimmingCharacters(in: .whitespaces)
+        let inner: String
+        if s.hasPrefix("rgba(") && s.hasSuffix(")") {
+            inner = String(s.dropFirst(5).dropLast())
+        } else if s.hasPrefix("rgb(") && s.hasSuffix(")") {
+            inner = String(s.dropFirst(4).dropLast())
+        } else {
+            return nil
+        }
+        let parts = inner.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
+        guard parts.count >= 3,
+              let r = Double(parts[0]),
+              let g = Double(parts[1]),
+              let b = Double(parts[2]) else { return nil }
+        let a = parts.count >= 4 ? (Double(parts[3]) ?? 1.0) : 1.0
+        self.init(red: r / 255, green: g / 255, blue: b / 255, alpha: a)
     }
 }
