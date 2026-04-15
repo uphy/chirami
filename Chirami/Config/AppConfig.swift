@@ -68,11 +68,11 @@ class AppConfig: YAMLStore<ChiramiConfig> {
     private static let welcomeContent = """
     # Welcome to Chirami
 
-    A quick reference for Chirami.
+    A quick reference for Chirami. Full docs → [uphy.github.io/chirami](https://uphy.github.io/chirami/)
 
     ## Basic Usage
 
-    - **Move**: Drag the title bar to reposition it (hold `Cmd` to drag from anywhere)
+    - **Move**: Hold `Cmd` and drag anywhere in the note window
     - **Menu bar**: Manage notes from the menu bar icon
     - **Add notes**: Edit `config.yaml` via Menu → "Edit Config"
 
@@ -83,14 +83,14 @@ class AppConfig: YAMLStore<ChiramiConfig> {
     You can also assign a keyboard shortcut to each note via the `hotkey` field in `config.yaml`.
     In this demo, **Quick Memo** is set to `Cmd+Shift+M` — try pressing it!
 
-    ## Markdown
+    ## Editor
 
     **bold** / *italic* / `code`
 
     - [ ] Unchecked task
     - [x] Checked task
 
-    [Chirami GitHub](https://github.com/uphy/chirami)
+    Type `/` at the start of a line to insert Mermaid diagrams, Excalidraw drawings, tables, and more.
 
     ## Config File
 
