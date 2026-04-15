@@ -136,6 +136,16 @@ html, body {
   user-select: none;
 }
 
+/* Checkbox gutter wrapper: same principle as BulletWidget — inline-block with
+   a fixed em width so the widget occupies exactly the gutter, aligning wrapped
+   lines with text. Width is set inline per nesting level. */
+.cm-checkbox-gutter {
+  display: inline-block;
+  text-indent: 0;
+  line-height: inherit;
+  user-select: none;
+}
+
 /* List items: BulletWidget provides the bullet gutter.
    padding-left sets where continuation (wrapped) lines start.
    text-indent: -gutter pulls the first visual line left by the gutter width,
@@ -221,7 +231,6 @@ html, body {
   vertical-align: middle;
   margin: 0 3px 1px 0;
   position: relative;
-  flex-shrink: 0;
 }
 
 .cm-editor input[type="checkbox"]:checked {

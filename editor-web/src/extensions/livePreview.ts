@@ -29,9 +29,17 @@ const LINK_MARK_NODES = new Set(["LinkMark", "URL"]);
 
 const HIDDEN_DECORATION = Decoration.replace({ inclusive: false });
 
-// Replaces the full task-item prefix ("  - [ ] " or "  - [x] ") with a native
-// checkbox input. innerPos points to the character inside the brackets so the
-// click handler can toggle it in-document.
+const LIST_MARK_RE   = /^[-*+]/;
+const TASK_MARK_RE   = /^ \[([ xX])\] ?/;
+const BQ_PREFIX_RE   = /^(>\s?)+/;
+const GUTTER_EM      = 1.0;
+// Task items use a wider gutter so the checkbox widget (13px + 3px margin ≈ 16px)
+// plus a small gap fits inside, keeping wrapped lines aligned with text.
+const TASK_GUTTER_EM = 1.4;
+
+// Using an inline-block span (same as BulletWidget) ensures the widget occupies
+// exactly TASK_GUTTER_EM regardless of the checkbox's pixel size, so wrapped
+// lines align with text start.
 class CheckboxWidget extends WidgetType {
   constructor(
     private checked: boolean,
@@ -45,23 +53,38 @@ class CheckboxWidget extends WidgetType {
   }
 
   toDOM(view: EditorView): HTMLElement {
+    const span = document.createElement("span");
+    span.className = "cm-checkbox-gutter";
+    span.style.width = `${TASK_GUTTER_EM}em`;
+
     const input = document.createElement("input");
     input.type = "checkbox";
     input.checked = this.checked;
     input.tabIndex = -1;
-    input.addEventListener("mousedown", (e) => e.preventDefault());
-    input.addEventListener("click", (e) => {
-      e.stopPropagation();
+    span.appendChild(input);
+
+    // Dispatch on mousedown rather than click: when clicking an unfocused window
+    // with the cursor already in the task prefix, focus acquisition triggers a
+    // decoration rebuild that detaches this element before `click` can fire.
+    // Firing on mousedown ensures the dispatch reaches the view while the DOM
+    // element is still live. preventDefault keeps the cursor from moving into
+    // the prefix and keeps CodeMirror from handling the event (ignoreEvent=true
+    // suppresses CM's own cursor-placement logic for this widget entirely).
+    span.addEventListener("mousedown", (e) => {
+      e.preventDefault();
       const nextChar = this.checked ? " " : "x";
       view.dispatch({
         changes: { from: this.innerPos, to: this.innerPos + 1, insert: nextChar },
       });
     });
-    return input;
+
+    return span;
   }
 
   ignoreEvent(): boolean {
-    return false;
+    // Let the widget own its events entirely; CodeMirror should not place the
+    // cursor or perform any other handling when the gutter span is clicked.
+    return true;
   }
 }
 
@@ -274,39 +297,46 @@ class LivePreviewPlugin {
 
           if (node.name === "ListItem") {
             const itemLine = view.state.doc.lineAt(node.from);
-            // node.from points to the actual list marker in the document, which may be
-            // after a blockquote prefix ("> "). Slice from node.from so the regex works
-            // correctly regardless of whether the item is inside a blockquote.
+            // node.from points to the list marker character ('-', '*', '+').
+            // Any leading indent spaces come before node.from on the same line.
             const nodeOffset = node.from - itemLine.from;
-            const textFromNode = itemLine.text.slice(nodeOffset);
-            const match = /^([ \t]*)([-*+])/.exec(textFromNode);
+            const lineText = itemLine.text;
+            const textFromNode = lineText.slice(nodeOffset);
+            const match = LIST_MARK_RE.exec(textFromNode);
             if (!match) return;
 
-            const afterMark = textFromNode.slice(match[0].length);
-            const taskMatch = /^ \[([ xX])\] ?/.exec(afterMark);
+            const afterMark = textFromNode.slice(1);
+            const taskMatch = TASK_MARK_RE.exec(afterMark);
 
             const onCursorLine = itemLine.number === cursorLine;
             const tabSize = view.state.tabSize;
+
+            // Compute depth from indent spaces before node.from, excluding any
+            // blockquote prefix (">" + optional space) at the start of the line.
+            const charsBeforeMarker = lineText.slice(0, nodeOffset);
+            const bqPrefixMatch = BQ_PREFIX_RE.exec(charsBeforeMarker);
+            const bqPrefixLen = bqPrefixMatch ? bqPrefixMatch[0].length : 0;
+            const indentText = charsBeforeMarker.slice(bqPrefixLen);
             let depth = 0;
-            for (const c of match[1]) depth += c === "\t" ? tabSize : 1;
-            const gutterEm = 1.0;
-            const totalEm  = depth * 0.5 + gutterEm;
+            for (const c of indentText) depth += c === "\t" ? tabSize : 1;
+
+            const effectiveGutterEm = taskMatch ? TASK_GUTTER_EM : GUTTER_EM;
+            const totalEm = depth * 0.5 + effectiveGutterEm;
 
             // Use node.from (not itemLine.from) as the base so positions are correct
             // both inside and outside blockquotes.
             let prefixTo: number;
             if (taskMatch) {
-              prefixTo = node.from + match[0].length + taskMatch[0].length;
+              prefixTo = node.from + 1 + taskMatch[0].length;
             } else {
-              const markCharEnd = node.from + match[0].length;
-              const trailingChar = textFromNode[match[0].length] ?? "";
-              prefixTo = (trailingChar === " " || trailingChar === "\t") ? markCharEnd + 1 : markCharEnd;
+              const trailingChar = textFromNode[1] ?? "";
+              prefixTo = (trailingChar === " " || trailingChar === "\t") ? node.from + 2 : node.from + 1;
             }
 
             // Cursor lines: --list-gutter = totalEm so the raw prefix starts at 0em
-            // (predictable tab stops). Other positions: gutterEm so rendered text aligns normally.
+            // (predictable tab stops). Other positions: effectiveGutterEm so rendered text aligns normally.
             const cursorInPrefix = onCursorLine && cursorPos >= itemLine.from && cursorPos < prefixTo;
-            const cssGutter = cursorInPrefix ? totalEm : gutterEm;
+            const cssGutter = cursorInPrefix ? totalEm : effectiveGutterEm;
             decorations.push(
               Decoration.line({
                 class: "cm-list-item",
@@ -315,24 +345,27 @@ class LivePreviewPlugin {
             );
 
             if (!cursorInPrefix) {
+              // Hide indent spaces before the marker (after any blockquote prefix).
+              // This keeps the bullet/checkbox widget visually at the correct indent
+              // while padding-left controls the wrap-line alignment.
+              const indentStartPos = itemLine.from + bqPrefixLen;
+              if (indentStartPos < node.from) {
+                decorations.push(HIDDEN_DECORATION.range(indentStartPos, node.from));
+              }
+
               if (taskMatch) {
                 const checked = taskMatch[1] !== " ";
                 if (checked) {
                   decorations.push(Decoration.line({ class: "cm-task-checked" }).range(itemLine.from));
                 }
-                // Replace prefix (whitespace + "- " + "[ ]") with a checkbox widget.
-                // Exclude the trailing space from the widget range so it stays visible.
-                const innerPos = node.from + match[0].length + 2; // skip ' [' to reach checkbox char
-                const widgetEnd = taskMatch[0].endsWith(" ") ? prefixTo - 1 : prefixTo;
+                const innerPos = node.from + 3; // skip '-', ' ', '[' to reach checkbox char
                 decorations.push(
                   Decoration.replace({ widget: new CheckboxWidget(checked, innerPos) })
-                    .range(node.from, widgetEnd)
+                    .range(node.from, prefixTo)
                 );
               } else {
-                // Replace the full prefix (whitespace + mark char + trailing space)
-                // with a BulletWidget of width gutterEm.
                 decorations.push(
-                  Decoration.replace({ widget: new BulletWidget(gutterEm) })
+                  Decoration.replace({ widget: new BulletWidget(GUTTER_EM) })
                     .range(node.from, prefixTo)
                 );
               }
