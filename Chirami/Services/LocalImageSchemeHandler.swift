@@ -38,7 +38,7 @@ final class LocalImageSchemeHandler: NSObject, WKURLSchemeHandler {
 
     func webView(_ webView: WKWebView, stop urlSchemeTask: WKURLSchemeTask) {}
 
-    private static func loadImageData(at path: String) throws -> Data {
+    nonisolated private static func loadImageData(at path: String) throws -> Data {
         let fileURL = URL(fileURLWithPath: path)
         let didStart = fileURL.startAccessingSecurityScopedResource()
         defer {
@@ -47,7 +47,7 @@ final class LocalImageSchemeHandler: NSObject, WKURLSchemeHandler {
         return try Data(contentsOf: fileURL)
     }
 
-    private static func mimeType(for path: String) -> String {
+    nonisolated private static func mimeType(for path: String) -> String {
         let ext = (path as NSString).pathExtension
         if let type = UTType(filenameExtension: ext)?.preferredMIMEType {
             return type
