@@ -79,6 +79,82 @@ struct ExcalidrawConfig: Codable {
     var libraries: [String]?
 }
 
+struct TranscriptDeviceConfig: Codable, Equatable {
+    var mic: String
+    var system: String
+
+    enum CodingKeys: String, CodingKey {
+        case mic
+        case system
+    }
+
+    init(mic: String = "default", system: String = "auto") {
+        self.mic = mic
+        self.system = system
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        mic = try container.decodeIfPresent(String.self, forKey: .mic) ?? "default"
+        system = try container.decodeIfPresent(String.self, forKey: .system) ?? "auto"
+    }
+}
+
+struct TranscriptLabelConfig: Codable, Equatable {
+    var mic: String
+    var system: String
+
+    enum CodingKeys: String, CodingKey {
+        case mic
+        case system
+    }
+
+    init(mic: String = "You", system: String = "Others") {
+        self.mic = mic
+        self.system = system
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        mic = try container.decodeIfPresent(String.self, forKey: .mic) ?? "You"
+        system = try container.decodeIfPresent(String.self, forKey: .system) ?? "Others"
+    }
+}
+
+struct TranscriptConfig: Codable, Equatable {
+    var model: String
+    var language: String
+    var devices: TranscriptDeviceConfig
+    var labels: TranscriptLabelConfig
+
+    enum CodingKeys: String, CodingKey {
+        case model
+        case language
+        case devices
+        case labels
+    }
+
+    init(
+        model: String = "openai_whisper-large-v3_turbo",
+        language: String = "auto",
+        devices: TranscriptDeviceConfig = TranscriptDeviceConfig(),
+        labels: TranscriptLabelConfig = TranscriptLabelConfig()
+    ) {
+        self.model = model
+        self.language = language
+        self.devices = devices
+        self.labels = labels
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        model = try container.decodeIfPresent(String.self, forKey: .model) ?? "openai_whisper-large-v3_turbo"
+        language = try container.decodeIfPresent(String.self, forKey: .language) ?? "auto"
+        devices = try container.decodeIfPresent(TranscriptDeviceConfig.self, forKey: .devices) ?? TranscriptDeviceConfig()
+        labels = try container.decodeIfPresent(TranscriptLabelConfig.self, forKey: .labels) ?? TranscriptLabelConfig()
+    }
+}
+
 struct ChiramiConfig: Codable {
     var appearance: AppearanceConfig?
     var hotkey: String?
@@ -91,9 +167,10 @@ struct ChiramiConfig: Codable {
     var dragModifier: String?
     var warpModifier: String?
     var excalidraw: ExcalidrawConfig?
+    var transcript: TranscriptConfig?
 
     enum CodingKeys: String, CodingKey {
-        case appearance, hotkey, notes, adhoc, karabiner, excalidraw
+        case appearance, hotkey, notes, adhoc, karabiner, excalidraw, transcript
         case launchAtLogin = "launch_at_login"
         case showMenuBarIcon = "show_menu_bar_icon"
         case smartPaste = "smart_paste"
@@ -129,6 +206,12 @@ extension ChiramiConfig {
         }
         // Fall back to ctrl+option if no valid modifiers were parsed
         return flags.isEmpty ? [.control, .option] : flags
+    }
+}
+
+extension ChiramiConfig {
+    var resolvedTranscript: TranscriptConfig {
+        transcript ?? TranscriptConfig()
     }
 }
 #endif
@@ -289,10 +372,14 @@ struct ChiramiState: Codable {
     var windows: [String: WindowState] = [:]
     var bookmarks: [String: String] = [:]  // noteId -> Base64 bookmark data
     var foldingStates: [String: FoldingState] = [:]  // resolved file path -> FoldingState
+    var lastMic: String?
+    var lastSystemSource: String?
 
     enum CodingKeys: String, CodingKey {
         case windows, bookmarks
         case foldingStates = "folding_states"
+        case lastMic = "last_mic"
+        case lastSystemSource = "last_system_source"
     }
 }
 

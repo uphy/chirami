@@ -41,6 +41,13 @@ final class NoteWebView: NSView {
     var onFontSizeChange: ((Int) -> Void)?
     var onPasteImage: ((String) -> Void)?  // dataUrl
     var onFoldChanged: (([Int]) -> Void)?  // 1-based line numbers
+    var onTranscriptRecordStart: ((TranscriptRecordStartMessage) -> Void)?
+    var onTranscriptRecordPause: ((TranscriptBlockRange) -> Void)?
+    var onTranscriptRecordResume: ((TranscriptBlockRange) -> Void)?
+    var onTranscriptRecordStop: ((TranscriptBlockRange) -> Void)?
+    var onTranscriptRecordClear: ((TranscriptBlockRange) -> Void)?
+    var onTranscriptDevicesRequest: ((TranscriptDevicesRequestMessage) -> Void)?
+    var onTranscriptDeviceSelect: ((TranscriptDeviceSelectionMessage) -> Void)?
     /// Fires once after the editor is ready and the NSPanel background has been synced
     /// to the theme's `--chirami-bg`. Lets the window controller defer fade-in until the
     /// final theme colour is in place, avoiding a default-yellow flash at startup.
@@ -146,6 +153,13 @@ final class NoteWebView: NSView {
         bridge.onPluginStateChanged = { pluginId, stateJson in
             PluginStateStore.shared.save(pluginId: pluginId, json: stateJson)
         }
+        bridge.onTranscriptRecordStart = { [weak self] message in self?.onTranscriptRecordStart?(message) }
+        bridge.onTranscriptRecordPause = { [weak self] range in self?.onTranscriptRecordPause?(range) }
+        bridge.onTranscriptRecordResume = { [weak self] range in self?.onTranscriptRecordResume?(range) }
+        bridge.onTranscriptRecordStop = { [weak self] range in self?.onTranscriptRecordStop?(range) }
+        bridge.onTranscriptRecordClear = { [weak self] range in self?.onTranscriptRecordClear?(range) }
+        bridge.onTranscriptDevicesRequest = { [weak self] request in self?.onTranscriptDevicesRequest?(request) }
+        bridge.onTranscriptDeviceSelect = { [weak self] selection in self?.onTranscriptDeviceSelect?(selection) }
 
         webView.translatesAutoresizingMaskIntoConstraints = false
         addSubview(webView)
@@ -206,6 +220,41 @@ final class NoteWebView: NSView {
 
     func insertText(_ text: String) {
         enqueueOrEval("window.chirami.insertText(\(Self.jsonString(text)));")
+    }
+
+    func transcriptChunk(_ chunk: TranscriptChunkMessage) {
+        logger.debug(
+            "transcriptChunk toJS source=\(chunk.source.rawValue, privacy: .public) timestamp=\(chunk.timestamp) chars=\(chunk.text.count)"
+        )
+        evaluateTranscriptMethod("transcriptChunk", payload: chunk)
+    }
+
+    func transcriptPreviewUpdate(_ preview: TranscriptPreviewMessage) {
+        evaluateTranscriptMethod("transcriptPreviewUpdate", payload: preview)
+    }
+
+    func transcriptStateChanged(_ state: TranscriptStateMessage) {
+        evaluateTranscriptMethod("transcriptStateChanged", payload: state)
+    }
+
+    func transcriptLevelUpdate(_ update: TranscriptLevelUpdateMessage) {
+        evaluateTranscriptMethod("transcriptLevelUpdate", payload: update)
+    }
+
+    func transcriptDevicesList(_ message: TranscriptDevicesListMessage) {
+        let selectedValue = message.selectedValue ?? ""
+        logger.info(
+            "transcriptDevicesList toJS source=\(message.source.rawValue, privacy: .public) selected=\(selectedValue, privacy: .public) count=\(message.devices.count)"
+        )
+        evaluateTranscriptMethod("transcriptDevicesList", payload: message)
+    }
+
+    func transcriptModelDownloadProgress(_ message: TranscriptModelDownloadProgressMessage) {
+        evaluateTranscriptMethod("transcriptModelDownloadProgress", payload: message)
+    }
+
+    func transcriptError(_ message: TranscriptErrorMessage) {
+        evaluateTranscriptMethod("transcriptError", payload: message)
     }
 
     func applyFolding(lines: [Int]) {
@@ -341,6 +390,27 @@ final class NoteWebView: NSView {
         webView.evaluateJavaScript("window.chirami.setContent(\(escaped));") { [weak self] _, error in
             if let error {
                 self?.logger.error("setContent failed: \(error.localizedDescription, privacy: .public)")
+            }
+        }
+    }
+
+    private func evaluateTranscriptMethod<T: Encodable>(_ method: String, payload: T) {
+        guard let data = try? JSONEncoder().encode(payload),
+              let json = String(data: data, encoding: .utf8) else {
+            logger.error("Failed to encode transcript payload for \(method, privacy: .public)")
+            return
+        }
+        let script = "window.chirami.\(method)(\(json));"
+        if !isReady {
+            pendingScripts.append(script)
+            logger.debug("queued transcript JS call \(method, privacy: .public)")
+            return
+        }
+        webView.evaluateJavaScript(script) { [weak self] _, error in
+            if let error {
+                self?.logger.error("transcript JS call \(method, privacy: .public) failed: \(error.localizedDescription, privacy: .public)")
+            } else {
+                self?.logger.debug("transcript JS call \(method, privacy: .public) succeeded")
             }
         }
     }
@@ -564,6 +634,48 @@ struct NoteWebViewRepresentable: NSViewRepresentable {
         }
         view.onFoldChanged = { [model] lines in
             model.updateFoldingState(lines: lines)
+        }
+        view.onTranscriptRecordStart = { [model] message in
+            model.onTranscriptRecordStart?(message)
+        }
+        view.onTranscriptRecordPause = { [model] range in
+            model.onTranscriptRecordPause?(range)
+        }
+        view.onTranscriptRecordResume = { [model] range in
+            model.onTranscriptRecordResume?(range)
+        }
+        view.onTranscriptRecordStop = { [model] range in
+            model.onTranscriptRecordStop?(range)
+        }
+        view.onTranscriptRecordClear = { [model] range in
+            model.onTranscriptRecordClear?(range)
+        }
+        view.onTranscriptDevicesRequest = { [model] request in
+            model.onTranscriptDevicesRequest?(request)
+        }
+        view.onTranscriptDeviceSelect = { [model] selection in
+            model.onTranscriptDeviceSelect?(selection)
+        }
+        model.transcriptSendChunk = { [weak view] chunk in
+            view?.transcriptChunk(chunk)
+        }
+        model.transcriptSendPreview = { [weak view] preview in
+            view?.transcriptPreviewUpdate(preview)
+        }
+        model.transcriptSendState = { [weak view] state in
+            view?.transcriptStateChanged(state)
+        }
+        model.transcriptSendLevel = { [weak view] update in
+            view?.transcriptLevelUpdate(update)
+        }
+        model.transcriptSendDevicesList = { [weak view] message in
+            view?.transcriptDevicesList(message)
+        }
+        model.transcriptSendModelDownloadProgress = { [weak view] message in
+            view?.transcriptModelDownloadProgress(message)
+        }
+        model.transcriptSendError = { [weak view] message in
+            view?.transcriptError(message)
         }
         view.onReadyForDisplay = { [model] in
             model.onWebViewReady?()

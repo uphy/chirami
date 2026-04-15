@@ -108,6 +108,28 @@ Live Preview is implemented with WKWebView + CodeMirror 6.
 - ユーザーが Excalidraw 内で保存したライブラリアイテムは `~/.local/state/chirami/plugins/excalidraw.json` に永続化（`PluginStateStore` 経由）
 - 外部ライブラリ（`.excalidrawlib` ファイル）は `config.yaml` の `excalidraw.libraries` で指定する。version 1 / version 2 両形式に対応
 
+### Transcript Block
+
+` ```transcript ` コードブロックで会議の書き起こしを埋め込める。ブロック外ではウィジェット表示、ブロック内では生の Markdown を編集する。
+
+- 出力は `[MM:SS] You: ...` / `[MM:SS] Others: ...` 形式の plain Markdown
+- `config.yaml` の `transcript:` セクションで `model`, `language`, `devices.mic`, `devices.system`, `labels.mic`, `labels.system` を指定できる
+- 既定モデルは `openai_whisper-large-v3_turbo`
+- 初回記録時に WhisperKit モデルを `~/.local/state/chirami/models/whisper/` へダウンロードする（既定モデルは約 800 MB）
+- macOS 14.2 以上が必要
+
+```yaml
+transcript:
+  model: openai_whisper-large-v3_turbo
+  language: auto
+  devices:
+    mic: default
+    system: auto
+  labels:
+    mic: You
+    system: Others
+```
+
 ```yaml
 # config.yaml
 excalidraw:

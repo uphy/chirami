@@ -65,6 +65,7 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
 
         super.init(window: panel)
         panel.delegate = self
+        configureTranscriptCallbacks()
         panel.onHideRequest = { [weak self] in
             self?.hide()
         }
@@ -594,6 +595,7 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
         }
 
         contentModel = NoteContentModel(note: note)
+        configureTranscriptCallbacks()
         contentModel.onWebViewReady = { [weak self] in
             self?.handleWebViewReady()
         }
@@ -666,6 +668,318 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
             }
         }
     }
+
+    private func configureTranscriptCallbacks() {
+        contentModel.onTranscriptDeviceSelect = { [weak self] selection in
+            guard let self else { return }
+            switch selection.source {
+            case .mic:
+                AppState.shared.updateTranscriptDeviceCache(lastMic: selection.value, lastSystemSource: nil)
+            case .system:
+                AppState.shared.updateTranscriptDeviceCache(lastMic: nil, lastSystemSource: selection.value)
+            }
+            self.logger.info("transcriptDeviceSelect source=\(selection.source.rawValue, privacy: .public) value=\(selection.value, privacy: .public)")
+            self.sendTranscriptDevicesList(
+                for: TranscriptDevicesRequestMessage(
+                    range: selection.range,
+                    source: selection.source
+                )
+            )
+        }
+        contentModel.onTranscriptRecordStart = { [weak self] message in
+            guard let self else { return }
+            self.logger.info("transcriptRecordStart blockFrom=\(message.range.blockFrom) blockTo=\(message.range.blockTo)")
+            let session = self.makeTranscriptSession(for: message)
+            Task {
+                await TranscriptSessionRegistry.shared.start(session)
+            }
+        }
+        contentModel.onTranscriptRecordPause = { [weak self] range in
+            self?.logger.info("transcriptRecordPause blockFrom=\(range.blockFrom) blockTo=\(range.blockTo)")
+            Task {
+                await TranscriptSessionRegistry.shared.pause(range: range)
+            }
+        }
+        contentModel.onTranscriptRecordResume = { [weak self] range in
+            self?.logger.info("transcriptRecordResume blockFrom=\(range.blockFrom) blockTo=\(range.blockTo)")
+            Task {
+                await TranscriptSessionRegistry.shared.resume(range: range)
+            }
+        }
+        contentModel.onTranscriptRecordStop = { [weak self] range in
+            self?.logger.info("transcriptRecordStop blockFrom=\(range.blockFrom) blockTo=\(range.blockTo)")
+            Task {
+                await TranscriptSessionRegistry.shared.stop(range: range)
+            }
+        }
+        contentModel.onTranscriptRecordClear = { [weak self] range in
+            self?.logger.info("transcriptRecordClear blockFrom=\(range.blockFrom) blockTo=\(range.blockTo)")
+            Task {
+                await TranscriptSessionRegistry.shared.clear(range: range)
+            }
+        }
+        contentModel.onTranscriptDevicesRequest = { [weak self] request in
+            guard let self else { return }
+            self.logger.debug("transcriptDevicesRequest source=\(request.source.rawValue, privacy: .public) blockFrom=\(request.range.blockFrom)")
+            self.sendTranscriptDevicesList(for: request)
+        }
+    }
+
+    private func makeTranscriptSession(for message: TranscriptRecordStartMessage) -> TranscriptSession {
+        let transcriptConfig = AppConfig.shared.transcriptConfig
+        let availableMicDevices = AudioDeviceEnumerator.audioInputDevices()
+        let defaultMicDevice = AudioDeviceEnumerator.defaultAudioInputDevice()
+        let resolvedMicDevice = TranscriptDeviceResolver.resolveMicSelection(
+            blockSelection: message.micDevice,
+            configuredValue: transcriptConfig.devices.mic,
+            availableDevices: availableMicDevices,
+            defaultDevice: defaultMicDevice
+        )
+        let availableSystemProcesses = AudioProcessEnumerator.runningOutputProcesses()
+        let resolvedSystem = TranscriptDeviceResolver.resolveSystemSelection(
+            blockSelection: message.systemDevice,
+            configuredValue: transcriptConfig.devices.system,
+            availableProcesses: availableSystemProcesses,
+            frontmostBundleID: NSWorkspace.shared.frontmostApplication?.bundleIdentifier
+        )
+        let resolvedPIDs = resolvedSystem.processes.map(\.pid).description
+        logger.info(
+            "transcript device resolution mic.requested=\(message.micDevice.value, privacy: .public) mic.resolved=\(resolvedMicDevice.value, privacy: .public) system.requested=\(message.systemDevice.value, privacy: .public) system.resolved=\(resolvedSystem.selection.value, privacy: .public) resolvedPIDs=\(resolvedPIDs, privacy: .public)"
+        )
+        let callbacks = TranscriptSessionCallbacks()
+        callbacks.sendChunk = { [weak self] chunk in
+            self?.contentModel.transcriptSendChunk?(chunk)
+        }
+        callbacks.sendPreview = { [weak self] preview in
+            self?.contentModel.transcriptSendPreview?(preview)
+        }
+        callbacks.sendState = { [weak self] state in
+            self?.contentModel.transcriptSendState?(state)
+        }
+        callbacks.sendLevel = { [weak self] update in
+            self?.contentModel.transcriptSendLevel?(update)
+        }
+        callbacks.sendModelDownloadProgress = { [weak self] progress in
+            self?.contentModel.transcriptSendModelDownloadProgress?(progress)
+        }
+        callbacks.sendError = { [weak self] error in
+            self?.contentModel.transcriptSendError?(error)
+        }
+
+        let context = TranscriptSessionContext(
+            range: message.range,
+            modelLabel: transcriptModelLabel(),
+            micDeviceLabel: resolvedMicDevice.label,
+            systemDeviceLabel: resolvedSystem.selection.label
+        )
+
+        let transcriptionEngine = makeTranscriptionEngine()
+        let transcriptionEngineFactory = makeTranscriptionEngineFactory()
+
+        return TranscriptSession(
+            context: context,
+            callbacks: callbacks,
+            transcriptionEngine: transcriptionEngine,
+            transcriptionEngineFactory: transcriptionEngineFactory,
+            systemProcesses: resolvedSystem.processes
+        )
+    }
+
+    private struct ConfiguredTranscriptModel: Sendable {
+        let identifier: String
+        let label: String
+        let language: String?
+    }
+
+    private func configuredTranscriptModel() -> ConfiguredTranscriptModel? {
+        let transcriptConfig = AppConfig.shared.transcriptConfig
+        let identifier = transcriptConfig.model.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !identifier.isEmpty else {
+            return nil
+        }
+
+        let label: String
+        if identifier.hasPrefix("/") {
+            label = URL(fileURLWithPath: identifier).lastPathComponent
+        } else {
+            label = identifier
+        }
+
+        return ConfiguredTranscriptModel(
+            identifier: identifier,
+            label: label,
+            language: transcriptConfig.language
+        )
+    }
+
+    private func transcriptModelLabel() -> String {
+        configuredTranscriptModel()?.label ?? "openai_whisper-large-v3_turbo"
+    }
+
+    private func makeTranscriptionEngine() -> TranscriptionEngine? {
+        guard let model = configuredTranscriptModel() else {
+            return nil
+        }
+
+        let modelStore = WhisperModelStore.shared
+        guard modelStore.modelExists(for: model.identifier) else {
+            logger.info("transcript engine unavailable until model exists locally: \(model.identifier, privacy: .public)")
+            return nil
+        }
+
+        let modelFolder = modelStore.resolvedModelURL(for: model.identifier)
+        return WhisperKitEngine(
+            modelFolder: modelFolder,
+            language: model.language
+        )
+    }
+
+    private func makeTranscriptionEngineFactory() -> TranscriptTranscriptionEngineFactory? {
+        guard let model = configuredTranscriptModel() else {
+            return nil
+        }
+
+        guard !WhisperModelStore.shared.modelExists(for: model.identifier) else {
+            return nil
+        }
+
+        return { [logger] progress in
+            logger.info("transcript model download start: \(model.identifier, privacy: .public)")
+            let modelFolder = try await WhisperModelStore.shared.downloadModel(id: model.identifier) {
+                receivedBytes,
+                totalBytes,
+                fractionCompleted in
+                progress(receivedBytes, totalBytes, fractionCompleted)
+            }
+            logger.info("transcript model download finished: \(model.identifier, privacy: .public)")
+            return WhisperKitEngine(
+                modelFolder: modelFolder,
+                language: model.language
+            )
+        }
+    }
+
+    private func sendTranscriptDevicesList(for request: TranscriptDevicesRequestMessage) {
+        let selectedValue = resolvedTranscriptDeviceSelection(for: request.source)
+        let devices: [TranscriptDeviceOptionMessage]
+
+        switch request.source {
+        case .mic:
+            devices = micDeviceOptions(selectedValue: selectedValue)
+        case .system:
+            devices = systemDeviceOptions(selectedValue: selectedValue)
+        }
+
+        let message = TranscriptDevicesListMessage(
+            range: request.range,
+            source: request.source,
+            devices: devices,
+            selectedValue: selectedValue
+        )
+        logger.info(
+            "transcriptDevicesList source=\(request.source.rawValue, privacy: .public) selected=\(selectedValue, privacy: .public) count=\(devices.count)"
+        )
+        contentModel.transcriptSendDevicesList?(message)
+    }
+
+    private func resolvedTranscriptDeviceSelection(for source: TranscriptSource) -> String {
+        let transcriptConfig = AppConfig.shared.transcriptConfig
+        let candidate: String?
+
+        switch source {
+        case .mic:
+            candidate = AppState.shared.state.lastMic ?? transcriptConfig.devices.mic
+        case .system:
+            candidate = AppState.shared.state.lastSystemSource ?? transcriptConfig.devices.system
+        }
+
+        let trimmed = candidate?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if !trimmed.isEmpty {
+            return trimmed
+        }
+        return source == .mic ? "default" : "auto"
+    }
+
+    private func micDeviceOptions(selectedValue: String) -> [TranscriptDeviceOptionMessage] {
+        let inputDevices = AudioDeviceEnumerator.audioInputDevices()
+            .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        let defaultDevice = AudioDeviceEnumerator.defaultAudioInputDevice()
+        let deviceValues = Set(inputDevices.map(\.uniqueID))
+        var options: [TranscriptDeviceOptionMessage] = []
+
+        if selectedValue != "default" && !deviceValues.contains(selectedValue) {
+            options.append(
+                TranscriptDeviceOptionMessage(
+                    value: selectedValue,
+                    label: selectedValue,
+                    detail: "Unavailable",
+                    active: true
+                )
+            )
+        }
+
+        options.append(
+            TranscriptDeviceOptionMessage(
+                value: "default",
+                label: "Default",
+                detail: defaultDevice?.name ?? "System default",
+                active: selectedValue == "default"
+            )
+        )
+
+        options.append(contentsOf: inputDevices.map { device in
+            TranscriptDeviceOptionMessage(
+                value: device.uniqueID,
+                label: device.name,
+                detail: device.uniqueID == defaultDevice?.uniqueID ? "System default" : nil,
+                active: device.uniqueID == selectedValue
+            )
+        })
+
+        return options
+    }
+
+    private func systemDeviceOptions(selectedValue: String) -> [TranscriptDeviceOptionMessage] {
+        let processes = AudioProcessEnumerator.runningOutputProcesses()
+            .sorted { $0.displayLabel.localizedCaseInsensitiveCompare($1.displayLabel) == .orderedAscending }
+        let processValues = Set(processes.map(\.transcriptValue))
+        var options: [TranscriptDeviceOptionMessage] = [
+            TranscriptDeviceOptionMessage(
+                value: "auto",
+                label: "Auto",
+                detail: "Choose the loudest active process",
+                active: selectedValue == "auto"
+            ),
+            TranscriptDeviceOptionMessage(
+                value: "off",
+                label: "Off",
+                detail: "Do not capture system audio",
+                active: selectedValue == "off"
+            )
+        ]
+
+        if selectedValue != "auto" && selectedValue != "off" && !processValues.contains(selectedValue) {
+            options.append(
+                TranscriptDeviceOptionMessage(
+                    value: selectedValue,
+                    label: selectedValue,
+                    detail: "Unavailable",
+                    active: true
+                )
+            )
+        }
+
+        options.append(contentsOf: processes.map { process in
+            TranscriptDeviceOptionMessage(
+                value: process.transcriptValue,
+                label: process.displayLabel,
+                detail: process.transcriptDetail,
+                active: process.transcriptValue == selectedValue
+            )
+        })
+
+        return options
+    }
 }
 
 // MARK: - NoteContentModel
@@ -687,6 +1001,20 @@ class NoteContentModel: ObservableObject {
     var notePath: String?
     /// Folded line numbers to apply on next WebView update (cleared after applying).
     var pendingFoldedLines: [Int]?
+    var transcriptSendChunk: ((TranscriptChunkMessage) -> Void)?
+    var transcriptSendPreview: ((TranscriptPreviewMessage) -> Void)?
+    var transcriptSendState: ((TranscriptStateMessage) -> Void)?
+    var transcriptSendLevel: ((TranscriptLevelUpdateMessage) -> Void)?
+    var transcriptSendDevicesList: ((TranscriptDevicesListMessage) -> Void)?
+    var transcriptSendModelDownloadProgress: ((TranscriptModelDownloadProgressMessage) -> Void)?
+    var transcriptSendError: ((TranscriptErrorMessage) -> Void)?
+    var onTranscriptRecordStart: ((TranscriptRecordStartMessage) -> Void)?
+    var onTranscriptRecordPause: ((TranscriptBlockRange) -> Void)?
+    var onTranscriptRecordResume: ((TranscriptBlockRange) -> Void)?
+    var onTranscriptRecordStop: ((TranscriptBlockRange) -> Void)?
+    var onTranscriptRecordClear: ((TranscriptBlockRange) -> Void)?
+    var onTranscriptDevicesRequest: ((TranscriptDevicesRequestMessage) -> Void)?
+    var onTranscriptDeviceSelect: ((TranscriptDeviceSelectionMessage) -> Void)?
     private let note: Note
     private let imagePasteService = ImagePasteService()
     private let logger = Logger(subsystem: "io.github.uphy.Chirami", category: "NoteContentModel")

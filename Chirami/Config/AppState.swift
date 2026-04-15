@@ -57,6 +57,17 @@ class AppState: YAMLStore<ChiramiState> {
         }
     }
 
+    func updateTranscriptDeviceCache(lastMic: String?, lastSystemSource: String?) {
+        update { state in
+            if let lastMic {
+                state.lastMic = lastMic
+            }
+            if let lastSystemSource {
+                state.lastSystemSource = lastSystemSource
+            }
+        }
+    }
+
     // MARK: - Folding State
 
     func foldingState(for notePath: String) -> FoldingState {

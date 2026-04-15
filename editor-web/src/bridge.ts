@@ -1,4 +1,76 @@
 // Swift -> JS API and JS -> Swift message types
+export interface TranscriptBlockRange {
+  blockFrom: number;
+  blockTo: number;
+}
+
+export type TranscriptSource = "mic" | "system";
+export type TranscriptStatus = "Idle" | "Recording" | "Paused" | "Processing" | "Completed" | "Error";
+
+export interface TranscriptDeviceOption {
+  value: string;
+  label: string;
+  detail?: string;
+  active?: boolean;
+}
+
+export interface TranscriptDeviceSnapshot {
+  value: string;
+  label: string;
+}
+
+export interface TranscriptDownloadProgress {
+  fractionCompleted: number;
+  receivedBytes: number;
+  totalBytes: number;
+}
+
+export interface TranscriptChunkPayload {
+  range: TranscriptBlockRange;
+  source: TranscriptSource;
+  timestamp: number;
+  text: string;
+}
+
+export interface TranscriptPreviewPayload {
+  range: TranscriptBlockRange;
+  source: TranscriptSource;
+  timestamp: number;
+  text: string;
+}
+
+export interface TranscriptStatePayload {
+  range: TranscriptBlockRange;
+  status: TranscriptStatus;
+  modelLabel: string;
+  micDeviceLabel: string;
+  systemDeviceLabel: string;
+}
+
+export interface TranscriptLevelPayload {
+  range: TranscriptBlockRange;
+  source: TranscriptSource;
+  level: number;
+}
+
+export interface TranscriptDevicesListPayload {
+  range: TranscriptBlockRange;
+  source: TranscriptSource;
+  devices: TranscriptDeviceOption[];
+  selectedValue?: string;
+}
+
+export interface TranscriptModelDownloadProgressPayload {
+  range: TranscriptBlockRange;
+  modelLabel: string;
+  progress: TranscriptDownloadProgress;
+}
+
+export interface TranscriptErrorPayload {
+  range: TranscriptBlockRange;
+  message: string;
+}
+
 type SwiftToJsApi = {
   setContent: (text: string) => void;
   setTheme: (cssVars: string) => void;
@@ -10,6 +82,14 @@ type SwiftToJsApi = {
   setNotePath: (path: string) => void;
   applyFolding: (lines: number[]) => void;
   getEditorContext: () => string;
+  transcriptClearBlock: (range: TranscriptBlockRange) => void;
+  transcriptChunk: (payload: TranscriptChunkPayload) => void;
+  transcriptPreviewUpdate: (payload: TranscriptPreviewPayload) => void;
+  transcriptStateChanged: (payload: TranscriptStatePayload) => void;
+  transcriptLevelUpdate: (payload: TranscriptLevelPayload) => void;
+  transcriptDevicesList: (payload: TranscriptDevicesListPayload) => void;
+  transcriptModelDownloadProgress: (payload: TranscriptModelDownloadProgressPayload) => void;
+  transcriptError: (payload: TranscriptErrorPayload) => void;
 };
 
 type JsToSwiftMessage =
@@ -25,7 +105,14 @@ type JsToSwiftMessage =
   | { type: "log"; level: "debug" | "info" | "warn" | "error"; message: string }
   | { type: "overlayVisible"; visible: boolean }
   | { type: "pluginStateRequest"; pluginId: string }
-  | { type: "pluginStateChanged"; pluginId: string; stateJson: string };
+  | { type: "pluginStateChanged"; pluginId: string; stateJson: string }
+  | { type: "transcriptRecordStart"; range: TranscriptBlockRange; micDevice: TranscriptDeviceSnapshot; systemDevice: TranscriptDeviceSnapshot }
+  | { type: "transcriptRecordPause"; range: TranscriptBlockRange }
+  | { type: "transcriptRecordResume"; range: TranscriptBlockRange }
+  | { type: "transcriptRecordStop"; range: TranscriptBlockRange }
+  | { type: "transcriptRecordClear"; range: TranscriptBlockRange }
+  | { type: "transcriptDevicesRequest"; range: TranscriptBlockRange; source: TranscriptSource }
+  | { type: "transcriptDeviceSelect"; range: TranscriptBlockRange; source: TranscriptSource; value: string; label: string };
 
 declare global {
   interface Window {

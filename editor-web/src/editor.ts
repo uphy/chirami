@@ -13,6 +13,7 @@ import { tableExtension } from "./extensions/table";
 import { mermaidExtension } from "./extensions/mermaid";
 import { imageExtension } from "./extensions/image";
 import { excalidrawExtension } from "./extensions/excalidraw";
+import { transcriptExtension } from "./extensions/transcript";
 import { detailsExtension } from "./extensions/details";
 import {
   markdownHeadingFold,
@@ -38,7 +39,7 @@ const markdownStyle = HighlightStyle.define([
 ]);
 
 export type EditorCallbacks = {
-  onContentChanged: (text: string) => void;
+  onContentChanged: (text: string, immediate: boolean) => void;
   onCursorChanged: (offset: number, line: number) => void;
   onScrollChanged: (offset: number) => void;
 };
@@ -46,7 +47,11 @@ export type EditorCallbacks = {
 export function createEditor(parent: HTMLElement, callbacks: EditorCallbacks): EditorView {
   const updateListener = EditorView.updateListener.of((update: ViewUpdate) => {
     if (update.docChanged) {
-      callbacks.onContentChanged(update.state.doc.toString());
+      const immediate = update.transactions.some((transaction) => {
+        const event = transaction.annotation(Transaction.userEvent);
+        return event === "input.transcript";
+      });
+      callbacks.onContentChanged(update.state.doc.toString(), immediate);
     }
     if (update.selectionSet) {
       const head = update.state.selection.main.head;
@@ -127,6 +132,7 @@ export function createEditor(parent: HTMLElement, callbacks: EditorCallbacks): E
       mermaidExtension,
       imageExtension,
       excalidrawExtension,
+      transcriptExtension,
       detailsExtension,
       slashCommandExtension,
       smartPaste,

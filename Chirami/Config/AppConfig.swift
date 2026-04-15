@@ -6,6 +6,7 @@ class AppConfig: YAMLStore<ChiramiConfig> {
 
     private let logger = Logger(subsystem: "io.github.uphy.Chirami", category: "AppConfig")
     var config: ChiramiConfig { data }
+    var transcriptConfig: TranscriptConfig { config.resolvedTranscript }
 
     private init() {
         let configDir = FileManager.realHomeDirectory
@@ -60,6 +61,16 @@ class AppConfig: YAMLStore<ChiramiConfig> {
       - path: ~/.config/chirami/sample-notes/daily/{yyyy-MM-dd}.md
         title: Daily Note
         template: ~/.config/chirami/sample-notes/daily/template.md
+
+    transcript:
+      model: openai_whisper-large-v3_turbo
+      language: auto
+      devices:
+        mic: default
+        system: auto
+      labels:
+        mic: You
+        system: Others
     """
 
     private static let welcomeContent = """
@@ -87,7 +98,7 @@ class AppConfig: YAMLStore<ChiramiConfig> {
     - [ ] Unchecked task
     - [x] Checked task
 
-    Type `/` at the start of a line to insert Mermaid diagrams, Excalidraw drawings, tables, and more.
+    Type `/` at the start of a line to insert Mermaid diagrams, Excalidraw drawings, transcript blocks, tables, and more.
 
     ## Config File
 

@@ -20,6 +20,29 @@ final class NoteWebViewBridge: NSObject, WKScriptMessageHandler {
     var onOverlayVisibleChanged: ((Bool) -> Void)?
     var onPluginStateRequest: ((_ pluginId: String) -> Void)?
     var onPluginStateChanged: ((_ pluginId: String, _ stateJson: String) -> Void)?
+    var onTranscriptRecordStart: ((TranscriptRecordStartMessage) -> Void)?
+    var onTranscriptRecordPause: ((TranscriptBlockRange) -> Void)?
+    var onTranscriptRecordResume: ((TranscriptBlockRange) -> Void)?
+    var onTranscriptRecordStop: ((TranscriptBlockRange) -> Void)?
+    var onTranscriptRecordClear: ((TranscriptBlockRange) -> Void)?
+    var onTranscriptDevicesRequest: ((TranscriptDevicesRequestMessage) -> Void)?
+    var onTranscriptDeviceSelect: ((TranscriptDeviceSelectionMessage) -> Void)?
+
+    private func decodeBody<T: Decodable>(_ body: [String: Any], as type: T.Type) -> T? {
+        guard JSONSerialization.isValidJSONObject(body),
+              let data = try? JSONSerialization.data(withJSONObject: body),
+              let decoded = try? JSONDecoder().decode(T.self, from: data) else {
+            return nil
+        }
+        return decoded
+    }
+
+    private func decodeRange(_ body: [String: Any]) -> TranscriptBlockRange? {
+        guard let range = body["range"] as? [String: Any] else {
+            return nil
+        }
+        return decodeBody(range, as: TranscriptBlockRange.self)
+    }
 
     nonisolated func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
         MainActor.assumeIsolated {
@@ -73,6 +96,50 @@ final class NoteWebViewBridge: NSObject, WKScriptMessageHandler {
                 if let pluginId = body["pluginId"] as? String,
                    let stateJson = body["stateJson"] as? String {
                     onPluginStateChanged?(pluginId, stateJson)
+                }
+            case "transcriptRecordStart":
+                if let message: TranscriptRecordStartMessage = decodeBody(body, as: TranscriptRecordStartMessage.self) {
+                    onTranscriptRecordStart?(message)
+                } else {
+                    logger.warning("transcriptRecordStart payload could not be decoded")
+                }
+            case "transcriptRecordPause":
+                if let range = decodeRange(body) {
+                    onTranscriptRecordPause?(range)
+                } else {
+                    logger.warning("transcriptRecordPause payload could not be decoded")
+                }
+            case "transcriptRecordResume":
+                if let range = decodeRange(body) {
+                    onTranscriptRecordResume?(range)
+                } else {
+                    logger.warning("transcriptRecordResume payload could not be decoded")
+                }
+            case "transcriptRecordStop":
+                if let range = decodeRange(body) {
+                    onTranscriptRecordStop?(range)
+                } else {
+                    logger.warning("transcriptRecordStop payload could not be decoded")
+                }
+            case "transcriptRecordClear":
+                if let range = decodeRange(body) {
+                    onTranscriptRecordClear?(range)
+                } else {
+                    logger.warning("transcriptRecordClear payload could not be decoded")
+                }
+            case "transcriptDevicesRequest":
+                if let request: TranscriptDevicesRequestMessage = decodeBody(body, as: TranscriptDevicesRequestMessage.self) {
+                    logger.info("transcriptDevicesRequest source=\(request.source.rawValue, privacy: .public) blockFrom=\(request.range.blockFrom)")
+                    onTranscriptDevicesRequest?(request)
+                } else {
+                    logger.warning("transcriptDevicesRequest payload could not be decoded")
+                }
+            case "transcriptDeviceSelect":
+                if let selection: TranscriptDeviceSelectionMessage = decodeBody(body, as: TranscriptDeviceSelectionMessage.self) {
+                    logger.info("transcriptDeviceSelect source=\(selection.source.rawValue, privacy: .public) value=\(selection.value, privacy: .public) blockFrom=\(selection.range.blockFrom)")
+                    onTranscriptDeviceSelect?(selection)
+                } else {
+                    logger.warning("transcriptDeviceSelect payload could not be decoded")
                 }
             case "log":
                 let level = body["level"] as? String ?? "info"

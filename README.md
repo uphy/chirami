@@ -6,12 +6,12 @@ While you work, you always need something else at hand. Chirami floats it above 
 
 ## Features
 
-- **Markdown Live Preview** — Obsidian-style editing: raw Markdown at the cursor, rendered everywhere else (Mermaid diagrams, Excalidraw drawings, Obsidian callouts, collapsible `<details>` blocks)
+- **Markdown Live Preview** — Obsidian-style editing: raw Markdown at the cursor, rendered everywhere else (Mermaid diagrams, Excalidraw drawings, `transcript` blocks, Obsidian callouts, collapsible `<details>` blocks)
 - **Always-on-top floating windows** — `NSPanel`-based sticky notes that stay above all windows (tiling WM friendly)
 - **Global hotkeys** — Summon any note instantly from any application
 - **Pure `.md` files** — No metadata, no front matter. Full Obsidian / VS Code compatibility
 - **Periodic notes** — Date-based file paths with rollover delay and templates
-- **Slash command** — Type `/` at line start to insert blocks (Excalidraw diagram, Mermaid diagram, table) via a command picker
+- **Slash command** — Type `/` at line start to insert blocks (Excalidraw diagram, Mermaid diagram, transcript block, table) via a command picker
 - **Smart Paste** — Cmd+Shift+V converts URLs, HTML, and JSON to Markdown on paste
 - **Image Paste & Resize** — Cmd+V to paste images as PNG; drag the right edge to resize
 - **Window Warp** — Modifier+H/J/K/L to snap windows to a 3×3 grid
@@ -23,7 +23,7 @@ See [Features](docs/features.md) for the full feature guide and keyboard shortcu
 
 ## Quick Start
 
-**Prerequisites:** macOS 14.0 (Sonoma) or later
+**Prerequisites:** macOS 14.2 or later
 
 **Install via Homebrew:**
 
@@ -43,7 +43,12 @@ brew install --cask uphy/tap/chirami
 ```yaml
 notes:
   - path: ~/Notes/todo.md
+transcript:
+  model: openai_whisper-large-v3_turbo
+  language: auto
 ```
+
+The first time you record a transcript, Chirami downloads the WhisperKit model to `~/.local/state/chirami/models/whisper/`. The default model is large (roughly 800 MB), so expect the initial download to take time and bandwidth.
 
 Launch Chirami — it appears as a menu bar icon. Click it to toggle your notes.
 
@@ -69,6 +74,16 @@ notes:
   - path: ~/Desktop/scratch.md
     hotkey: cmd+shift+s
     position: cursor
+
+transcript:
+  model: openai_whisper-large-v3_turbo
+  language: auto
+  devices:
+    mic: default
+    system: auto
+  labels:
+    mic: You
+    system: Others
 ```
 
 See [Configuration](docs/configuration.md) for the full field reference.
@@ -84,7 +99,7 @@ See [Configuration](docs/configuration.md) for the full field reference.
 
 ## Development
 
-**Prerequisites:** macOS 14.0 (Sonoma) or later, [mise](https://mise.jdx.dev/)
+**Prerequisites:** macOS 14.2 or later, [mise](https://mise.jdx.dev/)
 
 | Task | Command | Description |
 |------|---------|-------------|
@@ -117,6 +132,7 @@ open Chirami.xcodeproj
 |---------|---------|---------|
 | [HotKey](https://github.com/soffes/HotKey) | Global hotkeys | MIT |
 | [Yams](https://github.com/jpsim/Yams) | YAML parser | MIT |
+| [WhisperKit](https://github.com/argmaxinc/whisperkit) | On-device transcription | MIT |
 
 **JS (editor-web/)**
 

@@ -31,6 +31,19 @@ const COMMANDS: SlashCommand[] = [
     },
   },
   {
+    id: "transcript",
+    label: "/transcript",
+    description: "Insert a transcript block",
+    execute(view, lineFrom) {
+      const block = "```transcript\n\n```";
+      const lineTo = view.state.doc.lineAt(lineFrom).to;
+      view.dispatch({
+        changes: { from: lineFrom, to: lineTo, insert: block },
+        selection: { anchor: lineFrom + "```transcript\n".length },
+      });
+    },
+  },
+  {
     id: "mermaid",
     label: "/mermaid",
     description: "Insert a mermaid diagram block",
