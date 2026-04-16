@@ -423,16 +423,34 @@ function buildDecorations(state: EditorState): DecorationSet {
   return decorations.length > 0 ? Decoration.set(decorations) : Decoration.none;
 }
 
+function applySnapshotToRenderedBlock(view: EditorView, range: TranscriptBlockRange): void {
+  const updatedBlock = findTranscriptBlock(view.state, range);
+  if (!updatedBlock) return;
+  const runtime = view.state.field(transcriptRuntimeField).get(updatedBlock.blockFrom) ?? defaultRuntimeState(updatedBlock);
+  const snapshot = buildWidgetSnapshot(updatedBlock, runtime);
+  const selector = `.cm-transcript-container[data-block-from="${updatedBlock.blockFrom}"]`;
+  const root = document.querySelector(selector) as TranscriptWidgetRoot | null;
+  root?.__chiramiTranscriptApplySnapshot?.(snapshot);
+}
+
 const transcriptDecorations = StateField.define<DecorationSet>({
   create: buildDecorations,
   update: (decorations, tr) => {
+    if (tr.annotation(transcriptImmediateSaveAnnotation) === true) {
+      return decorations.map(tr.changes);
+    }
+
     const needsRebuild =
       tr.docChanged ||
-      tr.startState.selection.main.head !== tr.state.selection.main.head ||
-      tr.effects.some((effect) => effect.is(transcriptRuntimeEffect));
+      tr.startState.selection.main.head !== tr.state.selection.main.head;
     if (needsRebuild) {
       return buildDecorations(tr.state);
     }
+
+    if (tr.effects.some((effect) => effect.is(transcriptRuntimeEffect))) {
+      return decorations;
+    }
+
     return decorations.map(tr.changes);
   },
   provide: (field) => EditorView.decorations.from(field),
@@ -509,6 +527,7 @@ export function appendTranscriptChunk(view: EditorView, payload: TranscriptChunk
       },
     }),
   });
+  applySnapshotToRenderedBlock(view, payload.range);
   return true;
 }
 
@@ -521,6 +540,7 @@ export function updateTranscriptPreview(view: EditorView, payload: TranscriptPre
       previewText: payload.text,
     },
   });
+  applySnapshotToRenderedBlock(view, payload.range);
   return true;
 }
 
@@ -549,6 +569,7 @@ export function clearTranscriptBlock(view: EditorView, range: TranscriptBlockRan
       systemLevel: 0,
     },
   });
+  applySnapshotToRenderedBlock(view, range);
   return true;
 }
 
@@ -596,6 +617,7 @@ export function updateTranscriptLevel(view: EditorView, payload: TranscriptLevel
     range: { blockFrom: block.blockFrom, blockTo: block.blockTo },
     patch,
   });
+  applySnapshotToRenderedBlock(view, payload.range);
   return true;
 }
 
@@ -624,14 +646,7 @@ export function updateTranscriptDevices(view: EditorView, payload: TranscriptDev
             systemDevice: { value: selectedDevice.value, label: selectedDevice.label },
           },
   });
-  const updatedBlock = findTranscriptBlock(view.state, payload.range);
-  if (updatedBlock) {
-    const runtime = view.state.field(transcriptRuntimeField).get(updatedBlock.blockFrom) ?? defaultRuntimeState(updatedBlock);
-    const snapshot = buildWidgetSnapshot(updatedBlock, runtime);
-    const selector = `.cm-transcript-container[data-block-from="${updatedBlock.blockFrom}"]`;
-    const root = document.querySelector(selector) as TranscriptWidgetRoot | null;
-    root?.__chiramiTranscriptApplySnapshot?.(snapshot);
-  }
+  applySnapshotToRenderedBlock(view, payload.range);
   view.requestMeasure();
   return true;
 }
@@ -648,14 +663,7 @@ export function updateTranscriptModelState(view: EditorView, payload: Transcript
       models,
     },
   });
-  const updatedBlock = findTranscriptBlock(view.state, payload.range);
-  if (updatedBlock) {
-    const runtime = view.state.field(transcriptRuntimeField).get(updatedBlock.blockFrom) ?? defaultRuntimeState(updatedBlock);
-    const snapshot = buildWidgetSnapshot(updatedBlock, runtime);
-    const selector = `.cm-transcript-container[data-block-from="${updatedBlock.blockFrom}"]`;
-    const root = document.querySelector(selector) as TranscriptWidgetRoot | null;
-    root?.__chiramiTranscriptApplySnapshot?.(snapshot);
-  }
+  applySnapshotToRenderedBlock(view, payload.range);
   view.requestMeasure();
   return true;
 }
@@ -674,6 +682,7 @@ export function updateTranscriptModelDownloadProgress(view: EditorView, payload:
       downloadProgress: isClearingProgress ? undefined : { ...payload.progress },
     },
   });
+  applySnapshotToRenderedBlock(view, payload.range);
   return true;
 }
 
@@ -689,6 +698,7 @@ export function updateTranscriptError(view: EditorView, payload: TranscriptError
       errorMessage: payload.message,
     },
   });
+  applySnapshotToRenderedBlock(view, payload.range);
   return true;
 }
 
