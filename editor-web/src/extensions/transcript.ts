@@ -462,6 +462,49 @@ function dispatchRuntimeUpdate(view: EditorView, update: TranscriptRuntimeUpdate
   });
 }
 
+function dispatchTranscriptContentChange(
+  view: EditorView,
+  spec: Parameters<EditorView["dispatch"]>[0],
+): void {
+  if (Array.isArray(spec)) {
+    view.dispatch(spec);
+    return;
+  }
+  const previousScrollHeight = view.scrollDOM.scrollHeight;
+  const previousClientHeight = view.scrollDOM.clientHeight;
+  const previousDistanceFromBottom = Math.max(
+    0,
+    previousScrollHeight - previousClientHeight - view.scrollDOM.scrollTop,
+  );
+  const scrollSnapshot = view.scrollSnapshot();
+  const mappedSnapshot = spec.changes
+    ? (scrollSnapshot.map(view.state.changes(spec.changes)) ?? scrollSnapshot)
+    : scrollSnapshot;
+  const effects = spec.effects
+    ? Array.isArray(spec.effects)
+      ? [...spec.effects, mappedSnapshot]
+      : [spec.effects, mappedSnapshot]
+    : mappedSnapshot;
+  view.dispatch({
+    ...spec,
+    effects,
+  });
+  if (previousDistanceFromBottom > 24) {
+    return;
+  }
+  const restoreScrollTop = () => {
+    const maxScrollTop = Math.max(0, view.scrollDOM.scrollHeight - view.scrollDOM.clientHeight);
+    const nextScrollTop = Math.max(0, maxScrollTop - previousDistanceFromBottom);
+    if (Math.abs(view.scrollDOM.scrollTop - nextScrollTop) > 0.5) {
+      view.scrollDOM.scrollTop = nextScrollTop;
+    }
+  };
+  restoreScrollTop();
+  window.requestAnimationFrame(() => {
+    restoreScrollTop();
+  });
+}
+
 export function parseTranscriptLineTimestampSeconds(line: string): number | null {
   const match = line.match(/^\[(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})\]\s/);
   if (!match) return null;
@@ -516,7 +559,7 @@ export function appendTranscriptChunk(view: EditorView, payload: TranscriptChunk
   const current = view.state.field(transcriptRuntimeField).get(block.blockFrom) ?? defaultRuntimeState(block);
   const baseText = current.liveText ?? block.text;
   const nextText = insertTranscriptLineInOrder(baseText, payload);
-  view.dispatch({
+  dispatchTranscriptContentChange(view, {
     changes: { from: block.codeFrom, to: block.codeTo, insert: nextText },
     annotations: [transcriptImmediateSaveAnnotation.of(true), Transaction.addToHistory.of(false)],
     effects: transcriptRuntimeEffect.of({
@@ -553,7 +596,7 @@ export function clearTranscriptBlock(view: EditorView, range: TranscriptBlockRan
     deviceDropdownSource: undefined,
     deviceRequestSource: undefined,
   });
-  view.dispatch({
+  dispatchTranscriptContentChange(view, {
     changes: { from: block.codeFrom, to: block.codeTo, insert: "" },
     annotations: [transcriptImmediateSaveAnnotation.of(true), Transaction.addToHistory.of(false)],
   });
@@ -580,7 +623,7 @@ export function updateTranscriptState(view: EditorView, payload: TranscriptState
   const shouldCommitLiveText = payload.status === "Completed" && current.liveText !== undefined;
   const nextPersistedText = shouldCommitLiveText ? current.liveText : undefined;
 
-  view.dispatch({
+  dispatchTranscriptContentChange(view, {
     ...(nextPersistedText !== undefined
       ? { changes: { from: block.codeFrom, to: block.codeTo, insert: nextPersistedText } }
       : {}),

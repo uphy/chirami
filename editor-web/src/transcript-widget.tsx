@@ -77,6 +77,7 @@ type TranscriptPreviewRow = {
 };
 
 const transcriptPreviewVisibleRowCount = 5;
+const transcriptModalAutoFollowThresholdPx = 64;
 
 function parseTranscriptLine(line: string): TranscriptPreviewRow {
   const match = line.match(/^\[(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2})\] ([^:]+): (.+)$/);
@@ -111,6 +112,7 @@ function buildButton(label: string, title: string, onClick: () => void, variant?
   button.addEventListener("mouseup", suppress);
   button.addEventListener("pointerdown", (event) => {
     suppress(event);
+    if (button.disabled) return;
     onClick();
   });
   return button;
@@ -263,8 +265,6 @@ function buildPreviewLayoutSignature(
   const rows = buildTranscriptPreviewRows(text, status, previewText);
   return JSON.stringify({
     isEmpty: rows.length === 0,
-    visibleRowCount: Math.min(rows.length, transcriptPreviewVisibleRowCount),
-    hasMoreTranscript: rows.length > transcriptPreviewVisibleRowCount,
     status,
     progressStage: progressStage ?? "",
     hasError,
@@ -450,8 +450,11 @@ export function createTranscriptWidget(
     snapshot.downloadProgress?.stage,
     Boolean(snapshot.errorMessage),
   );
+  let lastModalSignature = "";
   let transcriptModalBackdrop: HTMLDivElement | null = null;
   let transcriptModalContent: HTMLDivElement | null = null;
+  let transcriptModalAutoFollow = true;
+  let transcriptModalProgrammaticScroll = false;
 
   const root = document.createElement("div") as TranscriptWidgetRoot;
   root.dataset.blockFrom = String(currentRange.blockFrom);
@@ -503,16 +506,9 @@ export function createTranscriptWidget(
     event.preventDefault();
     event.stopPropagation();
     if (!transcriptModalBackdrop) return;
-    if (transcriptModalContent) {
-      renderTranscriptModalContent(
-        transcriptModalContent,
-        currentText,
-        currentStatus,
-        currentPreviewText,
-        currentProgress,
-      );
-    }
     transcriptModalBackdrop.hidden = false;
+    transcriptModalAutoFollow = true;
+    renderModalTranscript(true);
   });
   previewShell.appendChild(openTranscriptButton);
 
@@ -551,6 +547,10 @@ export function createTranscriptWidget(
 
   transcriptModalContent = document.createElement("div");
   transcriptModalContent.className = "cm-transcript-modal-content";
+  transcriptModalContent.addEventListener("scroll", () => {
+    if (!transcriptModalContent || transcriptModalProgrammaticScroll) return;
+    transcriptModalAutoFollow = isTranscriptModalNearBottom(transcriptModalContent);
+  });
   transcriptModal.appendChild(transcriptModalContent);
 
   document.body.appendChild(transcriptModalBackdrop);
@@ -869,6 +869,50 @@ export function createTranscriptWidget(
     refresh();
   }
 
+  function isTranscriptModalNearBottom(target: HTMLElement): boolean {
+    return target.scrollHeight - target.clientHeight - target.scrollTop <= transcriptModalAutoFollowThresholdPx;
+  }
+
+  function setTranscriptModalScrollTop(target: HTMLElement, nextTop: number): void {
+    transcriptModalProgrammaticScroll = true;
+    target.scrollTop = nextTop;
+    window.requestAnimationFrame(() => {
+      transcriptModalProgrammaticScroll = false;
+      if (transcriptModalContent === target) {
+        transcriptModalAutoFollow = isTranscriptModalNearBottom(target);
+      }
+    });
+  }
+
+  function renderModalTranscript(forceFollow = false): void {
+    if (!transcriptModalContent || !transcriptModalBackdrop || transcriptModalBackdrop.hidden) return;
+    const modalSignature = JSON.stringify({
+      text: currentText,
+      previewText: currentPreviewText,
+      status: currentStatus,
+      progressStage: currentProgress?.stage,
+      error: currentError,
+    });
+    if (!forceFollow && modalSignature === lastModalSignature) {
+      return;
+    }
+    lastModalSignature = modalSignature;
+    const previousScrollTop = transcriptModalContent.scrollTop;
+    const wasNearBottom = isTranscriptModalNearBottom(transcriptModalContent);
+    const shouldFollow = forceFollow || (transcriptModalAutoFollow && wasNearBottom);
+    renderTranscriptModalContent(
+      transcriptModalContent,
+      currentText,
+      currentStatus,
+      currentPreviewText,
+      currentProgress,
+    );
+    const nextTop = shouldFollow
+      ? transcriptModalContent.scrollHeight
+      : Math.min(previousScrollTop, Math.max(0, transcriptModalContent.scrollHeight - transcriptModalContent.clientHeight));
+    setTranscriptModalScrollTop(transcriptModalContent, nextTop);
+  }
+
   function renderPreview(force = false): void {
     const previewSignature = JSON.stringify({
       text: currentText,
@@ -914,14 +958,26 @@ export function createTranscriptWidget(
       "cm-transcript-jump--visible",
       hasMoreTranscript,
     );
+    renderModalTranscript();
 
-    const recordingActive = currentStatus === "Recording" || currentStatus === "Paused" || currentStatus === "Processing";
-    recordButton.textContent = recordingActive ? "Stop" : "Start";
-    recordButton.title = recordingActive ? "Stop recording" : "Begin recording";
-    recordButton.className = recordingActive
-      ? "cm-transcript-button cm-transcript-button--danger"
-      : "cm-transcript-button cm-transcript-button--primary";
-    recordButton.disabled = false;
+    const isProcessing = currentStatus === "Processing";
+    const isRecordingActive = currentStatus === "Recording" || currentStatus === "Paused";
+    if (isProcessing) {
+      recordButton.textContent = "Processing";
+      recordButton.title = "Processing transcript...";
+      recordButton.className = "cm-transcript-button";
+      recordButton.disabled = false;
+    } else if (isRecordingActive) {
+      recordButton.textContent = "Stop";
+      recordButton.title = "Stop recording";
+      recordButton.className = "cm-transcript-button cm-transcript-button--danger";
+      recordButton.disabled = false;
+    } else {
+      recordButton.textContent = "Start";
+      recordButton.title = "Begin recording";
+      recordButton.className = "cm-transcript-button cm-transcript-button--primary";
+      recordButton.disabled = false;
+    }
     clearButton.disabled = currentStatus === "Processing";
     const modelSelectionLocked = currentStatus === "Recording" || currentStatus === "Paused" || currentStatus === "Processing";
 
