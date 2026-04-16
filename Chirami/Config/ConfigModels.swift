@@ -88,7 +88,7 @@ struct TranscriptDeviceConfig: Codable, Equatable {
         case system
     }
 
-    init(mic: String = "default", system: String = "auto") {
+    init(mic: String = "default", system: String = "all") {
         self.mic = mic
         self.system = system
     }
@@ -96,7 +96,8 @@ struct TranscriptDeviceConfig: Codable, Equatable {
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         mic = try container.decodeIfPresent(String.self, forKey: .mic) ?? "default"
-        system = try container.decodeIfPresent(String.self, forKey: .system) ?? "auto"
+        let rawSystem = try container.decodeIfPresent(String.self, forKey: .system) ?? "all"
+        system = rawSystem == "auto" ? "all" : rawSystem
     }
 }
 
@@ -122,12 +123,14 @@ struct TranscriptLabelConfig: Codable, Equatable {
 }
 
 struct TranscriptConfig: Codable, Equatable {
-    var model: String
+    var engine: String
     var language: String
     var devices: TranscriptDeviceConfig
     var labels: TranscriptLabelConfig
+    var legacyModel: String?
 
     enum CodingKeys: String, CodingKey {
+        case engine
         case model
         case language
         case devices
@@ -135,23 +138,37 @@ struct TranscriptConfig: Codable, Equatable {
     }
 
     init(
-        model: String = "openai_whisper-large-v3_turbo",
+        engine: String = "sherpa-onnx",
         language: String = "auto",
         devices: TranscriptDeviceConfig = TranscriptDeviceConfig(),
-        labels: TranscriptLabelConfig = TranscriptLabelConfig()
+        labels: TranscriptLabelConfig = TranscriptLabelConfig(),
+        legacyModel: String? = nil
     ) {
-        self.model = model
+        self.engine = engine
         self.language = language
         self.devices = devices
         self.labels = labels
+        self.legacyModel = legacyModel
     }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        model = try container.decodeIfPresent(String.self, forKey: .model) ?? "openai_whisper-large-v3_turbo"
+        engine = try container.decodeIfPresent(String.self, forKey: .engine) ?? "sherpa-onnx"
         language = try container.decodeIfPresent(String.self, forKey: .language) ?? "auto"
         devices = try container.decodeIfPresent(TranscriptDeviceConfig.self, forKey: .devices) ?? TranscriptDeviceConfig()
         labels = try container.decodeIfPresent(TranscriptLabelConfig.self, forKey: .labels) ?? TranscriptLabelConfig()
+        legacyModel = try container.decodeIfPresent(String.self, forKey: .model)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(engine, forKey: .engine)
+        try container.encode(language, forKey: .language)
+        try container.encode(devices, forKey: .devices)
+        try container.encode(labels, forKey: .labels)
+        if let legacyModel {
+            try container.encode(legacyModel, forKey: .model)
+        }
     }
 }
 
@@ -372,12 +389,14 @@ struct ChiramiState: Codable {
     var windows: [String: WindowState] = [:]
     var bookmarks: [String: String] = [:]  // noteId -> Base64 bookmark data
     var foldingStates: [String: FoldingState] = [:]  // resolved file path -> FoldingState
+    var transcriptModel: String?
     var lastMic: String?
     var lastSystemSource: String?
 
     enum CodingKeys: String, CodingKey {
         case windows, bookmarks
         case foldingStates = "folding_states"
+        case transcriptModel = "transcript_model"
         case lastMic = "last_mic"
         case lastSystemSource = "last_system_source"
     }

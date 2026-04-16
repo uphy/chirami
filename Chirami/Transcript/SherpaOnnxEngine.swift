@@ -1,33 +1,73 @@
 import AVFoundation
 import Foundation
 import OSLog
-import WhisperKit
 
-protocol WhisperTranscribing: AnyObject {
-    func transcribe(audioArray: [Float], decodeOptions: DecodingOptions?) async throws -> [TranscriptionResult]
+protocol SherpaOnnxTranscribing: AnyObject {
+    func transcribe(samples: [Float]) throws -> SherpaOnnxOfflineRecognitionResult
 }
 
-final class WhisperKitTranscriber: WhisperTranscribing {
-    private let whisperKit: WhisperKit
+final class SherpaOnnxSenseVoiceTranscriber: SherpaOnnxTranscribing {
+    private let recognizer: SherpaOnnxOfflineRecognizerWrapper
 
-    init(modelFolder: URL) async throws {
-        let config = WhisperKitConfig(
-            modelFolder: modelFolder.path,
-            verbose: false,
-            logLevel: .none,
-            load: true,
-            download: false
+    init(modelFolder: URL, language: String?) throws {
+        let modelPath = modelFolder.appendingPathComponent("model.int8.onnx").path
+        let tokensPath = modelFolder.appendingPathComponent("tokens.txt").path
+        let senseVoiceConfig = sherpaOnnxOfflineSenseVoiceModelConfig(
+            model: modelPath,
+            language: language ?? "",
+            useInverseTextNormalization: true
         )
-        whisperKit = try await WhisperKit(config)
+        var modelConfig = sherpaOnnxOfflineModelConfig(tokens: tokensPath)
+        modelConfig.sense_voice = senseVoiceConfig
+        let featureConfig = sherpaOnnxFeatureConfig(sampleRate: 16_000, featureDim: 80)
+        var recognizerConfig = sherpaOnnxOfflineRecognizerConfig(
+            featConfig: featureConfig,
+            modelConfig: modelConfig
+        )
+        recognizer = try SherpaOnnxOfflineRecognizerWrapper(config: &recognizerConfig)
     }
 
-    func transcribe(audioArray: [Float], decodeOptions: DecodingOptions?) async throws -> [TranscriptionResult] {
-        try await whisperKit.transcribe(audioArray: audioArray, decodeOptions: decodeOptions)
+    func transcribe(samples: [Float]) throws -> SherpaOnnxOfflineRecognitionResult {
+        try recognizer.decode(samples: samples, sampleRate: 16_000)
     }
 }
 
-actor WhisperKitEngine: TranscriptionEngine {
-    typealias TranscriberFactory = (_ modelFolder: URL) async throws -> any WhisperTranscribing
+final class SherpaOnnxNemoCTCTranscriber: SherpaOnnxTranscribing {
+    private let recognizer: SherpaOnnxOfflineRecognizerWrapper
+
+    init(modelFolder: URL) throws {
+        let modelPath = modelFolder.appendingPathComponent("model.int8.onnx").path
+        let tokensPath = modelFolder.appendingPathComponent("tokens.txt").path
+        let nemoConfig = sherpaOnnxOfflineNemoEncDecCtcModelConfig(model: modelPath)
+        var modelConfig = sherpaOnnxOfflineModelConfig(tokens: tokensPath)
+        modelConfig.nemo_ctc = nemoConfig
+        let featureConfig = sherpaOnnxFeatureConfig(sampleRate: 16_000, featureDim: 80)
+        var recognizerConfig = sherpaOnnxOfflineRecognizerConfig(
+            featConfig: featureConfig,
+            modelConfig: modelConfig
+        )
+        recognizer = try SherpaOnnxOfflineRecognizerWrapper(config: &recognizerConfig)
+    }
+
+    func transcribe(samples: [Float]) throws -> SherpaOnnxOfflineRecognitionResult {
+        try recognizer.decode(samples: samples, sampleRate: 16_000)
+    }
+}
+
+actor SherpaOnnxTranscriberWorker {
+    private let transcriber: any SherpaOnnxTranscribing
+
+    init(transcriber: any SherpaOnnxTranscribing) {
+        self.transcriber = transcriber
+    }
+
+    func transcribe(samples: [Float]) throws -> SherpaOnnxOfflineRecognitionResult {
+        try transcriber.transcribe(samples: samples)
+    }
+}
+
+actor SherpaOnnxEngine: TranscriptionEngine {
+    typealias TranscriberFactory = (_ modelFolder: URL, _ language: String?) throws -> any SherpaOnnxTranscribing
 
     private struct QueuedUtterance {
         var samples: [Float]
@@ -36,6 +76,7 @@ actor WhisperKitEngine: TranscriptionEngine {
 
     private struct SourceState {
         var totalSampleCount = 0
+        var smoothedLevel: Float = 0
         var prerollSamples: [Float] = []
         var utteranceSamples: [Float] = []
         var utteranceStartSampleOffset: Int?
@@ -48,12 +89,15 @@ actor WhisperKitEngine: TranscriptionEngine {
     }
 
     private static let logger = Logger(subsystem: "io.github.uphy.Chirami", category: "Transcript")
-    private static let autoLanguageMinimumUtteranceSamples = WhisperKit.sampleRate * 2
-    private static let explicitLanguageMinimumUtteranceSamples = Int(Double(WhisperKit.sampleRate) * 0.75)
-    private static let speechThreshold: Float = 0.0015
-    private static let prerollSampleCount = Int(Double(WhisperKit.sampleRate) * 0.25)
-    private static let trailingSilenceSampleCount = Int(Double(WhisperKit.sampleRate) * 0.45)
-    private static let maxUtteranceSampleCount = WhisperKit.sampleRate * 20
+    private static let sampleRate = 16_000
+    private static let autoLanguageMinimumUtteranceSamples = sampleRate * 2
+    private static let explicitLanguageMinimumUtteranceSamples = Int(Double(sampleRate) * 1.2)
+    private static let speechStartThreshold: Float = 0.0012
+    private static let speechContinueThreshold: Float = 0.0006
+    private static let levelSmoothingFactor: Float = 0.85
+    private static let prerollSampleCount = Int(Double(sampleRate) * 0.35)
+    private static let trailingSilenceSampleCount = Int(Double(sampleRate) * 0.8)
+    private static let maxUtteranceSampleCount = sampleRate * 20
     private static let emittedTextTailLength = 256
 
     private let modelFolder: URL
@@ -63,39 +107,48 @@ actor WhisperKitEngine: TranscriptionEngine {
     private let chunkStream: AsyncStream<TranscriptChunk>
     private let previewStream: AsyncStream<TranscriptPreview>
 
-    private var transcriber: (any WhisperTranscribing)?
+    private var transcriberWorker: SherpaOnnxTranscriberWorker?
     private var sourceStates: [TranscriptSource: SourceState] = [:]
     private var continuation: AsyncStream<TranscriptChunk>.Continuation?
     private var previewContinuation: AsyncStream<TranscriptPreview>.Continuation?
     private var started = false
     private var stopped = false
+    private var stopMode: TranscriptionEngineStopMode?
+    private var drainWaiters: [CheckedContinuation<Void, Never>] = []
 
     init(
         modelFolder: URL,
+        modelKind: SherpaOnnxModelKind = .senseVoice,
         language: String?,
         minimumBufferSamples: Int? = nil,
-        transcriberFactory: @escaping TranscriberFactory = { modelFolder in
-            try await WhisperKitTranscriber(modelFolder: modelFolder)
-        }
+        transcriberFactory: TranscriberFactory? = nil
     ) {
+        let normalizedLanguage = modelKind == .senseVoice ? Self.normalizedLanguage(language) : nil
         self.modelFolder = modelFolder
-        self.language = Self.normalizedLanguage(language)
+        self.language = normalizedLanguage
         self.minimumUtteranceSamples = minimumBufferSamples ?? {
-            if Self.normalizedLanguage(language) == nil {
-                Self.logger.info("transcript auto language enabled; using utterance segmentation with extended minimum duration")
+            if modelKind == .senseVoice, normalizedLanguage == nil {
+                Self.logger.info("transcript sherpa auto language enabled; using extended minimum utterance duration")
                 return Self.autoLanguageMinimumUtteranceSamples
             }
             return Self.explicitLanguageMinimumUtteranceSamples
         }()
-        self.transcriberFactory = transcriberFactory
-        var continuation: AsyncStream<TranscriptChunk>.Continuation?
-        self.chunkStream = AsyncStream { streamContinuation in
-            continuation = streamContinuation
+        self.transcriberFactory = transcriberFactory ?? { modelFolder, language in
+            switch modelKind {
+            case .senseVoice:
+                return try SherpaOnnxSenseVoiceTranscriber(modelFolder: modelFolder, language: language)
+            case .nemoCTC:
+                return try SherpaOnnxNemoCTCTranscriber(modelFolder: modelFolder)
+            }
         }
-        self.continuation = continuation
+        var chunkContinuation: AsyncStream<TranscriptChunk>.Continuation?
+        self.chunkStream = AsyncStream { continuation in
+            chunkContinuation = continuation
+        }
+        continuation = chunkContinuation
         var previewContinuation: AsyncStream<TranscriptPreview>.Continuation?
-        self.previewStream = AsyncStream { streamContinuation in
-            previewContinuation = streamContinuation
+        self.previewStream = AsyncStream { continuation in
+            previewContinuation = continuation
         }
         self.previewContinuation = previewContinuation
     }
@@ -116,14 +169,16 @@ actor WhisperKitEngine: TranscriptionEngine {
               !audioFormat.isInterleaved,
               audioFormat.channelCount == 1
         else {
-            throw WhisperKitEngineError.unsupportedAudioFormat
+            throw SherpaOnnxEngineError.unsupportedAudioFormat
         }
 
-        transcriber = try await transcriberFactory(modelFolder)
+        let transcriber = try transcriberFactory(modelFolder, language)
+        transcriberWorker = SherpaOnnxTranscriberWorker(transcriber: transcriber)
         sourceStates[.mic] = SourceState()
         sourceStates[.system] = SourceState()
         started = true
         stopped = false
+        stopMode = nil
     }
 
     func feed(buffer: AVAudioPCMBuffer, source: TranscriptSource) async throws {
@@ -137,8 +192,19 @@ actor WhisperKitEngine: TranscriptionEngine {
         }
 
         var state = sourceStates[source] ?? SourceState()
-        let frameLevel = samples.rmsLevel()
-        let isSpeech = frameLevel >= Self.speechThreshold
+        let frameLevel = samples.chiramiRmsLevel()
+        let smoothedLevel = max(
+            frameLevel,
+            (state.smoothedLevel * Self.levelSmoothingFactor) +
+                (frameLevel * (1 - Self.levelSmoothingFactor))
+        )
+        state.smoothedLevel = smoothedLevel
+        let isSpeech: Bool
+        if state.utteranceStartSampleOffset != nil {
+            isSpeech = smoothedLevel >= Self.speechContinueThreshold
+        } else {
+            isSpeech = smoothedLevel >= Self.speechStartThreshold
+        }
         let currentSampleOffset = state.totalSampleCount
         state.totalSampleCount += samples.count
 
@@ -176,24 +242,28 @@ actor WhisperKitEngine: TranscriptionEngine {
             }
         }
 
-        let shouldStartProcessing = !state.isProcessing && !state.queuedUtterances.isEmpty
         sourceStates[source] = state
 
-        if shouldStartProcessing {
-            Task { await self.processNextQueuedUtterance(source: source) }
-        }
+        scheduleQueuedUtteranceIfNeeded(for: source)
     }
 
-    func stop() async {
+    func stop(mode: TranscriptionEngineStopMode) async {
         guard started, !stopped else {
             return
         }
         stopped = true
+        stopMode = mode
 
-        await flushPendingUtterance(for: .mic)
-        await flushPendingUtterance(for: .system)
-        await processNextQueuedUtterance(source: .mic)
-        await processNextQueuedUtterance(source: .system)
+        switch mode {
+        case .flushFinalChunks:
+            await flushPendingUtterance(for: .mic)
+            await flushPendingUtterance(for: .system)
+            scheduleQueuedUtteranceIfNeeded(for: .mic)
+            scheduleQueuedUtteranceIfNeeded(for: .system)
+            await waitUntilDrained()
+        case .discardPendingWork:
+            discardPendingWork()
+        }
 
         continuation?.finish()
         continuation = nil
@@ -220,14 +290,15 @@ actor WhisperKitEngine: TranscriptionEngine {
         sourceStates[source] = state
     }
 
-    private func processNextQueuedUtterance(source: TranscriptSource) async {
-        guard let transcriber else {
+    private func scheduleQueuedUtteranceIfNeeded(for source: TranscriptSource) {
+        guard let transcriberWorker else {
             return
         }
 
         var state = sourceStates[source] ?? SourceState()
         guard !state.isProcessing, !state.queuedUtterances.isEmpty else {
             sourceStates[source] = state
+            notifyDrainedIfNeeded()
             return
         }
 
@@ -235,36 +306,63 @@ actor WhisperKitEngine: TranscriptionEngine {
         let utterance = state.queuedUtterances.removeFirst()
         sourceStates[source] = state
 
-        let decodeOptions = makeDecodeOptions(for: state)
-
-        do {
-            let results = try await transcriber.transcribe(audioArray: utterance.samples, decodeOptions: decodeOptions)
-            if language == nil,
-               state.resolvedLanguage == nil,
-               let detectedLanguage = normalizedDetectedLanguage(from: results) {
-                var updatedState = sourceStates[source] ?? SourceState()
-                updatedState.resolvedLanguage = detectedLanguage
-                sourceStates[source] = updatedState
-                Self.logger.info(
-                    "transcript pinned detected language source=\(source.rawValue, privacy: .public) language=\(detectedLanguage, privacy: .public)"
-                )
+        Task { [weak self] in
+            let result: Result<SherpaOnnxOfflineRecognitionResult, Error>
+            do {
+                result = .success(try await transcriberWorker.transcribe(samples: utterance.samples))
+            } catch {
+                result = .failure(error)
             }
-            let segments = results.flatMap(\.segments)
-            let baseTimestamp = TimeInterval(utterance.startSampleOffset) / Double(WhisperKit.sampleRate)
-            var latestState = sourceStates[source] ?? state
-            for segment in segments {
-                let text = segment.text.trimmingCharacters(in: .whitespacesAndNewlines)
-                guard !text.isEmpty else {
-                    continue
+            await self?.finishQueuedUtterance(source: source, utterance: utterance, result: result)
+        }
+    }
+
+    private func finishQueuedUtterance(
+        source: TranscriptSource,
+        utterance: QueuedUtterance,
+        result: Result<SherpaOnnxOfflineRecognitionResult, Error>
+    ) async {
+        defer {
+            var latest = sourceStates[source] ?? SourceState()
+            latest.isProcessing = false
+            sourceStates[source] = latest
+            if stopMode != .discardPendingWork {
+                scheduleQueuedUtteranceIfNeeded(for: source)
+            } else {
+                notifyDrainedIfNeeded()
+            }
+        }
+
+        if stopMode == .discardPendingWork {
+            return
+        }
+
+        switch result {
+        case .success(let recognitionResult):
+            var state = sourceStates[source] ?? SourceState()
+            if language == nil,
+               state.resolvedLanguage == nil {
+                let detectedLanguage = Self.normalizedLanguage(recognitionResult.language)
+                if let detectedLanguage {
+                    state.resolvedLanguage = detectedLanguage
+                    sourceStates[source] = state
+                    Self.logger.info(
+                        "transcript sherpa pinned detected language source=\(source.rawValue, privacy: .public) language=\(detectedLanguage, privacy: .public)"
+                    )
                 }
-                let emittedText = deduplicate(text: text, against: latestState.emittedTextTail)
+            }
+
+            let baseTimestamp = TimeInterval(utterance.startSampleOffset) / Double(Self.sampleRate)
+            var latestState = sourceStates[source] ?? state
+            for segment in recognitionResult.segments {
+                let emittedText = deduplicate(text: segment.text, against: latestState.emittedTextTail)
                 guard !emittedText.isEmpty else {
                     continue
                 }
                 continuation?.yield(
                     TranscriptChunk(
                         source: source,
-                        timestamp: baseTimestamp + TimeInterval(segment.start),
+                        timestamp: baseTimestamp + segment.start,
                         text: emittedText
                     )
                 )
@@ -272,18 +370,14 @@ actor WhisperKitEngine: TranscriptionEngine {
                 sourceStates[source] = latestState
             }
             previewContinuation?.yield(TranscriptPreview(source: source, timestamp: baseTimestamp, text: ""))
-        } catch {
+        case .failure:
             continuation?.finish()
+            continuation = nil
             previewContinuation?.finish()
-        }
-
-        var latest = sourceStates[source] ?? SourceState()
-        latest.isProcessing = false
-        let hasMoreQueuedUtterances = !latest.queuedUtterances.isEmpty
-        sourceStates[source] = latest
-
-        if hasMoreQueuedUtterances {
-            await processNextQueuedUtterance(source: source)
+            previewContinuation = nil
+            stopped = true
+            stopMode = .discardPendingWork
+            discardPendingWork()
         }
     }
 
@@ -318,6 +412,40 @@ actor WhisperKitEngine: TranscriptionEngine {
         state.utteranceTrailingSilenceSampleCount = 0
     }
 
+    private func discardPendingWork() {
+        for source in [TranscriptSource.mic, .system] {
+            var state = sourceStates[source] ?? SourceState()
+            state.queuedUtterances.removeAll(keepingCapacity: false)
+            clearCurrentUtterance(&state)
+            sourceStates[source] = state
+        }
+        notifyDrainedIfNeeded()
+    }
+
+    private func waitUntilDrained() async {
+        if isDrained {
+            return
+        }
+        await withCheckedContinuation { continuation in
+            drainWaiters.append(continuation)
+        }
+    }
+
+    private var isDrained: Bool {
+        sourceStates.values.allSatisfy { !$0.isProcessing && $0.queuedUtterances.isEmpty && $0.utteranceStartSampleOffset == nil }
+    }
+
+    private func notifyDrainedIfNeeded() {
+        guard isDrained else {
+            return
+        }
+        let waiters = drainWaiters
+        drainWaiters.removeAll(keepingCapacity: false)
+        for waiter in waiters {
+            waiter.resume()
+        }
+    }
+
     private func deduplicate(text: String, against tail: String) -> String {
         guard !tail.isEmpty else {
             return text
@@ -328,9 +456,7 @@ actor WhisperKitEngine: TranscriptionEngine {
         let maxOverlap = min(textCharacters.count, tailCharacters.count)
 
         for overlap in stride(from: maxOverlap, through: 1, by: -1) {
-            let tailSuffix = tailCharacters.suffix(overlap)
-            let textPrefix = textCharacters.prefix(overlap)
-            if Array(tailSuffix) == Array(textPrefix) {
+            if Array(tailCharacters.suffix(overlap)) == Array(textCharacters.prefix(overlap)) {
                 return String(textCharacters.dropFirst(overlap)).trimmingCharacters(in: .whitespacesAndNewlines)
             }
         }
@@ -361,28 +487,6 @@ actor WhisperKitEngine: TranscriptionEngine {
         return Array(samples)
     }
 
-    private func makeDecodeOptions(for state: SourceState) -> DecodingOptions {
-        let effectiveLanguage = state.resolvedLanguage ?? language
-        return DecodingOptions(
-            verbose: false,
-            task: .transcribe,
-            language: effectiveLanguage,
-            temperature: 0,
-            usePrefillPrompt: effectiveLanguage != nil,
-            usePrefillCache: effectiveLanguage != nil,
-            detectLanguage: effectiveLanguage == nil,
-            skipSpecialTokens: true,
-            withoutTimestamps: false,
-            wordTimestamps: false,
-            windowClipTime: 0.2,
-            compressionRatioThreshold: 2.4,
-            logProbThreshold: -1.0,
-            firstTokenLogProbThreshold: -1.5,
-            noSpeechThreshold: 0.45,
-            chunkingStrategy: nil
-        )
-    }
-
     private static func normalizedLanguage(_ language: String?) -> String? {
         guard let language else {
             return nil
@@ -393,31 +497,21 @@ actor WhisperKitEngine: TranscriptionEngine {
         }
         return trimmed
     }
-
-    private func normalizedDetectedLanguage(from results: [TranscriptionResult]) -> String? {
-        guard let language = results.lazy
-            .map(\.language)
-            .first(where: { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty })
-        else {
-            return nil
-        }
-        return Self.normalizedLanguage(language)
-    }
 }
 
-enum WhisperKitEngineError: LocalizedError, Equatable {
+enum SherpaOnnxEngineError: LocalizedError, Equatable {
     case unsupportedAudioFormat
 
     var errorDescription: String? {
         switch self {
         case .unsupportedAudioFormat:
-            return "WhisperKitEngine requires 16kHz mono float32 PCM buffers."
+            return "SherpaOnnxEngine requires 16kHz mono float32 PCM buffers."
         }
     }
 }
 
 private extension Array where Element == Float {
-    func rmsLevel() -> Float {
+    func chiramiRmsLevel() -> Float {
         guard !isEmpty else {
             return 0
         }

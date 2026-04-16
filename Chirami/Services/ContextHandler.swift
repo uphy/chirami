@@ -1,6 +1,21 @@
 import AppKit
 import os
 
+enum TranscriptContextMode: String, Codable {
+    case full
+    case last
+    case seconds
+}
+
+struct ContextTranscriptOptions: Codable {
+    let mode: TranscriptContextMode
+    let value: Int?
+}
+
+struct ContextRequestOptions: Codable {
+    let transcript: ContextTranscriptOptions?
+}
+
 /// Handles chirami://context URI requests.
 /// Queries the last focused Registered Note's editor for its current context
 /// and writes the result to the callback FIFO.
@@ -24,7 +39,9 @@ final class ContextHandler {
             return
         }
 
-        controller.getEditorContext { [weak self] result in
+        let options = parseOptions(from: components.queryItems ?? [])
+
+        controller.getEditorContext(options: options) { [weak self] result in
             switch result {
             case .success(let json):
                 self?.writeToPipe(pipePath, message: "CONTEXT:\(json)\n")
@@ -57,5 +74,33 @@ final class ContextHandler {
 
     private func isValidCallbackPipe(_ path: String) -> Bool {
         path.hasPrefix("/tmp/") || path.hasPrefix(NSTemporaryDirectory())
+    }
+
+    private func parseOptions(from queryItems: [URLQueryItem]) -> ContextRequestOptions? {
+        guard let modeValue = queryItems.first(where: { $0.name == "transcript_mode" })?.value,
+              let mode = TranscriptContextMode(rawValue: modeValue)
+        else {
+            return nil
+        }
+
+        let value = queryItems
+            .first(where: { $0.name == "transcript_value" })?
+            .value
+            .flatMap(Int.init)
+
+        switch mode {
+        case .full:
+            return ContextRequestOptions(
+                transcript: ContextTranscriptOptions(mode: .full, value: nil)
+            )
+        case .last, .seconds:
+            guard let value, value > 0 else {
+                logger.error("context URI missing valid transcript_value for mode=\(mode.rawValue, privacy: .public)")
+                return nil
+            }
+            return ContextRequestOptions(
+                transcript: ContextTranscriptOptions(mode: mode, value: value)
+            )
+        }
     }
 }

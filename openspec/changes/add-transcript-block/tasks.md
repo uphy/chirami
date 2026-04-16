@@ -1,6 +1,6 @@
 ## 1. 依存関係とプロジェクト設定
 
-- [x] 1.1 `project.yml` に WhisperKit を SPM 依存として追加し、`xcodegen generate` で Xcode プロジェクトを再生成する
+- [x] 1.1 `project.yml` と native build 設定に speech engine 依存を追加し、`xcodegen generate` で Xcode プロジェクトを再生成する
 - [x] 1.2 `project.yml` の minimum deployment target を macOS 14.2 に引き上げる
 - [x] 1.3 `Info.plist` に `NSMicrophoneUsageDescription` を追加する（「会議の書き起こしのためマイク音声を使用します」等）
 - [x] 1.4 Core Audio Process Tap に必要な entitlement（`com.apple.security.device.audio-input` 等）を追加し、App Sandbox 設定を確認する
@@ -15,29 +15,29 @@
 
 ## 3. モデル管理
 
-- [x] 3.1 `Chirami/Transcript/WhisperModelStore.swift` を新規作成し、モデル保存先 `~/.local/state/chirami/models/whisper/<model-id>/` の解決とディレクトリ作成を実装する
-- [x] 3.2 WhisperKit の model download API 呼び出しをラップし、進捗（受信バイト / 総バイト）をコールバックで返す `downloadModel(id:progress:)` を実装する
+- [x] 3.1 `Chirami/Transcript/SherpaOnnxModelStore.swift` を新規作成し、モデル保存先 `~/.local/state/chirami/models/sherpa-onnx/<model-id>/` の解決とディレクトリ作成を実装する
+- [x] 3.2 sherpa-onnx 用モデル取得をラップし、進捗をコールバックで返す `downloadModel(id:progress:)` を実装する
 - [x] 3.3 絶対パス指定時はダウンロードをスキップし、パス存在チェックのみ行う分岐を実装する
 - [x] 3.4 ダウンロードキャンセル（URLSessionTask の cancel）と部分ダウンロードのクリーンアップを実装する
-- [x] 3.5 `WhisperModelStore` のユニットテスト（未ダウンロード判定・保存先解決・キャンセル挙動）
+- [x] 3.5 `SherpaOnnxModelStore` のユニットテスト（未ダウンロード判定・保存先解決・キャンセル挙動）
 
 ## 4. 音声キャプチャ層
 
 - [x] 4.1 `Chirami/Transcript/MicrophoneCapture.swift` を新規作成し、`AVAudioEngine` ベースのマイク入力を実装する（16kHz mono float への変換含む）
 - [x] 4.2 `Chirami/Transcript/SystemAudioCapture.swift` を新規作成し、`CATapDescription` を用いたプロセス音声タップを実装する
 - [x] 4.3 `AudioObjectGetPropertyData` で現在音声出力中のプロセス一覧を列挙する `AudioProcessEnumerator` を実装する
-- [x] 4.4 `system: auto` 時の「最も音量の大きいプロセス」選択ロジックを実装する
+- [x] 4.4 `system: all` 時の「全 active output process を束ねて capture する」選択ロジックを実装する
 - [x] 4.5 マイク／システム音声それぞれに RMS ベースのレベルメーター値を提供する API を追加する
 - [x] 4.6 デバイス一覧列挙（`AVCaptureDevice.devices(for: .audio)`）を `AudioDeviceEnumerator` として実装する
 - [ ] 4.7 キャプチャ層のユニットテスト（モック入力での動作、開始・停止・一時停止）
 
 ## 5. 書き起こしエンジン
 
-- [x] 5.1 `TranscriptionEngine` プロトコルを定義し、WhisperKit を隠蔽する（`start(audioFormat:)`, `feed(buffer:source:)`, `stop()`, `chunks: AsyncStream`）
-- [x] 5.2 `WhisperKitEngine` を実装し、マイクとシステム音声を別ストリームとして同時処理する
-- [x] 5.3 ストリーミングモードを有効化し、確定（confirmed）チャンクのみを出力する設定を適用する
+- [x] 5.1 `TranscriptionEngine` プロトコルを定義し、具体 engine を隠蔽する（`start(audioFormat:)`, `feed(buffer:source:)`, `stop()`, `chunks: AsyncStream`）
+- [x] 5.2 `SherpaOnnxEngine` を実装し、マイクとシステム音声を別ストリームとして同時処理する
+- [x] 5.3 リアルタイム発話検出と確定チャンク出力の設定を適用する
 - [x] 5.4 エンジン出力を `TranscriptChunk(source: .mic | .system, timestamp: TimeInterval, text: String)` としてノーマライズする
-- [x] 5.5 `WhisperKitEngine` のユニットテスト（サンプル音声入力 → 確定チャンク出力の検証）
+- [x] 5.5 `SherpaOnnxEngine` のユニットテスト（サンプル音声入力 → 確定チャンク出力の検証）
 
 ## 6. セッションオーケストレーション
 
@@ -50,8 +50,8 @@
 
 ## 7. 出力フォーマッタ
 
-- [x] 7.1 `TranscriptChunk` を `[MM:SS] <Label>: <text>` 行に整形する `TranscriptLineFormatter` を実装する
-- [ ] 7.2 タイムスタンプをセッション相対かつ一時停止を跨いでも連続するように計算する
+- [x] 7.1 `TranscriptChunk` を `[YYYY-MM-DD HH:MM:SS] <Label>: <text>` 行に整形する `TranscriptLineFormatter` を実装する
+- [x] 7.2 タイムスタンプを壁時計時刻ベースで計算し、停止/再開や複数ソース混在でも整列可能にする
 - [x] 7.3 `config.yaml` の `labels` 設定を注入できるようにする
 - [x] 7.4 セッション区切り `---` 挿入ロジック（追加録音時）を実装する
 - [x] 7.5 フォーマッタのユニットテスト
@@ -91,12 +91,12 @@
 
 ## 12. 手動検証
 
-- [ ] 12.1 実機で Zoom を起動し、`system: auto` でマイクと Zoom 音声の両方が書き起こされることを確認する
+- [ ] 12.1 実機で Zoom を起動し、`system: all` でマイクと Zoom 音声の両方が書き起こされることを確認する
 - [ ] 12.2 AirPods 接続・切断切替でフォールバックが期待どおり動作することを確認する
 - [ ] 12.3 60 分以上の長時間録音で CPU・メモリ・温度が許容範囲内であることを確認する
 - [ ] 12.4 生成された書き起こしを Obsidian で開き、プレーン Markdown として正しく表示・編集可能であることを確認する
 - [ ] 12.5 アプリ再起動時の録音中断・途中までのテキスト保存が期待通りであることを確認する
-- [ ] 12.6 日本語・英語・日英混在会議での認識精度を確認する（default `large-v3-turbo`）
+- [ ] 12.6 日本語・英語・日英混在会議での認識精度を確認する（default `sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17`）
 
 ## 13. ドキュメント
 

@@ -53,6 +53,13 @@ struct TranscriptStateMessage: Codable, Equatable {
     var systemDeviceLabel: String
 }
 
+struct TranscriptModelStateMessage: Codable, Equatable {
+    var range: TranscriptBlockRange
+    var modelLabel: String
+    var selectedValue: String
+    var models: [TranscriptDeviceOptionMessage]
+}
+
 struct TranscriptDeviceSnapshot: Codable, Equatable {
     var value: String
     var label: String
@@ -67,6 +74,10 @@ struct TranscriptRecordStartMessage: Codable, Equatable {
 struct TranscriptDevicesRequestMessage: Codable, Equatable {
     var range: TranscriptBlockRange
     var source: TranscriptSource
+}
+
+struct TranscriptModelRequestMessage: Codable, Equatable {
+    var range: TranscriptBlockRange
 }
 
 struct TranscriptLevelUpdateMessage: Codable, Equatable {
@@ -95,10 +106,17 @@ struct TranscriptModelDownloadProgressMessage: Codable, Equatable {
     var progress: TranscriptDownloadProgress
 }
 
+enum TranscriptDownloadStage: String, Codable, Equatable {
+    case downloading = "Downloading"
+    case installing = "Installing"
+    case preparing = "Preparing"
+}
+
 struct TranscriptDownloadProgress: Codable, Equatable {
     var fractionCompleted: Double
     var receivedBytes: Int
     var totalBytes: Int
+    var stage: TranscriptDownloadStage
 }
 
 struct TranscriptErrorMessage: Codable, Equatable {
@@ -112,19 +130,41 @@ struct TranscriptDeviceSelectionMessage: Codable, Equatable {
     var value: String
 }
 
+struct TranscriptModelSelectionMessage: Codable, Equatable {
+    var range: TranscriptBlockRange
+    var value: String
+}
+
 struct TranscriptLineFormatter {
     var labels: TranscriptLabelConfig
+    var timeZone: TimeZone
 
-    init(labels: TranscriptLabelConfig = TranscriptLabelConfig()) {
+    init(
+        labels: TranscriptLabelConfig = TranscriptLabelConfig(),
+        timeZone: TimeZone = .current
+    ) {
         self.labels = labels
+        self.timeZone = timeZone
     }
 
     func format(_ chunk: TranscriptChunk) -> String {
-        let minute = max(0, Int(chunk.timestamp)) / 60
-        let second = max(0, Int(chunk.timestamp)) % 60
+        let date = Date(timeIntervalSince1970: max(0, chunk.timestamp))
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+        let components = calendar.dateComponents([.year, .month, .day, .hour, .minute, .second], from: date)
         let label = label(for: chunk.source)
         let text = normalize(chunk.text)
-        return String(format: "[%02d:%02d] %@: %@", minute, second, label, text)
+        return String(
+            format: "[%04d-%02d-%02d %02d:%02d:%02d] %@: %@",
+            components.year ?? 1970,
+            components.month ?? 1,
+            components.day ?? 1,
+            components.hour ?? 0,
+            components.minute ?? 0,
+            components.second ?? 0,
+            label,
+            text
+        )
     }
 
     private func label(for source: TranscriptSource) -> String {

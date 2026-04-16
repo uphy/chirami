@@ -13,6 +13,14 @@ private final class TranscriptEventRecorder {
     var errors: [TranscriptErrorMessage] = []
 }
 
+private final class MutableDateBox: @unchecked Sendable {
+    var date: Date
+
+    init(_ date: Date) {
+        self.date = date
+    }
+}
+
 private final class MockMicrophoneCapture: MicrophoneCapturing {
     var onStart: ((@escaping @Sendable (AVAudioPCMBuffer) -> Void) -> Void)?
     var pauseCallCount = 0
@@ -67,6 +75,7 @@ private final class MockTranscriptionEngine: TranscriptionEngine {
 
     private(set) var startCallCount = 0
     private(set) var stopCallCount = 0
+    private(set) var stopModes: [TranscriptionEngineStopMode] = []
     private(set) var fedSources: [TranscriptSource] = []
     private(set) var audioFormats: [AVAudioFormat] = []
     var onStop: (() -> Void)?
@@ -102,8 +111,9 @@ private final class MockTranscriptionEngine: TranscriptionEngine {
         fedSources.append(source)
     }
 
-    func stop() async {
+    func stop(mode: TranscriptionEngineStopMode) async {
         stopCallCount += 1
+        stopModes.append(mode)
         onStop?()
         continuation.finish()
         previewContinuation.finish()
@@ -122,6 +132,7 @@ private final class MockTranscriptionEngine: TranscriptionEngine {
 struct TranscriptSessionTests {
     @Test("start emits recording state and forwards mic/system levels")
     func startEmitsRecordingStateAndLevels() async {
+        let fixedDate = Date(timeIntervalSince1970: 1_776_340_800)
         let recorder = TranscriptEventRecorder()
         let callbacks = TranscriptSessionCallbacks()
         callbacks.sendChunk = { recorder.chunks.append($0) }
@@ -137,7 +148,8 @@ struct TranscriptSessionTests {
             range: TranscriptBlockRange(blockFrom: 10, blockTo: 20),
             modelLabel: "test-model",
             micDeviceLabel: "Default",
-            systemDeviceLabel: "Zoom"
+            systemDeviceLabel: "Zoom",
+            labels: TranscriptLabelConfig(mic: "You", system: "Others")
         )
         let process = AudioProcessDescriptor(
             objectID: 1,
@@ -165,7 +177,9 @@ struct TranscriptSessionTests {
             systemAudioCapture: systemCapture,
             transcriptionEngine: transcriptionEngine,
             systemProcesses: [process],
-            requestMicrophoneAccess: {}
+            requestMicrophoneAccess: {},
+            dateProvider: { fixedDate },
+            timeZone: TimeZone(secondsFromGMT: 0)!
         )
 
         await session.start()
@@ -189,12 +203,13 @@ struct TranscriptSessionTests {
         #expect(systemLevels.contains(where: { $0 > 0 }))
         #expect(transcriptionEngine.startCallCount == 1)
         #expect(transcriptionEngine.fedSources == [.mic, .system])
-        #expect(recorder.chunks.last?.text == "hello world")
-        #expect(recorder.chunks.last?.timestamp == 1.25)
+        #expect(recorder.chunks.last?.text == "[2026-04-16 12:00:01] You: hello world")
+        #expect(recorder.chunks.last?.timestamp == fixedDate.timeIntervalSince1970 + 1.25)
     }
 
     @Test("pause resume and stop control captures and emit states")
     func pauseResumeAndStopControlCaptures() async {
+        let fixedDate = Date(timeIntervalSince1970: 1_776_340_800)
         let recorder = TranscriptEventRecorder()
         let callbacks = TranscriptSessionCallbacks()
         callbacks.sendChunk = { recorder.chunks.append($0) }
@@ -210,7 +225,8 @@ struct TranscriptSessionTests {
             range: TranscriptBlockRange(blockFrom: 1, blockTo: 2),
             modelLabel: "test-model",
             micDeviceLabel: "Default",
-            systemDeviceLabel: "Off"
+            systemDeviceLabel: "Off",
+            labels: TranscriptLabelConfig(mic: "You", system: "Others")
         )
 
         let session = TranscriptSession(
@@ -220,7 +236,9 @@ struct TranscriptSessionTests {
             systemAudioCapture: systemCapture,
             transcriptionEngine: transcriptionEngine,
             systemProcesses: [],
-            requestMicrophoneAccess: {}
+            requestMicrophoneAccess: {},
+            dateProvider: { fixedDate },
+            timeZone: TimeZone(secondsFromGMT: 0)!
         )
 
         await session.start()
@@ -235,6 +253,7 @@ struct TranscriptSessionTests {
         #expect(systemCapture.resumeCallCount == 1)
         #expect(systemCapture.stopCallCount == 1)
         #expect(transcriptionEngine.stopCallCount == 1)
+        #expect(transcriptionEngine.stopModes == [.flushFinalChunks])
 
         let statuses = recorder.states.map(\.status)
         #expect(statuses == [.recording, .paused, .recording, .processing, .completed])
@@ -242,8 +261,179 @@ struct TranscriptSessionTests {
         #expect(finalLevels.allSatisfy { $0 == 0 })
     }
 
+    @Test("chunk timestamps preserve wall clock across pause and resume")
+    func chunkTimestampsPreserveWallClockAcrossPauseAndResume() async {
+        let startDate = Date(timeIntervalSince1970: 1_776_340_800)
+        let dateBox = MutableDateBox(startDate)
+        let recorder = TranscriptEventRecorder()
+        let callbacks = TranscriptSessionCallbacks()
+        callbacks.sendChunk = { recorder.chunks.append($0) }
+        callbacks.sendState = { recorder.states.append($0) }
+        callbacks.sendLevel = { recorder.levels.append($0) }
+
+        let micCapture = MockMicrophoneCapture()
+        let transcriptionEngine = MockTranscriptionEngine()
+        let session = TranscriptSession(
+            context: TranscriptSessionContext(
+                range: TranscriptBlockRange(blockFrom: 1, blockTo: 2),
+                modelLabel: "test-model",
+                micDeviceLabel: "Default",
+                systemDeviceLabel: "Off",
+                labels: TranscriptLabelConfig(mic: "You", system: "Others")
+            ),
+            callbacks: callbacks,
+            microphoneCapture: micCapture,
+            systemAudioCapture: nil,
+            transcriptionEngine: transcriptionEngine,
+            systemProcesses: [],
+            requestMicrophoneAccess: {},
+            dateProvider: { dateBox.date },
+            timeZone: TimeZone(secondsFromGMT: 0)!
+        )
+
+        await session.start()
+        dateBox.date = startDate.addingTimeInterval(5)
+        await session.pause()
+        dateBox.date = startDate.addingTimeInterval(15)
+        await session.resume()
+        transcriptionEngine.yield(
+            TranscriptChunk(source: .mic, timestamp: 6, text: "after resume")
+        )
+        await Task.yield()
+
+        #expect(recorder.chunks.last?.timestamp == startDate.addingTimeInterval(16).timeIntervalSince1970)
+        #expect(recorder.chunks.last?.text == "[2026-04-16 12:00:16] You: after resume")
+    }
+
+    @Test("clear discards pending transcription work")
+    func clearDiscardsPendingTranscriptionWork() async {
+        let fixedDate = Date(timeIntervalSince1970: 1_776_340_800)
+        let recorder = TranscriptEventRecorder()
+        let callbacks = TranscriptSessionCallbacks()
+        callbacks.sendChunk = { recorder.chunks.append($0) }
+        callbacks.sendState = { recorder.states.append($0) }
+        callbacks.sendLevel = { recorder.levels.append($0) }
+        callbacks.sendModelDownloadProgress = { recorder.downloadProgress.append($0) }
+        callbacks.sendError = { recorder.errors.append($0) }
+
+        let micCapture = MockMicrophoneCapture()
+        let transcriptionEngine = MockTranscriptionEngine()
+        transcriptionEngine.onStop = {
+            transcriptionEngine.yield(
+                TranscriptChunk(source: .mic, timestamp: 3.5, text: "should be dropped")
+            )
+        }
+
+        let session = TranscriptSession(
+            context: TranscriptSessionContext(
+                range: TranscriptBlockRange(blockFrom: 5, blockTo: 6),
+                modelLabel: "test-model",
+                micDeviceLabel: "Default",
+                systemDeviceLabel: "Off",
+                labels: TranscriptLabelConfig(mic: "You", system: "Others")
+            ),
+            callbacks: callbacks,
+            microphoneCapture: micCapture,
+            systemAudioCapture: nil,
+            transcriptionEngine: transcriptionEngine,
+            systemProcesses: [],
+            requestMicrophoneAccess: {},
+            dateProvider: { fixedDate },
+            timeZone: TimeZone(secondsFromGMT: 0)!
+        )
+
+        await session.start()
+        await session.clear()
+        await Task.yield()
+
+        #expect(recorder.chunks.isEmpty)
+        #expect(recorder.states.last?.status == .idle)
+        #expect(transcriptionEngine.stopModes == [.discardPendingWork])
+    }
+
+    @Test("drops punctuation-only mic chunks")
+    func dropsPunctuationOnlyMicChunks() async {
+        let fixedDate = Date(timeIntervalSince1970: 1_776_340_800)
+        let recorder = TranscriptEventRecorder()
+        let callbacks = TranscriptSessionCallbacks()
+        callbacks.sendChunk = { recorder.chunks.append($0) }
+        callbacks.sendState = { recorder.states.append($0) }
+        callbacks.sendLevel = { recorder.levels.append($0) }
+
+        let micCapture = MockMicrophoneCapture()
+        let transcriptionEngine = MockTranscriptionEngine()
+        let session = TranscriptSession(
+            context: TranscriptSessionContext(
+                range: TranscriptBlockRange(blockFrom: 1, blockTo: 2),
+                modelLabel: "test-model",
+                micDeviceLabel: "Default",
+                systemDeviceLabel: "Off",
+                labels: TranscriptLabelConfig(mic: "You", system: "Others")
+            ),
+            callbacks: callbacks,
+            microphoneCapture: micCapture,
+            systemAudioCapture: nil,
+            transcriptionEngine: transcriptionEngine,
+            systemProcesses: [],
+            requestMicrophoneAccess: {},
+            dateProvider: { fixedDate },
+            timeZone: TimeZone(secondsFromGMT: 0)!
+        )
+
+        await session.start()
+        transcriptionEngine.yield(
+            TranscriptChunk(source: .mic, timestamp: 1, text: "。")
+        )
+        transcriptionEngine.yield(
+            TranscriptChunk(source: .mic, timestamp: 2, text: "こ。")
+        )
+        await Task.yield()
+
+        #expect(recorder.chunks.isEmpty)
+    }
+
+    @Test("keeps normal others chunks")
+    func keepsNormalOthersChunks() async {
+        let fixedDate = Date(timeIntervalSince1970: 1_776_340_800)
+        let recorder = TranscriptEventRecorder()
+        let callbacks = TranscriptSessionCallbacks()
+        callbacks.sendChunk = { recorder.chunks.append($0) }
+        callbacks.sendState = { recorder.states.append($0) }
+        callbacks.sendLevel = { recorder.levels.append($0) }
+
+        let micCapture = MockMicrophoneCapture()
+        let transcriptionEngine = MockTranscriptionEngine()
+        let session = TranscriptSession(
+            context: TranscriptSessionContext(
+                range: TranscriptBlockRange(blockFrom: 1, blockTo: 2),
+                modelLabel: "test-model",
+                micDeviceLabel: "Default",
+                systemDeviceLabel: "Off",
+                labels: TranscriptLabelConfig(mic: "You", system: "Others")
+            ),
+            callbacks: callbacks,
+            microphoneCapture: micCapture,
+            systemAudioCapture: nil,
+            transcriptionEngine: transcriptionEngine,
+            systemProcesses: [],
+            requestMicrophoneAccess: {},
+            dateProvider: { fixedDate },
+            timeZone: TimeZone(secondsFromGMT: 0)!
+        )
+
+        await session.start()
+        transcriptionEngine.yield(
+            TranscriptChunk(source: .system, timestamp: 1, text: "了解しました。")
+        )
+        await Task.yield()
+
+        #expect(recorder.chunks.count == 1)
+        #expect(recorder.chunks.last?.text == "[2026-04-16 12:00:01] Others: 了解しました。")
+    }
+
     @Test("stop flushes final chunks before completing")
     func stopFlushesFinalChunksBeforeCompleting() async {
+        let fixedDate = Date(timeIntervalSince1970: 1_776_340_800)
         let recorder = TranscriptEventRecorder()
         let callbacks = TranscriptSessionCallbacks()
         callbacks.sendChunk = { recorder.chunks.append($0) }
@@ -265,25 +455,29 @@ struct TranscriptSessionTests {
                 range: TranscriptBlockRange(blockFrom: 1, blockTo: 2),
                 modelLabel: "test-model",
                 micDeviceLabel: "Default",
-                systemDeviceLabel: "Off"
+                systemDeviceLabel: "Off",
+                labels: TranscriptLabelConfig(mic: "You", system: "Others")
             ),
             callbacks: callbacks,
             microphoneCapture: micCapture,
             systemAudioCapture: nil,
             transcriptionEngine: transcriptionEngine,
             systemProcesses: [],
-            requestMicrophoneAccess: {}
+            requestMicrophoneAccess: {},
+            dateProvider: { fixedDate },
+            timeZone: TimeZone(secondsFromGMT: 0)!
         )
 
         await session.start()
         await session.stop()
 
-        #expect(recorder.chunks.last?.text == "final chunk")
+        #expect(recorder.chunks.last?.text == "[2026-04-16 12:00:02] You: final chunk")
         #expect(recorder.states.last?.status == .completed)
     }
 
     @Test("permission failure transitions to error without starting capture")
     func permissionFailureTransitionsToError() async {
+        let fixedDate = Date(timeIntervalSince1970: 1_776_340_800)
         let recorder = TranscriptEventRecorder()
         let callbacks = TranscriptSessionCallbacks()
         callbacks.sendChunk = { recorder.chunks.append($0) }
@@ -299,7 +493,8 @@ struct TranscriptSessionTests {
                 range: TranscriptBlockRange(blockFrom: 1, blockTo: 2),
                 modelLabel: "test-model",
                 micDeviceLabel: "Default",
-                systemDeviceLabel: "Off"
+                systemDeviceLabel: "Off",
+                labels: TranscriptLabelConfig(mic: "You", system: "Others")
             ),
             callbacks: callbacks,
             microphoneCapture: micCapture,
@@ -308,7 +503,9 @@ struct TranscriptSessionTests {
             systemProcesses: [],
             requestMicrophoneAccess: {
                 throw MicrophoneCaptureError.permissionDenied
-            }
+            },
+            dateProvider: { fixedDate },
+            timeZone: TimeZone(secondsFromGMT: 0)!
         )
 
         await session.start()
@@ -321,6 +518,7 @@ struct TranscriptSessionTests {
 
     @Test("model download progress is emitted before recording starts")
     func modelDownloadProgressIsEmittedBeforeRecordingStarts() async {
+        let fixedDate = Date(timeIntervalSince1970: 1_776_340_800)
         let recorder = TranscriptEventRecorder()
         let callbacks = TranscriptSessionCallbacks()
         callbacks.sendChunk = { recorder.chunks.append($0) }
@@ -341,18 +539,21 @@ struct TranscriptSessionTests {
                 range: TranscriptBlockRange(blockFrom: 3, blockTo: 4),
                 modelLabel: "test-model",
                 micDeviceLabel: "Default",
-                systemDeviceLabel: "Off"
+                systemDeviceLabel: "Off",
+                labels: TranscriptLabelConfig(mic: "You", system: "Others")
             ),
             callbacks: callbacks,
             microphoneCapture: micCapture,
             systemAudioCapture: nil,
             transcriptionEngineFactory: { progress in
-                progress(256, 1024, 0.25)
-                progress(1024, 1024, 1)
+                progress(256, 1024, 0.25, .downloading)
+                progress(1024, 1024, 1, .preparing)
                 return downloadedEngine
             },
             systemProcesses: [],
-            requestMicrophoneAccess: {}
+            requestMicrophoneAccess: {},
+            dateProvider: { fixedDate },
+            timeZone: TimeZone(secondsFromGMT: 0)!
         )
 
         await session.start()

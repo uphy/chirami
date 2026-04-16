@@ -44,11 +44,16 @@ brew install --cask uphy/tap/chirami
 notes:
   - path: ~/Notes/todo.md
 transcript:
-  model: openai_whisper-large-v3_turbo
-  language: auto
+  language: ja
 ```
 
-The first time you record a transcript, Chirami downloads the WhisperKit model to `~/.local/state/chirami/models/whisper/`. The default model is large (roughly 800 MB), so expect the initial download to take time and bandwidth.
+The first time you record a transcript, Chirami downloads the sherpa-onnx model to `~/.local/state/chirami/models/sherpa-onnx/`.
+The selected transcript model is stored in `~/.local/state/chirami/state.yaml` and can be changed from the transcript block UI.
+
+Built-in model IDs currently include:
+
+- `sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17`
+- `sherpa-onnx-nemo-parakeet-tdt_ctc-0.6b-ja-35000-int8`
 
 Launch Chirami — it appears as a menu bar icon. Click it to toggle your notes.
 
@@ -76,11 +81,10 @@ notes:
     position: cursor
 
 transcript:
-  model: openai_whisper-large-v3_turbo
-  language: auto
+  language: ja
   devices:
     mic: default
-    system: auto
+    system: all
   labels:
     mic: You
     system: Others
@@ -132,7 +136,7 @@ open Chirami.xcodeproj
 |---------|---------|---------|
 | [HotKey](https://github.com/soffes/HotKey) | Global hotkeys | MIT |
 | [Yams](https://github.com/jpsim/Yams) | YAML parser | MIT |
-| [WhisperKit](https://github.com/argmaxinc/whisperkit) | On-device transcription | MIT |
+| [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) | On-device transcription | Apache-2.0 |
 
 **JS (editor-web/)**
 

@@ -44,6 +44,18 @@ class NotePanel: NSPanel {
         }
     }
 
+    func applyConfiguredAppearance() {
+        let appearance = configuredAppearance()
+        self.appearance = appearance
+        fullWidthTitlebarView()?.appearance = appearance
+        customTitleLabel?.appearance = appearance
+        [prevButton, nextButton, todayButton, pinButton].forEach { $0?.appearance = appearance }
+        contentView?.superview?.appearance = appearance
+        contentView?.needsDisplay = true
+        invalidateShadow()
+        displayIfNeeded()
+    }
+
     /// Hide the system title and add a custom centered label in the titlebar.
     func centerTitle() {
         titleVisibility = .hidden
@@ -51,12 +63,7 @@ class NotePanel: NSPanel {
         guard let closeButton = standardWindowButton(.closeButton) else { return }
         logTitlebarHierarchyIfNeeded(closeButton: closeButton)
 
-        // Walk up from the close button to find the full-width titlebar view
-        var fullWidthView: NSView = closeButton
-        while let parent = fullWidthView.superview {
-            fullWidthView = parent
-            if parent.frame.width >= frame.width - 1 { break }
-        }
+        guard let fullWidthView = fullWidthTitlebarView(startingAt: closeButton) else { return }
 
         let label = NSTextField(labelWithString: title)
         label.alignment = .center
@@ -84,12 +91,7 @@ class NotePanel: NSPanel {
     ) {
         guard let closeButton = standardWindowButton(.closeButton) else { return }
 
-        // Walk up to full-width titlebar view
-        var fullWidthView: NSView = closeButton
-        while let parent = fullWidthView.superview {
-            fullWidthView = parent
-            if parent.frame.width >= frame.width - 1 { break }
-        }
+        guard let fullWidthView = fullWidthTitlebarView(startingAt: closeButton) else { return }
 
         let prev = makeNavButton(symbolName: "chevron.left", action: prevAction, target: target)
         let next = makeNavButton(symbolName: "chevron.right", action: nextAction, target: target)
@@ -125,12 +127,7 @@ class NotePanel: NSPanel {
         onTogglePin = onToggle
 
         guard let closeButton = standardWindowButton(.closeButton) else { return }
-
-        var fullWidthView: NSView = closeButton
-        while let parent = fullWidthView.superview {
-            fullWidthView = parent
-            if parent.frame.width >= frame.width - 1 { break }
-        }
+        guard let fullWidthView = fullWidthTitlebarView(startingAt: closeButton) else { return }
 
         let button = makeNavButton(symbolName: "pin", action: #selector(pinButtonTapped), target: self)
         fullWidthView.addSubview(button)
@@ -160,6 +157,31 @@ class NotePanel: NSPanel {
         button.setContentHuggingPriority(.required, for: .horizontal)
         button.controlSize = .small
         return button
+    }
+
+    private func configuredAppearance() -> NSAppearance? {
+        switch AppConfig.shared.config.appearance?.mode ?? .auto {
+        case .auto:
+            return nil
+        case .light:
+            return NSAppearance(named: .aqua)
+        case .dark:
+            return NSAppearance(named: .darkAqua)
+        }
+    }
+
+    private func fullWidthTitlebarView() -> NSView? {
+        guard let closeButton = standardWindowButton(.closeButton) else { return nil }
+        return fullWidthTitlebarView(startingAt: closeButton)
+    }
+
+    private func fullWidthTitlebarView(startingAt view: NSView) -> NSView? {
+        var fullWidthView: NSView = view
+        while let parent = fullWidthView.superview {
+            fullWidthView = parent
+            if parent.frame.width >= frame.width - 1 { break }
+        }
+        return fullWidthView
     }
 
     private func logTitlebarHierarchyIfNeeded(closeButton: NSButton) {

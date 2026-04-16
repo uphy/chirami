@@ -46,6 +46,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Prune stale Ad-hoc Note state entries
         AppState.shared.pruneAdhocEntries()
+        AppState.shared.migrateTranscriptModelIfNeeded(legacyModel: AppConfig.shared.legacyTranscriptModel)
 
         // Open all Registered Note windows
         windowManager.openAllWindows()

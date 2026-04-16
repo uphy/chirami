@@ -32,6 +32,7 @@ class DisplayWindowController: NSObject, NSWindowDelegate {
             panel.setupPinButton { [weak self] in self?.togglePinAction() }
             panel.updatePinState(isPinned: isPinned)
         }
+        panel.applyConfiguredAppearance()
     }
 
     /// Place the panel and show it.

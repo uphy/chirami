@@ -27,6 +27,8 @@ final class NoteWebViewBridge: NSObject, WKScriptMessageHandler {
     var onTranscriptRecordClear: ((TranscriptBlockRange) -> Void)?
     var onTranscriptDevicesRequest: ((TranscriptDevicesRequestMessage) -> Void)?
     var onTranscriptDeviceSelect: ((TranscriptDeviceSelectionMessage) -> Void)?
+    var onTranscriptModelRequest: ((TranscriptModelRequestMessage) -> Void)?
+    var onTranscriptModelSelect: ((TranscriptModelSelectionMessage) -> Void)?
 
     private func decodeBody<T: Decodable>(_ body: [String: Any], as type: T.Type) -> T? {
         guard JSONSerialization.isValidJSONObject(body),
@@ -140,6 +142,20 @@ final class NoteWebViewBridge: NSObject, WKScriptMessageHandler {
                     onTranscriptDeviceSelect?(selection)
                 } else {
                     logger.warning("transcriptDeviceSelect payload could not be decoded")
+                }
+            case "transcriptModelRequest":
+                if let request: TranscriptModelRequestMessage = decodeBody(body, as: TranscriptModelRequestMessage.self) {
+                    logger.info("transcriptModelRequest blockFrom=\(request.range.blockFrom)")
+                    onTranscriptModelRequest?(request)
+                } else {
+                    logger.warning("transcriptModelRequest payload could not be decoded")
+                }
+            case "transcriptModelSelect":
+                if let selection: TranscriptModelSelectionMessage = decodeBody(body, as: TranscriptModelSelectionMessage.self) {
+                    logger.info("transcriptModelSelect value=\(selection.value, privacy: .public) blockFrom=\(selection.range.blockFrom)")
+                    onTranscriptModelSelect?(selection)
+                } else {
+                    logger.warning("transcriptModelSelect payload could not be decoded")
                 }
             case "log":
                 let level = body["level"] as? String ?? "info"

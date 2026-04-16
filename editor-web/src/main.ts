@@ -9,6 +9,7 @@ import {
   updateTranscriptError,
   updateTranscriptLevel,
   updateTranscriptModelDownloadProgress,
+  updateTranscriptModelState,
   updateTranscriptPreview,
   updateTranscriptState,
 } from "./extensions/transcript";
@@ -73,7 +74,7 @@ exposeApi({
   applyFolding: (lines) => {
     applyFoldingFromLines(view, lines);
   },
-  getEditorContext: () => getEditorContext(view),
+  getEditorContext: (options) => getEditorContext(view, options),
   transcriptClearBlock: (range) => {
     clearTranscriptBlock(view, range);
   },
@@ -123,6 +124,13 @@ exposeApi({
       }, 0);
     } catch (error) {
       logJsError("transcriptDevicesList failed", error);
+    }
+  },
+  transcriptModelState: (payload) => {
+    try {
+      updateTranscriptModelState(view, payload);
+    } catch (error) {
+      logJsError("transcriptModelState failed", error);
     }
   },
   transcriptModelDownloadProgress: (payload) => {

@@ -48,6 +48,8 @@ final class NoteWebView: NSView {
     var onTranscriptRecordClear: ((TranscriptBlockRange) -> Void)?
     var onTranscriptDevicesRequest: ((TranscriptDevicesRequestMessage) -> Void)?
     var onTranscriptDeviceSelect: ((TranscriptDeviceSelectionMessage) -> Void)?
+    var onTranscriptModelRequest: ((TranscriptModelRequestMessage) -> Void)?
+    var onTranscriptModelSelect: ((TranscriptModelSelectionMessage) -> Void)?
     /// Fires once after the editor is ready and the NSPanel background has been synced
     /// to the theme's `--chirami-bg`. Lets the window controller defer fade-in until the
     /// final theme colour is in place, avoiding a default-yellow flash at startup.
@@ -160,6 +162,8 @@ final class NoteWebView: NSView {
         bridge.onTranscriptRecordClear = { [weak self] range in self?.onTranscriptRecordClear?(range) }
         bridge.onTranscriptDevicesRequest = { [weak self] request in self?.onTranscriptDevicesRequest?(request) }
         bridge.onTranscriptDeviceSelect = { [weak self] selection in self?.onTranscriptDeviceSelect?(selection) }
+        bridge.onTranscriptModelRequest = { [weak self] request in self?.onTranscriptModelRequest?(request) }
+        bridge.onTranscriptModelSelect = { [weak self] selection in self?.onTranscriptModelSelect?(selection) }
 
         webView.translatesAutoresizingMaskIntoConstraints = false
         addSubview(webView)
@@ -205,6 +209,15 @@ final class NoteWebView: NSView {
         enqueueOrEval("window.chirami.focus();")
     }
 
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        (window as? NotePanel)?.applyConfiguredAppearance()
+        guard isReady else { return }
+        DispatchQueue.main.async { [weak self] in
+            self?.fetchAndApplyPanelBackground()
+        }
+    }
+
     func setContent(_ text: String) {
         guard text != lastSetContent else { return }
         if !isReady {
@@ -223,9 +236,6 @@ final class NoteWebView: NSView {
     }
 
     func transcriptChunk(_ chunk: TranscriptChunkMessage) {
-        logger.debug(
-            "transcriptChunk toJS source=\(chunk.source.rawValue, privacy: .public) timestamp=\(chunk.timestamp) chars=\(chunk.text.count)"
-        )
         evaluateTranscriptMethod("transcriptChunk", payload: chunk)
     }
 
@@ -247,6 +257,13 @@ final class NoteWebView: NSView {
             "transcriptDevicesList toJS source=\(message.source.rawValue, privacy: .public) selected=\(selectedValue, privacy: .public) count=\(message.devices.count)"
         )
         evaluateTranscriptMethod("transcriptDevicesList", payload: message)
+    }
+
+    func transcriptModelState(_ message: TranscriptModelStateMessage) {
+        logger.info(
+            "transcriptModelState toJS selected=\(message.selectedValue, privacy: .public) count=\(message.models.count)"
+        )
+        evaluateTranscriptMethod("transcriptModelState", payload: message)
     }
 
     func transcriptModelDownloadProgress(_ message: TranscriptModelDownloadProgressMessage) {
@@ -308,13 +325,31 @@ final class NoteWebView: NSView {
         enqueueOrEval("document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}))")
     }
 
-    func getEditorContext(completion: @escaping (Result<String, Error>) -> Void) {
+    func getEditorContext(options: ContextRequestOptions? = nil, completion: @escaping (Result<String, Error>) -> Void) {
         guard isReady else {
             completion(.failure(NSError(domain: "NoteWebView", code: -1,
                 userInfo: [NSLocalizedDescriptionKey: "editor not ready"])))
             return
         }
-        webView.evaluateJavaScript("window.chirami.getEditorContext()") { result, error in
+        let script: String
+        if let options {
+            do {
+                let data = try JSONEncoder().encode(options)
+                guard let json = String(data: data, encoding: .utf8) else {
+                    completion(.failure(NSError(domain: "NoteWebView", code: -4,
+                        userInfo: [NSLocalizedDescriptionKey: "failed to encode context options"])))
+                    return
+                }
+                script = "window.chirami.getEditorContext(\(json))"
+            } catch {
+                completion(.failure(error))
+                return
+            }
+        } else {
+            script = "window.chirami.getEditorContext()"
+        }
+
+        webView.evaluateJavaScript(script) { result, error in
             if let error {
                 completion(.failure(error))
             } else if let json = result as? String {
@@ -403,14 +438,11 @@ final class NoteWebView: NSView {
         let script = "window.chirami.\(method)(\(json));"
         if !isReady {
             pendingScripts.append(script)
-            logger.debug("queued transcript JS call \(method, privacy: .public)")
             return
         }
         webView.evaluateJavaScript(script) { [weak self] _, error in
             if let error {
                 self?.logger.error("transcript JS call \(method, privacy: .public) failed: \(error.localizedDescription, privacy: .public)")
-            } else {
-                self?.logger.debug("transcript JS call \(method, privacy: .public) succeeded")
             }
         }
     }
@@ -656,6 +688,12 @@ struct NoteWebViewRepresentable: NSViewRepresentable {
         view.onTranscriptDeviceSelect = { [model] selection in
             model.onTranscriptDeviceSelect?(selection)
         }
+        view.onTranscriptModelRequest = { [model] request in
+            model.onTranscriptModelRequest?(request)
+        }
+        view.onTranscriptModelSelect = { [model] selection in
+            model.onTranscriptModelSelect?(selection)
+        }
         model.transcriptSendChunk = { [weak view] chunk in
             view?.transcriptChunk(chunk)
         }
@@ -671,6 +709,9 @@ struct NoteWebViewRepresentable: NSViewRepresentable {
         model.transcriptSendDevicesList = { [weak view] message in
             view?.transcriptDevicesList(message)
         }
+        model.transcriptSendModelState = { [weak view] message in
+            view?.transcriptModelState(message)
+        }
         model.transcriptSendModelDownloadProgress = { [weak view] message in
             view?.transcriptModelDownloadProgress(message)
         }
@@ -683,13 +724,13 @@ struct NoteWebViewRepresentable: NSViewRepresentable {
         model.focusWebView = { [weak view] in
             view?.focus()
         }
-        model.getEditorContext = { [weak view] completion in
+        model.getEditorContext = { [weak view] options, completion in
             guard let view else {
                 completion(.failure(NSError(domain: "NoteWebView", code: -3,
                     userInfo: [NSLocalizedDescriptionKey: "webView deallocated"])))
                 return
             }
-            view.getEditorContext(completion: completion)
+            view.getEditorContext(options: options, completion: completion)
         }
         view.setInitialState(
             cursor: model.savedCursorLocation,

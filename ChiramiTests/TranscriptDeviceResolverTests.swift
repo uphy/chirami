@@ -60,8 +60,7 @@ struct TranscriptDeviceResolverTests {
         let resolved = TranscriptDeviceResolver.resolveSystemSelection(
             blockSelection: TranscriptDeviceSnapshot(value: "pid:999", label: "Missing"),
             configuredValue: "pid:101",
-            availableProcesses: [arc, helper],
-            frontmostBundleID: nil
+            availableProcesses: [arc, helper]
         )
 
         #expect(resolved.selection.value == "pid:101")
@@ -69,8 +68,8 @@ struct TranscriptDeviceResolverTests {
         #expect(resolved.processes.map(\.pid) == [101, 102])
     }
 
-    @Test("system auto picks frontmost process when no explicit selection resolves")
-    func systemAutoPicksFrontmostProcessWhenNoExplicitSelectionResolves() {
+    @Test("system legacy auto value is normalized to all system audio")
+    func systemLegacyAutoValueIsNormalizedToAllSystemAudio() {
         let zoom = AudioProcessDescriptor(
             objectID: 1,
             pid: 201,
@@ -91,12 +90,11 @@ struct TranscriptDeviceResolverTests {
         let resolved = TranscriptDeviceResolver.resolveSystemSelection(
             blockSelection: TranscriptDeviceSnapshot(value: "auto", label: "Auto"),
             configuredValue: "auto",
-            availableProcesses: [zoom, arc],
-            frontmostBundleID: "us.zoom.xos"
+            availableProcesses: [zoom, arc]
         )
 
-        #expect(resolved.selection.value == "auto")
-        #expect(resolved.selection.label == "Zoom")
-        #expect(resolved.processes.map(\.pid) == [201])
+        #expect(resolved.selection.value == "all")
+        #expect(resolved.selection.label == "All System Audio")
+        #expect(resolved.processes.map(\.pid) == [201, 202])
     }
 }

@@ -1,5 +1,5 @@
 import { syntaxTree } from "@codemirror/language";
-import { EditorState, Range, StateEffect, StateField, Transaction } from "@codemirror/state";
+import { Annotation, EditorState, Range, StateEffect, StateField, Transaction } from "@codemirror/state";
 import { Decoration, DecorationSet, EditorView, WidgetType } from "@codemirror/view";
 import {
   TranscriptBlockRange,
@@ -9,6 +9,7 @@ import {
   TranscriptDownloadProgress,
   TranscriptErrorPayload,
   TranscriptLevelPayload,
+  TranscriptModelStatePayload,
   TranscriptStatePayload,
   TranscriptStatus,
   TranscriptSource,
@@ -24,7 +25,7 @@ import {
   TranscriptWidgetSnapshot,
 } from "../transcript-widget";
 
-interface TranscriptBlockRef {
+export interface TranscriptBlockRef {
   text: string;
   codeFrom: number;
   codeTo: number;
@@ -36,6 +37,8 @@ interface TranscriptBlockRef {
 interface TranscriptRuntimeState {
   status: TranscriptStatus;
   modelLabel: string;
+  modelValue: string;
+  liveText?: string;
   previewText?: string;
   micDevice: TranscriptDeviceSnapshot;
   systemDevice: TranscriptDeviceSnapshot;
@@ -43,20 +46,28 @@ interface TranscriptRuntimeState {
   systemLevel: number;
   downloadProgress?: TranscriptDownloadProgress;
   errorMessage?: string;
+  models: TranscriptDeviceOption[];
   micDevices: TranscriptDeviceOption[];
   systemDevices: TranscriptDeviceOption[];
-  separatorInserted: boolean;
   devicesRevision: number;
 }
 
 interface TranscriptUiState {
-  devicePopoverOpen: boolean;
+  settingsPanelOpen?: boolean;
+  modelDropdownOpen?: boolean;
+  deviceDropdownSource?: TranscriptSource;
   deviceRequestSource?: TranscriptSource;
 }
+
+export const transcriptImmediateSaveAnnotation = Annotation.define<boolean>();
 
 interface TranscriptRuntimeUpdate {
   range: TranscriptBlockRange;
   patch: Partial<TranscriptRuntimeState>;
+}
+
+function hasOwn<K extends PropertyKey>(value: object, key: K): boolean {
+  return Object.prototype.hasOwnProperty.call(value, key);
 }
 
 const transcriptRuntimeEffect = StateEffect.define<TranscriptRuntimeUpdate>();
@@ -65,14 +76,15 @@ function defaultRuntimeState(block: TranscriptBlockRef): TranscriptRuntimeState 
   return {
     status: block.text.trim().length > 0 ? "Completed" : "Idle",
     modelLabel: "Configured model",
+    modelValue: "",
     previewText: undefined,
     micDevice: { value: "default", label: "Default" },
-    systemDevice: { value: "auto", label: "Auto" },
+    systemDevice: { value: "all", label: "All System Audio" },
     micLevel: 0,
     systemLevel: 0,
     micDevices: [],
     systemDevices: [],
-    separatorInserted: false,
+    models: [],
     devicesRevision: 0,
   };
 }
@@ -80,25 +92,43 @@ function defaultRuntimeState(block: TranscriptBlockRef): TranscriptRuntimeState 
 function cloneRuntimeState(runtime: TranscriptRuntimeState): TranscriptRuntimeState {
   return {
     ...runtime,
+    liveText: runtime.liveText,
     micDevice: { ...runtime.micDevice },
     systemDevice: { ...runtime.systemDevice },
     micDevices: runtime.micDevices.map((device) => ({ ...device })),
     systemDevices: runtime.systemDevices.map((device) => ({ ...device })),
     downloadProgress: runtime.downloadProgress ? { ...runtime.downloadProgress } : undefined,
     previewText: runtime.previewText,
+    models: runtime.models.map((model) => ({ ...model })),
   };
 }
 
 const transcriptUiState = new Map<number, TranscriptUiState>();
 
 function readUiState(blockFrom: number): TranscriptUiState {
-  return transcriptUiState.get(blockFrom) ?? { devicePopoverOpen: false, deviceRequestSource: undefined };
+  return transcriptUiState.get(blockFrom) ?? {
+    settingsPanelOpen: undefined,
+    modelDropdownOpen: undefined,
+    deviceDropdownSource: undefined,
+    deviceRequestSource: undefined,
+  };
 }
 
 function writeUiState(blockFrom: number, patch: TranscriptWidgetUiPatch): void {
   const current = readUiState(blockFrom);
   transcriptUiState.set(blockFrom, {
-    devicePopoverOpen: patch.devicePopoverOpen ?? current.devicePopoverOpen,
+    settingsPanelOpen:
+      Object.prototype.hasOwnProperty.call(patch, "settingsPanelOpen")
+        ? patch.settingsPanelOpen
+        : current.settingsPanelOpen,
+    modelDropdownOpen:
+      Object.prototype.hasOwnProperty.call(patch, "modelDropdownOpen")
+        ? patch.modelDropdownOpen
+        : current.modelDropdownOpen,
+    deviceDropdownSource:
+      Object.prototype.hasOwnProperty.call(patch, "deviceDropdownSource")
+        ? patch.deviceDropdownSource
+        : current.deviceDropdownSource,
     deviceRequestSource:
       Object.prototype.hasOwnProperty.call(patch, "deviceRequestSource")
         ? patch.deviceRequestSource
@@ -132,148 +162,6 @@ function resolveTranscriptBlock(state: EditorState, range: TranscriptBlockRange)
   return activeBlock;
 }
 
-function formatProgress(progress?: TranscriptDownloadProgress): string | null {
-  if (!progress) return null;
-  const percent = Math.min(100, Math.max(0, progress.fractionCompleted * 100));
-  if (progress.totalBytes < 1024 * 1024) {
-    return `${percent.toFixed(0)}%`;
-  }
-  const receivedMb = (progress.receivedBytes / (1024 * 1024)).toFixed(1);
-  const totalMb = (progress.totalBytes / (1024 * 1024)).toFixed(1);
-  return `${percent.toFixed(0)}% · ${receivedMb}/${totalMb} MB`;
-}
-
-function normalizeLevel(level: number): number {
-  if (!Number.isFinite(level) || level <= 0) return 0;
-  if (level <= 1) return level;
-  return Math.min(1, level / 100);
-}
-
-function makeMeter(label: string, value: number): HTMLElement {
-  const wrap = document.createElement("div");
-  wrap.className = "cm-transcript-meter";
-
-  const top = document.createElement("div");
-  top.className = "cm-transcript-meter-top";
-
-  const title = document.createElement("span");
-  title.className = "cm-transcript-meter-label";
-  title.textContent = label;
-
-  const valueEl = document.createElement("span");
-  valueEl.className = "cm-transcript-meter-value";
-  valueEl.textContent = `${Math.round(normalizeLevel(value) * 100)}%`;
-
-  const bar = document.createElement("div");
-  bar.className = "cm-transcript-meter-bar";
-
-  const fill = document.createElement("div");
-  fill.className = "cm-transcript-meter-fill";
-  fill.style.width = `${Math.round(normalizeLevel(value) * 100)}%`;
-  bar.appendChild(fill);
-
-  top.appendChild(title);
-  top.appendChild(valueEl);
-  wrap.appendChild(top);
-  wrap.appendChild(bar);
-  return wrap;
-}
-
-function buildSelectItem(
-  label: string,
-  detail: string,
-  onClick: () => void,
-  active = false,
-): HTMLButtonElement {
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = `cm-transcript-device-item${active ? " cm-transcript-device-item--active" : ""}`;
-  const labelEl = document.createElement("span");
-  labelEl.className = "cm-transcript-device-item-label";
-  labelEl.textContent = label;
-  const detailEl = document.createElement("span");
-  detailEl.className = "cm-transcript-device-item-detail";
-  detailEl.textContent = detail;
-  button.appendChild(labelEl);
-  button.appendChild(detailEl);
-  button.addEventListener("pointerdown", (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    onClick();
-  });
-  return button;
-}
-
-function buildDevicePopover(
-  snapshot: TranscriptWidgetSnapshot,
-  onSelect: (source: TranscriptSource, value: string, label: string) => void,
-): HTMLElement {
-  const popover = document.createElement("div");
-  popover.className = "cm-transcript-device-popover";
-
-  const title = document.createElement("div");
-  title.className = "cm-transcript-device-popover-title";
-  title.textContent = "Devices";
-  popover.appendChild(title);
-
-  const micHeading = document.createElement("div");
-  micHeading.className = "cm-transcript-device-heading";
-  micHeading.textContent = "Microphone";
-  popover.appendChild(micHeading);
-
-  popover.appendChild(
-    buildSelectItem("Default", snapshot.micDevice.label, () => {
-      onSelect("mic", "default", "Default");
-    }, snapshot.micDevice.value === "default"),
-  );
-
-  popover.appendChild(
-    buildSelectItem("Request devices", "Ask native layer for available microphones", () => {
-      onSelect("mic", "__request__", "Request devices");
-    }),
-  );
-
-  for (const device of snapshot.micDevices ?? []) {
-    popover.appendChild(
-      buildSelectItem(device.label, device.detail ?? device.value, () => {
-        onSelect("mic", device.value, device.label);
-      }, snapshot.micDevice.value === device.value),
-    );
-  }
-
-  const systemHeading = document.createElement("div");
-  systemHeading.className = "cm-transcript-device-heading";
-  systemHeading.textContent = "System audio";
-  popover.appendChild(systemHeading);
-
-  popover.appendChild(
-    buildSelectItem("Auto", snapshot.systemDevice.label, () => {
-      onSelect("system", "auto", "Auto");
-    }, snapshot.systemDevice.value === "auto"),
-  );
-
-  popover.appendChild(
-    buildSelectItem("Off", "Do not capture system audio", () => {
-      onSelect("system", "off", "Off");
-    }, snapshot.systemDevice.value === "off"),
-  );
-
-  popover.appendChild(
-    buildSelectItem("Request devices", "Ask native layer for available audio processes", () => {
-      onSelect("system", "__request__", "Request devices");
-    }),
-  );
-
-  for (const device of snapshot.systemDevices ?? []) {
-    popover.appendChild(
-      buildSelectItem(device.label, device.detail ?? device.value, () => {
-        onSelect("system", device.value, device.label);
-      }, snapshot.systemDevice.value === device.value),
-    );
-  }
-
-  return popover;
-}
 
 function buildPreview(text: string): string {
   const lines = text
@@ -292,12 +180,16 @@ function buildPreview(text: string): string {
 
 function buildWidgetSnapshot(block: TranscriptBlockRef, runtime: TranscriptRuntimeState): TranscriptWidgetSnapshot {
   const ui = readUiState(block.blockFrom);
+  const displayText = runtime.liveText ?? block.text;
+  const displayLineCount = displayText.trim().length === 0 ? 0 : displayText.split(/\r?\n/).length;
   return {
     range: { blockFrom: block.blockFrom, blockTo: block.blockTo },
-    text: block.text,
-    lineCount: block.lineCount,
+    text: displayText,
+    lineCount: displayLineCount,
     status: runtime.status,
     modelLabel: runtime.modelLabel,
+    currentModelValue: runtime.modelValue,
+    models: runtime.models,
     previewText: runtime.previewText,
     micDevice: runtime.micDevice,
     systemDevice: runtime.systemDevice,
@@ -308,8 +200,10 @@ function buildWidgetSnapshot(block: TranscriptBlockRef, runtime: TranscriptRunti
     micDevices: runtime.micDevices,
     systemDevices: runtime.systemDevices,
     devicesRevision: runtime.devicesRevision,
-    devicePopoverOpen: ui.devicePopoverOpen,
+    settingsPanelOpen: ui.settingsPanelOpen,
+    deviceDropdownSource: ui.deviceDropdownSource,
     deviceRequestSource: ui.deviceRequestSource,
+    modelDropdownOpen: ui.modelDropdownOpen,
   };
 }
 
@@ -326,9 +220,13 @@ function sameDeviceOptions(left: TranscriptDeviceOption[], right: TranscriptDevi
   });
 }
 
+function sameModelOptions(left: TranscriptDeviceOption[], right: TranscriptDeviceOption[]): boolean {
+  return sameDeviceOptions(left, right);
+}
+
 class TranscriptBlockWidget extends WidgetType {
   constructor(
-    private readonly snapshot: TranscriptWidgetSnapshot,
+    private snapshot: TranscriptWidgetSnapshot,
   ) {
     super();
   }
@@ -341,11 +239,21 @@ class TranscriptBlockWidget extends WidgetType {
       other.snapshot.range.blockTo === this.snapshot.range.blockTo &&
       other.snapshot.status === this.snapshot.status &&
       other.snapshot.modelLabel === this.snapshot.modelLabel &&
+      other.snapshot.currentModelValue === this.snapshot.currentModelValue &&
       other.snapshot.micLevel === this.snapshot.micLevel &&
       other.snapshot.systemLevel === this.snapshot.systemLevel &&
       other.snapshot.errorMessage === this.snapshot.errorMessage &&
+      other.snapshot.downloadProgress?.fractionCompleted === this.snapshot.downloadProgress?.fractionCompleted &&
       other.snapshot.downloadProgress?.receivedBytes === this.snapshot.downloadProgress?.receivedBytes &&
-      other.snapshot.downloadProgress?.totalBytes === this.snapshot.downloadProgress?.totalBytes
+      other.snapshot.downloadProgress?.totalBytes === this.snapshot.downloadProgress?.totalBytes &&
+      other.snapshot.downloadProgress?.stage === this.snapshot.downloadProgress?.stage &&
+      sameModelOptions(other.snapshot.models, this.snapshot.models) &&
+      sameDeviceOptions(other.snapshot.micDevices, this.snapshot.micDevices) &&
+      sameDeviceOptions(other.snapshot.systemDevices, this.snapshot.systemDevices) &&
+      other.snapshot.settingsPanelOpen === this.snapshot.settingsPanelOpen &&
+      other.snapshot.modelDropdownOpen === this.snapshot.modelDropdownOpen &&
+      other.snapshot.deviceDropdownSource === this.snapshot.deviceDropdownSource &&
+      other.snapshot.deviceRequestSource === this.snapshot.deviceRequestSource
     );
   }
 
@@ -367,12 +275,23 @@ class TranscriptBlockWidget extends WidgetType {
     );
   }
 
+  updateDOM(dom: HTMLElement, _view: EditorView): boolean {
+    const root = dom as TranscriptWidgetRoot;
+    root.__chiramiTranscriptApplySnapshot?.(this.snapshot);
+    return true;
+  }
+
+  destroy(dom: HTMLElement): void {
+    const root = dom as TranscriptWidgetRoot;
+    root.__chiramiTranscriptCleanup?.();
+  }
+
   ignoreEvent(): boolean {
     return true;
   }
 }
 
-function collectBlocks(state: EditorState): TranscriptBlockRef[] {
+export function collectTranscriptBlocks(state: EditorState): TranscriptBlockRef[] {
   const blocks: TranscriptBlockRef[] = [];
   syntaxTree(state).iterate({
     enter: (node) => {
@@ -406,8 +325,8 @@ function collectBlocks(state: EditorState): TranscriptBlockRef[] {
 }
 
 const transcriptBlocksField = StateField.define<TranscriptBlockRef[]>({
-  create: collectBlocks,
-  update: (blocks, tr) => (tr.docChanged ? collectBlocks(tr.state) : blocks),
+  create: collectTranscriptBlocks,
+  update: (blocks, tr) => (tr.docChanged ? collectTranscriptBlocks(tr.state) : blocks),
 });
 
 const transcriptRuntimeField = StateField.define<Map<number, TranscriptRuntimeState>>({
@@ -451,11 +370,20 @@ const transcriptRuntimeField = StateField.define<Map<number, TranscriptRuntimeSt
         ...effect.value.patch,
         micDevice: effect.value.patch.micDevice ? { ...effect.value.patch.micDevice } : base.micDevice,
         systemDevice: effect.value.patch.systemDevice ? { ...effect.value.patch.systemDevice } : base.systemDevice,
+        models: effect.value.patch.models ? effect.value.patch.models.map((d) => ({ ...d })) : base.models,
         micDevices: effect.value.patch.micDevices ? effect.value.patch.micDevices.map((d) => ({ ...d })) : base.micDevices,
         systemDevices: effect.value.patch.systemDevices ? effect.value.patch.systemDevices.map((d) => ({ ...d })) : base.systemDevices,
-        downloadProgress: effect.value.patch.downloadProgress
-          ? { ...effect.value.patch.downloadProgress }
+        previewText: hasOwn(effect.value.patch, "previewText")
+          ? effect.value.patch.previewText
+          : base.previewText,
+        downloadProgress: hasOwn(effect.value.patch, "downloadProgress")
+          ? (effect.value.patch.downloadProgress
+              ? { ...effect.value.patch.downloadProgress }
+              : undefined)
           : base.downloadProgress,
+        errorMessage: hasOwn(effect.value.patch, "errorMessage")
+          ? effect.value.patch.errorMessage
+          : base.errorMessage,
         devicesRevision: base.devicesRevision + 1,
       } satisfies TranscriptRuntimeState;
       next.set(key, merged);
@@ -463,8 +391,6 @@ const transcriptRuntimeField = StateField.define<Map<number, TranscriptRuntimeSt
     return changed ? next : runtime;
   },
 });
-
-const transcriptHideLine = Decoration.line({ attributes: { style: "display:none" } });
 
 function buildDecorations(state: EditorState): DecorationSet {
   const cursorLine = cursorLineFromState(state);
@@ -476,23 +402,22 @@ function buildDecorations(state: EditorState): DecorationSet {
     const endLine = state.doc.lineAt(block.blockTo);
     const cursorInside = cursorLine >= startLine.number && cursorLine <= endLine.number;
     const ui = readUiState(block.blockFrom);
-    const keepRenderedWhileInteracting = ui.devicePopoverOpen || ui.deviceRequestSource !== undefined;
+    const keepRenderedWhileInteracting =
+      ui.settingsPanelOpen === true ||
+      ui.modelDropdownOpen === true ||
+      ui.deviceDropdownSource !== undefined ||
+      ui.deviceRequestSource !== undefined;
     if (cursorInside && !keepRenderedWhileInteracting) {
       continue;
     }
 
     const snapshot = buildWidgetSnapshot(block, runtime.get(block.blockFrom) ?? defaultRuntimeState(block));
     decorations.push(
-      Decoration.widget({
+      Decoration.replace({
         widget: new TranscriptBlockWidget(snapshot),
         block: true,
-        side: -1,
-      }).range(startLine.from),
+      }).range(startLine.from, endLine.to),
     );
-
-    for (let lineNumber = startLine.number; lineNumber <= endLine.number; lineNumber += 1) {
-      decorations.push(transcriptHideLine.range(state.doc.line(lineNumber).from));
-    }
   }
 
   return decorations.length > 0 ? Decoration.set(decorations) : Decoration.none;
@@ -519,28 +444,70 @@ function dispatchRuntimeUpdate(view: EditorView, update: TranscriptRuntimeUpdate
   });
 }
 
-function appendTextBeforeFence(view: EditorView, block: TranscriptBlockRef, insertText: string): void {
-  const needsLeadingNewline = block.codeTo > 0 && view.state.sliceDoc(block.codeTo - 1, block.codeTo) !== "\n";
-  const text = `${needsLeadingNewline ? "\n" : ""}${insertText.trimEnd()}\n`;
-  view.dispatch({
-    changes: { from: block.codeTo, to: block.codeTo, insert: text },
-    annotations: [Transaction.userEvent.of("input.transcript")],
-  });
+export function parseTranscriptLineTimestampSeconds(line: string): number | null {
+  const match = line.match(/^\[(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})\]\s/);
+  if (!match) return null;
+  const year = Number.parseInt(match[1] ?? "", 10);
+  const month = Number.parseInt(match[2] ?? "", 10);
+  const day = Number.parseInt(match[3] ?? "", 10);
+  const hour = Number.parseInt(match[4] ?? "", 10);
+  const minute = Number.parseInt(match[5] ?? "", 10);
+  const second = Number.parseInt(match[6] ?? "", 10);
+  if (![year, month, day, hour, minute, second].every(Number.isFinite)) return null;
+  return new Date(year, month - 1, day, hour, minute, second).getTime() / 1000;
 }
 
-function insertTranscriptSeparator(view: EditorView, block: TranscriptBlockRef): void {
-  appendTextBeforeFence(view, block, "---");
+function insertTranscriptLineInOrder(rawText: string, payload: TranscriptChunkPayload): string {
+  const trimmedLine = payload.text.trimEnd();
+  if (rawText.length === 0) {
+    return `${trimmedLine}\n`;
+  }
+
+  const lines = rawText.split("\n");
+  const lineStarts: number[] = [];
+  let offset = 0;
+  for (const line of lines) {
+    lineStarts.push(offset);
+    offset += line.length + 1;
+  }
+
+  let insertOffset = rawText.length;
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index] ?? "";
+    const timestamp = parseTranscriptLineTimestampSeconds(line.trim());
+    if (timestamp === null) continue;
+    if (timestamp > payload.timestamp) {
+      insertOffset = lineStarts[index] ?? rawText.length;
+      break;
+    }
+  }
+
+  let insertText = `${trimmedLine}\n`;
+  if (insertOffset === rawText.length) {
+    const needsLeadingNewline = rawText.length > 0 && rawText.slice(-1) !== "\n";
+    if (needsLeadingNewline) {
+      insertText = `\n${insertText}`;
+    }
+  }
+  return `${rawText.slice(0, insertOffset)}${insertText}${rawText.slice(insertOffset)}`;
 }
 
 export function appendTranscriptChunk(view: EditorView, payload: TranscriptChunkPayload): boolean {
   const block = resolveTranscriptBlock(view.state, payload.range);
   if (!block) return false;
-  appendTextBeforeFence(view, block, payload.text);
-  dispatchRuntimeUpdate(view, {
-    range: { blockFrom: block.blockFrom, blockTo: block.blockTo },
-    patch: {
-      previewText: undefined,
-    },
+  const current = view.state.field(transcriptRuntimeField).get(block.blockFrom) ?? defaultRuntimeState(block);
+  const baseText = current.liveText ?? block.text;
+  const nextText = insertTranscriptLineInOrder(baseText, payload);
+  view.dispatch({
+    changes: { from: block.codeFrom, to: block.codeTo, insert: nextText },
+    annotations: [transcriptImmediateSaveAnnotation.of(true), Transaction.addToHistory.of(false)],
+    effects: transcriptRuntimeEffect.of({
+      range: { blockFrom: block.blockFrom, blockTo: block.blockTo },
+      patch: {
+        liveText: nextText,
+        previewText: undefined,
+      },
+    }),
   });
   return true;
 }
@@ -560,21 +527,26 @@ export function updateTranscriptPreview(view: EditorView, payload: TranscriptPre
 export function clearTranscriptBlock(view: EditorView, range: TranscriptBlockRange): boolean {
   const block = resolveTranscriptBlock(view.state, range);
   if (!block) return false;
-  transcriptUiState.set(block.blockFrom, { devicePopoverOpen: false, deviceRequestSource: undefined });
+  transcriptUiState.set(block.blockFrom, {
+    settingsPanelOpen: undefined,
+    modelDropdownOpen: undefined,
+    deviceDropdownSource: undefined,
+    deviceRequestSource: undefined,
+  });
   view.dispatch({
     changes: { from: block.codeFrom, to: block.codeTo, insert: "" },
-    annotations: [Transaction.userEvent.of("input.transcript")],
+    annotations: [transcriptImmediateSaveAnnotation.of(true), Transaction.addToHistory.of(false)],
   });
   dispatchRuntimeUpdate(view, {
     range: { blockFrom: block.blockFrom, blockTo: block.blockTo },
     patch: {
       status: "Idle",
+      liveText: undefined,
       previewText: undefined,
       errorMessage: undefined,
       downloadProgress: undefined,
       micLevel: 0,
       systemLevel: 0,
-      separatorInserted: false,
     },
   });
   return true;
@@ -584,24 +556,30 @@ export function updateTranscriptState(view: EditorView, payload: TranscriptState
   const block = resolveTranscriptBlock(view.state, payload.range);
   if (!block) return false;
   const current = view.state.field(transcriptRuntimeField).get(block.blockFrom) ?? defaultRuntimeState(block);
+  const shouldCommitLiveText = payload.status === "Completed" && current.liveText !== undefined;
+  const nextPersistedText = shouldCommitLiveText ? current.liveText : undefined;
 
-  if (payload.status === "Recording" && current.status === "Completed" && !current.separatorInserted) {
-    insertTranscriptSeparator(view, block);
-  }
-
-  dispatchRuntimeUpdate(view, {
-    range: { blockFrom: block.blockFrom, blockTo: block.blockTo },
-    patch: {
-      status: payload.status,
-      modelLabel: payload.modelLabel,
-      previewText: payload.status === "Recording" ? current.previewText : undefined,
-      downloadProgress: payload.status === "Processing" ? current.downloadProgress : undefined,
-      micDevice: { ...current.micDevice, label: payload.micDeviceLabel },
-      systemDevice: { ...current.systemDevice, label: payload.systemDeviceLabel },
-      separatorInserted: payload.status === "Completed" || payload.status === "Idle" || payload.status === "Error"
-        ? false
-        : current.separatorInserted || payload.status === "Recording",
-    },
+  view.dispatch({
+    ...(nextPersistedText !== undefined
+      ? { changes: { from: block.codeFrom, to: block.codeTo, insert: nextPersistedText } }
+      : {}),
+    ...(nextPersistedText !== undefined
+      ? { annotations: [transcriptImmediateSaveAnnotation.of(true), Transaction.addToHistory.of(false)] }
+      : {}),
+    effects: transcriptRuntimeEffect.of({
+      range: { blockFrom: block.blockFrom, blockTo: block.blockTo },
+      patch: {
+        status: payload.status,
+        modelLabel: payload.modelLabel,
+        liveText: payload.status === "Recording" || payload.status === "Paused" || payload.status === "Processing"
+          ? current.liveText
+          : undefined,
+        previewText: payload.status === "Recording" ? current.previewText : undefined,
+        downloadProgress: payload.status === "Processing" ? current.downloadProgress : undefined,
+        micDevice: { ...current.micDevice, label: payload.micDeviceLabel },
+        systemDevice: { ...current.systemDevice, label: payload.systemDeviceLabel },
+      },
+    }),
   });
   return true;
 }
@@ -624,7 +602,7 @@ export function updateTranscriptLevel(view: EditorView, payload: TranscriptLevel
 export function updateTranscriptDevices(view: EditorView, payload: TranscriptDevicesListPayload): boolean {
   const block = resolveTranscriptBlock(view.state, payload.range);
   if (!block) return false;
-  writeUiState(block.blockFrom, { devicePopoverOpen: true, deviceRequestSource: undefined });
+  writeUiState(block.blockFrom, { deviceRequestSource: undefined });
   const current = view.state.field(transcriptRuntimeField).get(block.blockFrom) ?? defaultRuntimeState(block);
   const devices = payload.devices.map((device) => ({ ...device }));
   const selectedValue = payload.selectedValue ?? (payload.source === "mic" ? current.micDevice.value : current.systemDevice.value);
@@ -658,14 +636,42 @@ export function updateTranscriptDevices(view: EditorView, payload: TranscriptDev
   return true;
 }
 
-export function updateTranscriptModelDownloadProgress(view: EditorView, payload: TranscriptModelDownloadProgressPayload): boolean {
+export function updateTranscriptModelState(view: EditorView, payload: TranscriptModelStatePayload): boolean {
   const block = resolveTranscriptBlock(view.state, payload.range);
   if (!block) return false;
+  const models = payload.models.map((model) => ({ ...model }));
   dispatchRuntimeUpdate(view, {
     range: { blockFrom: block.blockFrom, blockTo: block.blockTo },
     patch: {
       modelLabel: payload.modelLabel,
-      downloadProgress: { ...payload.progress },
+      modelValue: payload.selectedValue,
+      models,
+    },
+  });
+  const updatedBlock = findTranscriptBlock(view.state, payload.range);
+  if (updatedBlock) {
+    const runtime = view.state.field(transcriptRuntimeField).get(updatedBlock.blockFrom) ?? defaultRuntimeState(updatedBlock);
+    const snapshot = buildWidgetSnapshot(updatedBlock, runtime);
+    const selector = `.cm-transcript-container[data-block-from="${updatedBlock.blockFrom}"]`;
+    const root = document.querySelector(selector) as TranscriptWidgetRoot | null;
+    root?.__chiramiTranscriptApplySnapshot?.(snapshot);
+  }
+  view.requestMeasure();
+  return true;
+}
+
+export function updateTranscriptModelDownloadProgress(view: EditorView, payload: TranscriptModelDownloadProgressPayload): boolean {
+  const block = resolveTranscriptBlock(view.state, payload.range);
+  if (!block) return false;
+  const isClearingProgress =
+    payload.progress.fractionCompleted <= 0 &&
+    payload.progress.receivedBytes <= 0 &&
+    payload.progress.totalBytes === 0;
+  dispatchRuntimeUpdate(view, {
+    range: { blockFrom: block.blockFrom, blockTo: block.blockTo },
+    patch: {
+      modelLabel: payload.modelLabel,
+      downloadProgress: isClearingProgress ? undefined : { ...payload.progress },
     },
   });
   return true;
@@ -681,7 +687,6 @@ export function updateTranscriptError(view: EditorView, payload: TranscriptError
       previewText: undefined,
       downloadProgress: undefined,
       errorMessage: payload.message,
-      separatorInserted: false,
     },
   });
   return true;

@@ -7,6 +7,7 @@ class AppConfig: YAMLStore<ChiramiConfig> {
     private let logger = Logger(subsystem: "io.github.uphy.Chirami", category: "AppConfig")
     var config: ChiramiConfig { data }
     var transcriptConfig: TranscriptConfig { config.resolvedTranscript }
+    var legacyTranscriptModel: String? { config.transcript?.legacyModel }
 
     private init() {
         let configDir = FileManager.realHomeDirectory
@@ -63,11 +64,11 @@ class AppConfig: YAMLStore<ChiramiConfig> {
         template: ~/.config/chirami/sample-notes/daily/template.md
 
     transcript:
-      model: openai_whisper-large-v3_turbo
+      engine: sherpa-onnx
       language: auto
       devices:
         mic: default
-        system: auto
+        system: all
       labels:
         mic: You
         system: Others

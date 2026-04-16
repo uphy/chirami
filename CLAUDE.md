@@ -112,19 +112,19 @@ Live Preview is implemented with WKWebView + CodeMirror 6.
 
 ` ```transcript ` コードブロックで会議の書き起こしを埋め込める。ブロック外ではウィジェット表示、ブロック内では生の Markdown を編集する。
 
-- 出力は `[MM:SS] You: ...` / `[MM:SS] Others: ...` 形式の plain Markdown
+- 出力は `[YYYY-MM-DD HH:MM:SS] You: ...` / `[YYYY-MM-DD HH:MM:SS] Others: ...` 形式の plain Markdown
 - `config.yaml` の `transcript:` セクションで `model`, `language`, `devices.mic`, `devices.system`, `labels.mic`, `labels.system` を指定できる
-- 既定モデルは `openai_whisper-large-v3_turbo`
-- 初回記録時に WhisperKit モデルを `~/.local/state/chirami/models/whisper/` へダウンロードする（既定モデルは約 800 MB）
+- 既定モデルは `sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17`
+- 初回記録時に sherpa-onnx モデルを `~/.local/state/chirami/models/sherpa-onnx/` へダウンロードする
 - macOS 14.2 以上が必要
 
 ```yaml
 transcript:
-  model: openai_whisper-large-v3_turbo
-  language: auto
+  model: sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17
+  language: ja
   devices:
     mic: default
-    system: auto
+    system: all
   labels:
     mic: You
     system: Others

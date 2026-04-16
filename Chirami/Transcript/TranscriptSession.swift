@@ -20,6 +20,12 @@ struct TranscriptSessionContext: Sendable {
     var modelLabel: String
     var micDeviceLabel: String
     var systemDeviceLabel: String
+    var labels: TranscriptLabelConfig
+}
+
+private struct TranscriptTimelineAnchor: Sendable {
+    var audioOffset: TimeInterval
+    var wallClock: Date
 }
 
 @MainActor
@@ -57,7 +63,7 @@ final class TranscriptSessionCallbacks {
 }
 
 typealias TranscriptTranscriptionEngineFactory = @Sendable (
-    _ progress: @escaping WhisperModelDownloadProgressHandler
+    _ progress: @escaping SherpaOnnxModelDownloadProgressHandler
 ) async throws -> TranscriptionEngine?
 
 actor TranscriptSession {
@@ -68,6 +74,8 @@ actor TranscriptSession {
     private let transcriptionEngineFactory: TranscriptTranscriptionEngineFactory?
     private let systemProcesses: [AudioProcessDescriptor]
     private let requestMicrophoneAccess: @Sendable () async throws -> Void
+    private let dateProvider: @Sendable () -> Date
+    private let lineFormatter: TranscriptLineFormatter
 
     private var status: TranscriptStatus = .idle
     private var chunkForwardingTask: Task<Void, Never>?
@@ -75,6 +83,10 @@ actor TranscriptSession {
     private var transcriptionEngine: TranscriptionEngine?
     private var transcriptionPreparationTask: Task<TranscriptionEngine?, Error>?
     private var isPreparingTranscriptionEngine = false
+    private var suppressOutput = false
+    private var recordingTimeline: [TranscriptTimelineAnchor] = []
+    private var recordedAudioOffset: TimeInterval = 0
+    private var activeRecordingWallClock: Date?
     private static let transcriptAudioFormat = AVAudioFormat(
         commonFormat: .pcmFormatFloat32,
         sampleRate: 16_000,
@@ -92,7 +104,9 @@ actor TranscriptSession {
         systemProcesses: [AudioProcessDescriptor] = [],
         requestMicrophoneAccess: @escaping @Sendable () async throws -> Void = {
             try await MicrophoneCapture.requestAccessIfNeeded()
-        }
+        },
+        dateProvider: @escaping @Sendable () -> Date = Date.init,
+        timeZone: TimeZone = .current
     ) {
         self.context = context
         self.callbacks = callbacks
@@ -102,12 +116,18 @@ actor TranscriptSession {
         self.transcriptionEngineFactory = transcriptionEngineFactory
         self.systemProcesses = systemProcesses
         self.requestMicrophoneAccess = requestMicrophoneAccess
+        self.dateProvider = dateProvider
+        self.lineFormatter = TranscriptLineFormatter(labels: context.labels, timeZone: timeZone)
     }
 
     func start() async {
         guard status == .idle || status == .completed || status == .error else {
             return
         }
+        suppressOutput = false
+        recordingTimeline = []
+        recordedAudioOffset = 0
+        activeRecordingWallClock = nil
 
         do {
             try await requestMicrophoneAccess()
@@ -159,6 +179,7 @@ actor TranscriptSession {
             }
         }
 
+        beginRecordingTimelineSegment(at: dateProvider())
         status = .recording
         await sendState(status: .recording)
         await sendLevel(source: .mic, level: 0)
@@ -172,6 +193,7 @@ actor TranscriptSession {
 
         microphoneCapture.pause()
         systemAudioCapture?.pause()
+        closeRecordingTimelineSegment(at: dateProvider())
         status = .paused
         await sendState(status: .paused)
         await sendLevel(source: .mic, level: 0)
@@ -191,6 +213,7 @@ actor TranscriptSession {
             return
         }
 
+        beginRecordingTimelineSegment(at: dateProvider())
         status = .recording
         await sendState(status: .recording)
     }
@@ -212,13 +235,15 @@ actor TranscriptSession {
             return
         }
 
-        microphoneCapture.stop()
-        systemAudioCapture?.stop()
-        await stopTranscriptionEngine(flushFinalChunks: true)
         status = .processing
         await sendState(status: .processing)
         await sendLevel(source: .mic, level: 0)
         await sendLevel(source: .system, level: 0)
+
+        microphoneCapture.stop()
+        systemAudioCapture?.stop()
+        closeRecordingTimelineSegment(at: dateProvider())
+        await stopTranscriptionEngine(flushFinalChunks: true)
 
         status = .completed
         await clearModelDownloadProgress()
@@ -226,17 +251,20 @@ actor TranscriptSession {
     }
 
     func clear() async {
-        transcriptionPreparationTask?.cancel()
-        transcriptionPreparationTask = nil
-        isPreparingTranscriptionEngine = false
-        microphoneCapture.stop()
-        systemAudioCapture?.stop()
-        await stopTranscriptionEngine(flushFinalChunks: false)
+        suppressOutput = true
         status = .idle
         await clearModelDownloadProgress()
         await sendState(status: .idle)
         await sendLevel(source: .mic, level: 0)
         await sendLevel(source: .system, level: 0)
+
+        transcriptionPreparationTask?.cancel()
+        transcriptionPreparationTask = nil
+        isPreparingTranscriptionEngine = false
+        microphoneCapture.stop()
+        systemAudioCapture?.stop()
+        closeRecordingTimelineSegment(at: dateProvider())
+        await stopTranscriptionEngine(flushFinalChunks: false)
     }
 
     private func handleBuffer(source: TranscriptSource, buffer: AVAudioPCMBuffer) async {
@@ -271,11 +299,13 @@ actor TranscriptSession {
     }
 
     private func transitionToError(_ message: String) async {
+        suppressOutput = true
         transcriptionPreparationTask?.cancel()
         transcriptionPreparationTask = nil
         isPreparingTranscriptionEngine = false
         microphoneCapture.stop()
         systemAudioCapture?.stop()
+        closeRecordingTimelineSegment(at: dateProvider())
         await stopTranscriptionEngine(flushFinalChunks: false)
         status = .error
         await clearModelDownloadProgress()
@@ -297,12 +327,13 @@ actor TranscriptSession {
         await sendLevel(source: .system, level: 0)
 
         let task = Task<TranscriptionEngine?, Error> {
-            try await transcriptionEngineFactory { receivedBytes, totalBytes, fractionCompleted in
+            try await transcriptionEngineFactory { receivedBytes, totalBytes, fractionCompleted, stage in
                 Task {
                     await self.sendModelDownloadProgress(
                         fractionCompleted: min(max(fractionCompleted, 0), 1),
                         receivedBytes: max(0, Int(receivedBytes)),
-                        totalBytes: max(0, Int(totalBytes ?? 0))
+                        totalBytes: Int(totalBytes ?? -1),
+                        stage: stage
                     )
                 }
             }
@@ -327,7 +358,7 @@ actor TranscriptSession {
         if error is CancellationError {
             return true
         }
-        if case .cancelledDownloadingModel = error as? WhisperModelStoreError {
+        if case .cancelledDownloadingModel = error as? SherpaOnnxModelStoreError {
             return true
         }
         return false
@@ -382,13 +413,13 @@ actor TranscriptSession {
         }
 
         if flushFinalChunks {
-            await engine.stop()
+            await engine.stop(mode: .flushFinalChunks)
             _ = await chunkTask?.result
             _ = await previewTask?.result
         } else {
             chunkTask?.cancel()
             previewTask?.cancel()
-            await engine.stop()
+            await engine.stop(mode: .discardPendingWork)
         }
     }
 
@@ -417,22 +448,73 @@ actor TranscriptSession {
     }
 
     private func sendChunk(_ chunk: TranscriptChunk) async {
+        guard !suppressOutput else {
+            return
+        }
+        guard shouldEmitTranscriptText(chunk.text, source: chunk.source) else {
+            return
+        }
+        let absoluteTimestamp = absoluteTimestamp(forAudioOffset: chunk.timestamp)
         let message = TranscriptChunkMessage(
             range: context.range,
             source: chunk.source,
-            timestamp: chunk.timestamp,
-            text: chunk.text
+            timestamp: absoluteTimestamp,
+            text: lineFormatter.format(
+                TranscriptChunk(
+                    source: chunk.source,
+                    timestamp: absoluteTimestamp,
+                    text: chunk.text
+                )
+            )
         )
         await MainActor.run {
             callbacks.chunk(message)
         }
     }
 
+    private func shouldEmitTranscriptText(_ text: String, source: TranscriptSource) -> Bool {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            return false
+        }
+
+        let punctuationAndSymbols = CharacterSet.punctuationCharacters
+            .union(.symbols)
+            .union(.whitespacesAndNewlines)
+        let meaningfulScalars = trimmed.unicodeScalars.filter { !punctuationAndSymbols.contains($0) }
+        guard !meaningfulScalars.isEmpty else {
+            return false
+        }
+
+        guard source == .mic else {
+            return true
+        }
+
+        if meaningfulScalars.count == 1 {
+            return false
+        }
+
+        if meaningfulScalars.count == 2 {
+            let hasLatinOrDigit = meaningfulScalars.contains { scalar in
+                CharacterSet.alphanumerics.contains(scalar)
+            }
+            if !hasLatinOrDigit {
+                return false
+            }
+        }
+
+        return true
+    }
+
     private func sendPreview(_ preview: TranscriptPreview) async {
+        guard !suppressOutput else {
+            return
+        }
+        let absoluteTimestamp = absoluteTimestamp(forAudioOffset: preview.timestamp)
         let message = TranscriptPreviewMessage(
             range: context.range,
             source: preview.source,
-            timestamp: preview.timestamp,
+            timestamp: absoluteTimestamp,
             text: preview.text
         )
         await MainActor.run {
@@ -453,7 +535,8 @@ actor TranscriptSession {
     private func sendModelDownloadProgress(
         fractionCompleted: Double,
         receivedBytes: Int,
-        totalBytes: Int
+        totalBytes: Int,
+        stage: TranscriptDownloadStage
     ) async {
         let progress = TranscriptModelDownloadProgressMessage(
             range: context.range,
@@ -461,7 +544,8 @@ actor TranscriptSession {
             progress: TranscriptDownloadProgress(
                 fractionCompleted: fractionCompleted,
                 receivedBytes: receivedBytes,
-                totalBytes: totalBytes
+                totalBytes: totalBytes,
+                stage: stage
             )
         )
         await MainActor.run {
@@ -470,7 +554,51 @@ actor TranscriptSession {
     }
 
     private func clearModelDownloadProgress() async {
-        await sendModelDownloadProgress(fractionCompleted: 0, receivedBytes: 0, totalBytes: 0)
+        await sendModelDownloadProgress(
+            fractionCompleted: 0,
+            receivedBytes: 0,
+            totalBytes: 0,
+            stage: .downloading
+        )
+    }
+
+    private func beginRecordingTimelineSegment(at wallClock: Date) {
+        let audioOffset = currentAudioOffset(at: wallClock)
+        if let lastAnchor = recordingTimeline.last,
+           abs(lastAnchor.audioOffset - audioOffset) < 0.001,
+           abs(lastAnchor.wallClock.timeIntervalSince(wallClock)) < 0.001 {
+            return
+        }
+        recordingTimeline.append(
+            TranscriptTimelineAnchor(
+                audioOffset: audioOffset,
+                wallClock: wallClock
+            )
+        )
+        activeRecordingWallClock = wallClock
+    }
+
+    private func closeRecordingTimelineSegment(at wallClock: Date) {
+        guard activeRecordingWallClock != nil else {
+            return
+        }
+        recordedAudioOffset = currentAudioOffset(at: wallClock)
+        activeRecordingWallClock = nil
+    }
+
+    private func currentAudioOffset(at wallClock: Date) -> TimeInterval {
+        guard let activeRecordingWallClock else {
+            return recordedAudioOffset
+        }
+        return max(recordedAudioOffset, recordedAudioOffset + wallClock.timeIntervalSince(activeRecordingWallClock))
+    }
+
+    private func absoluteTimestamp(forAudioOffset audioOffset: TimeInterval) -> TimeInterval {
+        guard !recordingTimeline.isEmpty else {
+            return dateProvider().timeIntervalSince1970
+        }
+        let anchor = recordingTimeline.last(where: { $0.audioOffset <= audioOffset }) ?? recordingTimeline[0]
+        return anchor.wallClock.addingTimeInterval(audioOffset - anchor.audioOffset).timeIntervalSince1970
     }
 }
 

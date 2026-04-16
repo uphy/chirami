@@ -13,7 +13,13 @@ import { tableExtension } from "./extensions/table";
 import { mermaidExtension } from "./extensions/mermaid";
 import { imageExtension } from "./extensions/image";
 import { excalidrawExtension } from "./extensions/excalidraw";
-import { transcriptExtension } from "./extensions/transcript";
+import {
+  collectTranscriptBlocks,
+  parseTranscriptLineTimestampSeconds,
+  transcriptImmediateSaveAnnotation,
+  transcriptExtension,
+  TranscriptBlockRef,
+} from "./extensions/transcript";
 import { detailsExtension } from "./extensions/details";
 import {
   markdownHeadingFold,
@@ -25,6 +31,7 @@ import { foldedRanges } from "@codemirror/language";
 import { smartPaste, plainPasteKeymap } from "./extensions/smartPaste";
 import { slashCommandExtension } from "./extensions/slashCommand";
 import { foldGutterLineHover } from "./extensions/foldGutterHover";
+import type { EditorContextOptions } from "./bridge";
 
 // Heading font sizes and strikethrough must be set here as inline styles —
 // classHighlighter CSS classes alone don't apply font-size to heading lines correctly.
@@ -44,12 +51,114 @@ export type EditorCallbacks = {
   onScrollChanged: (offset: number) => void;
 };
 
+type EditorContextResult = {
+  file: string;
+  selection: {
+    text: string;
+    from: { line: number; column: number };
+    to: { line: number; column: number };
+  };
+  cursor: { line: number; column: number };
+  transcript?: {
+    text: string;
+    truncated: boolean;
+  } | null;
+};
+
+function resolveContextTranscriptBlock(
+  state: EditorState,
+  selectionFrom: number,
+  selectionTo: number,
+  cursor: number,
+): TranscriptBlockRef | null {
+  const blocks = collectTranscriptBlocks(state);
+  if (blocks.length === 0) return null;
+
+  if (selectionFrom !== selectionTo) {
+    const selectedBlock = blocks.find((block) => selectionFrom >= block.blockFrom && selectionTo <= block.blockTo);
+    if (selectedBlock) return selectedBlock;
+  }
+
+  const cursorBlock = blocks.find((block) => cursor >= block.blockFrom && cursor <= block.blockTo);
+  if (cursorBlock) return cursorBlock;
+
+  return blocks[blocks.length - 1] ?? null;
+}
+
+function buildFilteredTranscriptText(
+  text: string,
+  options: NonNullable<EditorContextOptions["transcript"]>,
+): { text: string; truncated: boolean } {
+  const fullText = text.trimEnd();
+  if (options.mode === "full") {
+    return { text: fullText, truncated: false };
+  }
+
+  if (fullText.length === 0) {
+    return { text: "", truncated: false };
+  }
+
+  const lines = fullText.split(/\r?\n/);
+  const utterances = lines
+    .map((line, index) => ({
+      index,
+      timestamp: parseTranscriptLineTimestampSeconds(line.trim()),
+    }))
+    .filter((entry): entry is { index: number; timestamp: number } => entry.timestamp !== null);
+
+  if (utterances.length === 0) {
+    return { text: fullText, truncated: false };
+  }
+
+  let selectedIndexes = new Set<number>();
+  if (options.mode === "last") {
+    const count = options.value ?? 0;
+    if (count <= 0) {
+      return { text: fullText, truncated: false };
+    }
+    selectedIndexes = new Set(utterances.slice(-count).map((entry) => entry.index));
+  } else {
+    const seconds = options.value ?? 0;
+    if (seconds <= 0) {
+      return { text: fullText, truncated: false };
+    }
+    const latestTimestamp = Math.max(...utterances.map((entry) => entry.timestamp));
+    const threshold = latestTimestamp - seconds;
+    selectedIndexes = new Set(
+      utterances
+        .filter((entry) => entry.timestamp >= threshold)
+        .map((entry) => entry.index),
+    );
+  }
+
+  const filteredLines = lines.filter((_, index) => selectedIndexes.has(index));
+  if (filteredLines.length === 0) {
+    return { text: "", truncated: fullText.length > 0 };
+  }
+
+  return {
+    text: filteredLines.join("\n"),
+    truncated: filteredLines.length < lines.length,
+  };
+}
+
+function buildTranscriptContext(
+  state: EditorState,
+  selectionFrom: number,
+  selectionTo: number,
+  cursor: number,
+  options: NonNullable<EditorContextOptions["transcript"]>,
+): EditorContextResult["transcript"] {
+  const block = resolveContextTranscriptBlock(state, selectionFrom, selectionTo, cursor);
+  if (!block) return null;
+  return buildFilteredTranscriptText(block.text, options);
+}
+
 export function createEditor(parent: HTMLElement, callbacks: EditorCallbacks): EditorView {
   const updateListener = EditorView.updateListener.of((update: ViewUpdate) => {
     if (update.docChanged) {
       const immediate = update.transactions.some((transaction) => {
-        const event = transaction.annotation(Transaction.userEvent);
-        return event === "input.transcript";
+        return transaction.annotation(transcriptImmediateSaveAnnotation) === true;
       });
       callbacks.onContentChanged(update.state.doc.toString(), immediate);
     }
@@ -146,7 +255,8 @@ export function createEditor(parent: HTMLElement, callbacks: EditorCallbacks): E
     ],
   });
 
-  return new EditorView({ state, parent });
+  const view = new EditorView({ state, parent });
+  return view;
 }
 
 export function setEditorContent(view: EditorView, text: string) {
@@ -171,14 +281,14 @@ export function setEditorContent(view: EditorView, text: string) {
   }
 }
 
-export function getEditorContext(view: EditorView): string {
+export function getEditorContext(view: EditorView, options?: EditorContextOptions): string {
   const state = view.state;
   const sel = state.selection.main;
   const head = sel.head;
   const line = state.doc.lineAt(head);
   const fromLine = state.doc.lineAt(sel.from);
   const toLine = state.doc.lineAt(sel.to);
-  return JSON.stringify({
+  const context: EditorContextResult = {
     file: window.__chiramiNotePath ?? "",
     selection: {
       text: sel.empty ? "" : state.sliceDoc(sel.from, sel.to),
@@ -186,5 +296,11 @@ export function getEditorContext(view: EditorView): string {
       to: { line: toLine.number, column: sel.to - toLine.from },
     },
     cursor: { line: line.number, column: head - line.from },
-  });
+  };
+
+  if (options?.transcript) {
+    context.transcript = buildTranscriptContext(state, sel.from, sel.to, head, options.transcript);
+  }
+
+  return JSON.stringify(context);
 }

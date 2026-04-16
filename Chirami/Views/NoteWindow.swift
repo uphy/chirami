@@ -85,6 +85,7 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
 
         panel.setupPinButton { [weak self] in self?.togglePinAction() }
         panel.updatePinState(isPinned: isPinned)
+        panel.applyConfiguredAppearance()
 
         let rootView = NoteContentView(model: contentModel, noteId: note.id, onTogglePin: { [weak self] in self?.togglePinAction() })
             .environmentObject(NoteStore.shared)
@@ -375,13 +376,13 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
         WindowManager.shared.noteWindowDidBecomeKey(self)
     }
 
-    func getEditorContext(completion: @escaping (Result<String, Error>) -> Void) {
+    func getEditorContext(options: ContextRequestOptions? = nil, completion: @escaping (Result<String, Error>) -> Void) {
         guard let getter = contentModel.getEditorContext else {
             completion(.failure(NSError(domain: "ContextHandler", code: -1,
                 userInfo: [NSLocalizedDescriptionKey: "editor not ready"])))
             return
         }
-        getter(completion)
+        getter(options, completion)
     }
 
     func windowDidResignKey(_ notification: Notification) {
@@ -723,6 +724,21 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
             self.logger.debug("transcriptDevicesRequest source=\(request.source.rawValue, privacy: .public) blockFrom=\(request.range.blockFrom)")
             self.sendTranscriptDevicesList(for: request)
         }
+        contentModel.onTranscriptModelRequest = { [weak self] request in
+            guard let self else { return }
+            self.logger.debug("transcriptModelRequest blockFrom=\(request.range.blockFrom)")
+            self.sendTranscriptModelState(for: request.range)
+        }
+        contentModel.onTranscriptModelSelect = { [weak self] selection in
+            guard let self else { return }
+            guard let selectedModel = try? SherpaOnnxModelStore.shared.resolvedCatalogModel(for: selection.value) else {
+                self.logger.warning("transcriptModelSelect ignored unsupported value=\(selection.value, privacy: .public)")
+                self.sendTranscriptModelState(for: selection.range)
+                return
+            }
+            AppState.shared.setTranscriptModel(selectedModel.identifier)
+            self.sendTranscriptModelState(for: selection.range)
+        }
     }
 
     private func makeTranscriptSession(for message: TranscriptRecordStartMessage) -> TranscriptSession {
@@ -739,8 +755,7 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
         let resolvedSystem = TranscriptDeviceResolver.resolveSystemSelection(
             blockSelection: message.systemDevice,
             configuredValue: transcriptConfig.devices.system,
-            availableProcesses: availableSystemProcesses,
-            frontmostBundleID: NSWorkspace.shared.frontmostApplication?.bundleIdentifier
+            availableProcesses: availableSystemProcesses
         )
         let resolvedPIDs = resolvedSystem.processes.map(\.pid).description
         logger.info(
@@ -770,7 +785,8 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
             range: message.range,
             modelLabel: transcriptModelLabel(),
             micDeviceLabel: resolvedMicDevice.label,
-            systemDeviceLabel: resolvedSystem.selection.label
+            systemDeviceLabel: resolvedSystem.selection.label,
+            labels: transcriptConfig.labels
         )
 
         let transcriptionEngine = makeTranscriptionEngine()
@@ -789,31 +805,52 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
         let identifier: String
         let label: String
         let language: String?
+        let kind: SherpaOnnxModelKind
     }
 
     private func configuredTranscriptModel() -> ConfiguredTranscriptModel? {
         let transcriptConfig = AppConfig.shared.transcriptConfig
-        let identifier = transcriptConfig.model.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !identifier.isEmpty else {
-            return nil
-        }
-
-        let label: String
-        if identifier.hasPrefix("/") {
-            label = URL(fileURLWithPath: identifier).lastPathComponent
-        } else {
-            label = identifier
-        }
+        let modelStore = SherpaOnnxModelStore.shared
+        let requestedIdentifier = AppState.shared.state.transcriptModel ?? defaultModelIdentifier()
+        let resolvedCatalogModel =
+            (try? modelStore.resolvedCatalogModel(for: requestedIdentifier)) ??
+            (try? modelStore.resolvedCatalogModel(for: defaultModelIdentifier()))
+        guard let resolvedCatalogModel else { return nil }
 
         return ConfiguredTranscriptModel(
-            identifier: identifier,
-            label: label,
-            language: transcriptConfig.language
+            identifier: resolvedCatalogModel.identifier,
+            label: resolvedCatalogModel.label,
+            language: transcriptConfig.language,
+            kind: resolvedCatalogModel.kind
         )
     }
 
     private func transcriptModelLabel() -> String {
-        configuredTranscriptModel()?.label ?? "openai_whisper-large-v3_turbo"
+        configuredTranscriptModel()?.label ?? "Configured model"
+    }
+
+    private func defaultModelIdentifier() -> String {
+        SherpaOnnxModelStore.defaultModelIdentifier
+    }
+
+    private func sendTranscriptModelState(for range: TranscriptBlockRange) {
+        guard let currentModel = configuredTranscriptModel() else { return }
+        let options = SherpaOnnxModelStore.shared.builtInModels().map { model in
+            TranscriptDeviceOptionMessage(
+                value: model.identifier,
+                label: model.label,
+                detail: model.detail,
+                active: model.identifier == currentModel.identifier
+            )
+        }
+        contentModel.transcriptSendModelState?(
+            TranscriptModelStateMessage(
+                range: range,
+                modelLabel: currentModel.label,
+                selectedValue: currentModel.identifier,
+                models: options
+            )
+        )
     }
 
     private func makeTranscriptionEngine() -> TranscriptionEngine? {
@@ -821,15 +858,16 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
             return nil
         }
 
-        let modelStore = WhisperModelStore.shared
+        let modelStore = SherpaOnnxModelStore.shared
         guard modelStore.modelExists(for: model.identifier) else {
-            logger.info("transcript engine unavailable until model exists locally: \(model.identifier, privacy: .public)")
+            logger.info("transcript sherpa engine unavailable until model exists locally: \(model.identifier, privacy: .public)")
             return nil
         }
 
         let modelFolder = modelStore.resolvedModelURL(for: model.identifier)
-        return WhisperKitEngine(
+        return SherpaOnnxEngine(
             modelFolder: modelFolder,
+            modelKind: model.kind,
             language: model.language
         )
     }
@@ -839,21 +877,24 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
             return nil
         }
 
-        guard !WhisperModelStore.shared.modelExists(for: model.identifier) else {
+        guard !SherpaOnnxModelStore.shared.modelExists(for: model.identifier) else {
             return nil
         }
 
         return { [logger] progress in
-            logger.info("transcript model download start: \(model.identifier, privacy: .public)")
-            let modelFolder = try await WhisperModelStore.shared.downloadModel(id: model.identifier) {
+            logger.info("transcript sherpa model download start: \(model.identifier, privacy: .public)")
+            let modelFolder = try await SherpaOnnxModelStore.shared.downloadModel(id: model.identifier) {
                 receivedBytes,
                 totalBytes,
-                fractionCompleted in
-                progress(receivedBytes, totalBytes, fractionCompleted)
+                fractionCompleted,
+                stage in
+                progress(receivedBytes, totalBytes, fractionCompleted, stage)
             }
-            logger.info("transcript model download finished: \(model.identifier, privacy: .public)")
-            return WhisperKitEngine(
+            logger.info("transcript sherpa model download finished: \(model.identifier, privacy: .public)")
+            progress(0, -1, 1, .preparing)
+            return SherpaOnnxEngine(
                 modelFolder: modelFolder,
+                modelKind: model.kind,
                 language: model.language
             )
         }
@@ -897,7 +938,7 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
         if !trimmed.isEmpty {
             return trimmed
         }
-        return source == .mic ? "default" : "auto"
+        return source == .mic ? "default" : "all"
     }
 
     private func micDeviceOptions(selectedValue: String) -> [TranscriptDeviceOptionMessage] {
@@ -943,26 +984,21 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
         let processes = AudioProcessEnumerator.runningOutputProcesses()
             .sorted { $0.displayLabel.localizedCaseInsensitiveCompare($1.displayLabel) == .orderedAscending }
         let processValues = Set(processes.map(\.transcriptValue))
+        let normalizedSelectedValue = selectedValue == "auto" ? "all" : selectedValue
         var options: [TranscriptDeviceOptionMessage] = [
             TranscriptDeviceOptionMessage(
-                value: "auto",
-                label: "Auto",
-                detail: "Choose the loudest active process",
-                active: selectedValue == "auto"
-            ),
-            TranscriptDeviceOptionMessage(
-                value: "off",
-                label: "Off",
-                detail: "Do not capture system audio",
-                active: selectedValue == "off"
+                value: "all",
+                label: "All System Audio",
+                detail: "Capture all active system audio",
+                active: normalizedSelectedValue == "all"
             )
         ]
 
-        if selectedValue != "auto" && selectedValue != "off" && !processValues.contains(selectedValue) {
+        if normalizedSelectedValue != "all" && normalizedSelectedValue != "off" && !processValues.contains(normalizedSelectedValue) {
             options.append(
                 TranscriptDeviceOptionMessage(
-                    value: selectedValue,
-                    label: selectedValue,
+                    value: normalizedSelectedValue,
+                    label: normalizedSelectedValue,
                     detail: "Unavailable",
                     active: true
                 )
@@ -974,9 +1010,18 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
                 value: process.transcriptValue,
                 label: process.displayLabel,
                 detail: process.transcriptDetail,
-                active: process.transcriptValue == selectedValue
+                active: process.transcriptValue == normalizedSelectedValue
             )
         })
+
+        options.append(
+            TranscriptDeviceOptionMessage(
+                value: "off",
+                label: "Off",
+                detail: "Do not capture system audio",
+                active: normalizedSelectedValue == "off"
+            )
+        )
 
         return options
     }
@@ -993,7 +1038,7 @@ class NoteContentModel: ObservableObject {
     nonisolated(unsafe) var savedCursorLocation: Int = 0
     nonisolated(unsafe) var savedScrollOffset: CGPoint = .zero
     var focusWebView: (() -> Void)?
-    var getEditorContext: ((@escaping (Result<String, Error>) -> Void) -> Void)?
+    var getEditorContext: ((ContextRequestOptions?, @escaping (Result<String, Error>) -> Void) -> Void)?
     /// Fires once after the WebView is ready and its panel background matches the theme.
     /// The window controller uses this to defer the initial fade-in and avoid a yellow flash.
     var onWebViewReady: (() -> Void)?
@@ -1006,6 +1051,7 @@ class NoteContentModel: ObservableObject {
     var transcriptSendState: ((TranscriptStateMessage) -> Void)?
     var transcriptSendLevel: ((TranscriptLevelUpdateMessage) -> Void)?
     var transcriptSendDevicesList: ((TranscriptDevicesListMessage) -> Void)?
+    var transcriptSendModelState: ((TranscriptModelStateMessage) -> Void)?
     var transcriptSendModelDownloadProgress: ((TranscriptModelDownloadProgressMessage) -> Void)?
     var transcriptSendError: ((TranscriptErrorMessage) -> Void)?
     var onTranscriptRecordStart: ((TranscriptRecordStartMessage) -> Void)?
@@ -1015,6 +1061,8 @@ class NoteContentModel: ObservableObject {
     var onTranscriptRecordClear: ((TranscriptBlockRange) -> Void)?
     var onTranscriptDevicesRequest: ((TranscriptDevicesRequestMessage) -> Void)?
     var onTranscriptDeviceSelect: ((TranscriptDeviceSelectionMessage) -> Void)?
+    var onTranscriptModelRequest: ((TranscriptModelRequestMessage) -> Void)?
+    var onTranscriptModelSelect: ((TranscriptModelSelectionMessage) -> Void)?
     private let note: Note
     private let imagePasteService = ImagePasteService()
     private let logger = Logger(subsystem: "io.github.uphy.Chirami", category: "NoteContentModel")

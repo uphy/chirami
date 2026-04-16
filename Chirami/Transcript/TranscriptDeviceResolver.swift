@@ -1,4 +1,3 @@
-import AppKit
 import Foundation
 
 struct ResolvedTranscriptSystemSelection: Equatable {
@@ -33,12 +32,11 @@ enum TranscriptDeviceResolver {
     static func resolveSystemSelection(
         blockSelection: TranscriptDeviceSnapshot,
         configuredValue: String,
-        availableProcesses: [AudioProcessDescriptor],
-        frontmostBundleID: String?
+        availableProcesses: [AudioProcessDescriptor]
     ) -> ResolvedTranscriptSystemSelection {
         let normalizedBlock = normalize(blockSelection.value)
         let normalizedConfigured = normalize(configuredValue)
-        let candidates = [normalizedBlock, normalizedConfigured, "auto"]
+        let candidates = [normalizedBlock, normalizedConfigured, "all"]
             .filter { !$0.isEmpty }
             .removingDuplicates()
 
@@ -50,17 +48,10 @@ enum TranscriptDeviceResolver {
                 )
             }
 
-            if candidate == "auto" {
-                let selected = SystemAudioAutoSelector.selectProcess(
-                    from: availableProcesses,
-                    levelsByPID: [:],
-                    frontmostBundleID: frontmostBundleID
-                )
-                let processes = selected.map { groupedSystemProcesses(from: availableProcesses, matching: $0) } ?? []
-                let label = selected?.displayLabel ?? "Auto"
+            if candidate == "all" {
                 return ResolvedTranscriptSystemSelection(
-                    selection: TranscriptDeviceSnapshot(value: "auto", label: label),
-                    processes: processes
+                    selection: TranscriptDeviceSnapshot(value: "all", label: "All System Audio"),
+                    processes: availableProcesses
                 )
             }
 
@@ -80,8 +71,8 @@ enum TranscriptDeviceResolver {
         }
 
         return ResolvedTranscriptSystemSelection(
-            selection: TranscriptDeviceSnapshot(value: "auto", label: "Auto"),
-            processes: []
+            selection: TranscriptDeviceSnapshot(value: "all", label: "All System Audio"),
+            processes: availableProcesses
         )
     }
 
@@ -143,7 +134,8 @@ enum TranscriptDeviceResolver {
     }
 
     private static func normalize(_ value: String) -> String {
-        value.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed == "auto" ? "all" : trimmed
     }
 }
 

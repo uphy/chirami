@@ -2,7 +2,7 @@
 
 ### Requirement: `transcript` コードブロックの認識とウィジェット表示
 
-エディタは ` ```transcript ` フェンスコードブロックを検出し、カーソルがブロック外にある場合は録音コントロールを含むウィジェットを表示しなければならない（SHALL）。カーソルがブロック内にある場合はウィジェットを非表示にし、ブロック内のプレーンテキスト（`[MM:SS] Speaker: text` 行）を通常の Markdown として編集可能にしなければならない（SHALL）。
+エディタは ` ```transcript ` フェンスコードブロックを検出し、カーソルがブロック外にある場合は録音コントロールを含むウィジェットを表示しなければならない（SHALL）。カーソルがブロック内にある場合はウィジェットを非表示にし、ブロック内のプレーンテキスト（`[YYYY-MM-DD HH:MM:SS] Speaker: text` 行）を通常の Markdown として編集可能にしなければならない（SHALL）。
 
 #### Scenario: カーソルがブロック外にある場合のウィジェット表示
 
@@ -41,7 +41,7 @@
 #### Scenario: 追加録音
 
 - **WHEN** Completed 状態で「追加録音」がクリックされる
-- **THEN** ブロック末尾に `---` セパレータ行が挿入され、新規セッションとして Recording に遷移する。タイムスタンプは新セッションの 00:00 からカウントされる
+- **THEN** ブロック末尾に `---` セパレータ行が挿入され、新規セッションとして Recording に遷移する。以降の書き起こし行は録音時点の壁時計時刻で記録される
 
 #### Scenario: 重大エラー発生
 
@@ -55,21 +55,21 @@
 
 ### Requirement: ストリーミング書き起こし出力
 
-書き起こしエンジンが確定（confirmed）とみなしたチャンクのみを `transcript` コードブロック内に追記しなければならない（SHALL）。確定前のチャンクはブロック本文には書き込まない（MUST NOT）。出力フォーマットは `[MM:SS] Speaker: text` とし、各チャンクを独立した 1 行として扱う。
+書き起こしエンジンが確定（confirmed）とみなしたチャンクのみを `transcript` コードブロック内に追記しなければならない（SHALL）。確定前のチャンクはブロック本文には書き込まない（MUST NOT）。出力フォーマットは `[YYYY-MM-DD HH:MM:SS] Speaker: text` とし、各チャンクを独立した 1 行として扱う。
 
 #### Scenario: マイク音声の確定チャンク追記
 
 - **WHEN** マイク入力から確定チャンクが得られる
-- **THEN** ブロック末尾（閉じ ` ``` ` の直前）に `[MM:SS] You: <text>` 形式で 1 行追記される
+- **THEN** ブロック末尾（閉じ ` ``` ` の直前）に `[YYYY-MM-DD HH:MM:SS] You: <text>` 形式で 1 行追記される
 
 #### Scenario: システム音声の確定チャンク追記
 
 - **WHEN** システム音声から確定チャンクが得られる
-- **THEN** ブロック末尾に `[MM:SS] Others: <text>` 形式で 1 行追記される
+- **THEN** ブロック末尾に `[YYYY-MM-DD HH:MM:SS] Others: <text>` 形式で 1 行追記される
 
 #### Scenario: 確定前チャンクの扱い
 
-- **WHEN** WhisperKit が未確定のパーシャルチャンクを返す
+- **WHEN** 書き起こしエンジンが未確定のパーシャルチャンクを返す
 - **THEN** ブロック本文には書き込まれず、ウィジェット内のライブキャプション領域（存在する場合）のみに一時表示される
 
 #### Scenario: ユーザー編集との共存
@@ -105,10 +105,10 @@
 - **WHEN** ウィジェットで選択したマイク（例: AirPods）が切断されている
 - **THEN** 警告がログに記録され、`config.yaml` に指定があればそのデバイスを、なければシステムデフォルトを使用する。ブロック内にはフォールバック発生を示すトースト表示を行う
 
-#### Scenario: システム音声の自動選択
+#### Scenario: システム音声の全体選択
 
-- **WHEN** `transcript.devices.system: auto` が設定されている
-- **THEN** 録音開始時点で音声出力中のプロセスのうち最も音量の大きいものを対象に Core Audio Process Tap を作成する
+- **WHEN** `transcript.devices.system: all` が設定されている
+- **THEN** 録音開始時点で音声出力中の全プロセスを対象に Core Audio Process Tap を作成する
 
 #### Scenario: システム音声の無効化
 
@@ -129,18 +129,18 @@
 - **WHEN** ユーザーの環境が macOS 14.1 以下
 - **THEN** ウィジェットは Error 状態となり、「macOS 14.2 以上が必要です」というメッセージを表示する
 
-### Requirement: WhisperKit による書き起こしエンジン
+### Requirement: オンデバイス書き起こしエンジン
 
-書き起こしは WhisperKit（CoreML）を用いて**完全にオンデバイス**で実行されなければならない（SHALL）。音声データは Chirami プロセス外に送信されてはならない（MUST NOT）。ただし初回のモデルダウンロード時のみ、Hugging Face（もしくはユーザー指定のモデル配布元）へのネットワーク接続が許可される。
+書き起こしは sherpa-onnx ベースのオンデバイス推論を用いて**完全にオンデバイス**で実行されなければならない（SHALL）。音声データは Chirami プロセス外に送信されてはならない（MUST NOT）。ただし初回のモデルダウンロード時のみ、モデル配布元（もしくはユーザー指定の配布元）へのネットワーク接続が許可される。
 
 #### Scenario: モデルのオンデバイス推論
 
 - **WHEN** 録音中に音声チャンクが確定可能な長さに達する
-- **THEN** WhisperKit が CoreML 経由でローカル推論を行い、テキストを返す。外部 API への音声アップロードは発生しない
+- **THEN** speech engine がローカル推論を行い、テキストを返す。外部 API への音声アップロードは発生しない
 
 ### Requirement: 書き起こしモデルの管理
 
-書き起こしモデルは `~/.local/state/chirami/models/whisper/<model-id>/` に保存され、未存在の場合は最初の録音開始時にダウンロードされなければならない（SHALL）。`transcript.model` に絶対パスが指定されている場合は、そのパスを直接使用し、ダウンロードは行わない（MUST NOT）。
+書き起こしモデルは `~/.local/state/chirami/models/sherpa-onnx/<model-id>/` に保存され、未存在の場合は最初の録音開始時にダウンロードされなければならない（SHALL）。`transcript.model` に絶対パスが指定されている場合は、そのパスを直接使用し、ダウンロードは行わない（MUST NOT）。
 
 #### Scenario: 初回録音時のモデル自動ダウンロード
 
@@ -154,13 +154,13 @@
 
 #### Scenario: 絶対パス指定モデルの使用
 
-- **WHEN** `transcript.model` が `/Users/me/models/whisper-small/` のような絶対パスに設定されている
+- **WHEN** `transcript.model` が `/Users/me/models/sense-voice/` のような絶対パスに設定されている
 - **THEN** そのパスのモデルが直接使用され、ネットワークアクセスは発生しない
 
 #### Scenario: デフォルトモデル
 
 - **WHEN** `transcript.model` が設定されていない
-- **THEN** `openai_whisper-large-v3_turbo` が既定として使用される
+- **THEN** `sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17` が既定として使用される
 
 ### Requirement: 権限要求フロー
 
@@ -197,7 +197,7 @@
 #### Scenario: 外部エディタでの可読性
 
 - **WHEN** 録音完了した `transcript` ブロックを含むノートを Obsidian で開く
-- **THEN** ブロック内容は `[00:12] You: こんにちは` のような人間可読なテキストとして表示される
+- **THEN** ブロック内容は `[2026-04-16 12:34:56] You: こんにちは` のような人間可読なテキストとして表示される
 
 #### Scenario: ユーザーによる書き起こし訂正
 
@@ -225,7 +225,7 @@ Recording および Paused 状態のウィジェットは、経過時間・マ�
 #### Scenario: セクション不在時のデフォルト
 
 - **WHEN** `config.yaml` に `transcript:` セクションが存在しない
-- **THEN** モデルは `openai_whisper-large-v3_turbo`、言語は `auto`、デバイスは `mic: default` / `system: auto`、ラベルは `You` / `Others` として扱われる
+- **THEN** モデルは `sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17`、言語は `auto`、デバイスは `mic: default` / `system: all`、ラベルは `You` / `Others` として扱われる
 
 #### Scenario: 部分的な設定
 
@@ -246,5 +246,5 @@ Recording および Paused 状態のウィジェットは、経過時間・マ�
 
 #### Scenario: 確定チャンク受信
 
-- **WHEN** Swift 側で WhisperKit が確定チャンクを返す
+- **WHEN** Swift 側で speech engine が確定チャンクを返す
 - **THEN** `transcriptChunk` メッセージが JS に送信され、JS はブロック末尾にフォーマット済みテキスト行を挿入する

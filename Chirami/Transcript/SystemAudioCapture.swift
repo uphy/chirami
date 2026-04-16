@@ -302,12 +302,6 @@ final class SystemAudioCapture {
         }
         inputBuffer.frameLength = frameLength
 
-        logger.debug("SystemAudioCapture input frameLength=\(frameLength)")
-        let inputLevel = AudioLevelMeter.normalizedLevel(for: inputBuffer)
-        logger.debug(
-            "SystemAudioCapture input level=\(inputLevel, privacy: .public) format=\(sourceFormat.commonFormat.rawValue, privacy: .public) interleaved=\(sourceFormat.isInterleaved, privacy: .public) channels=\(sourceFormat.channelCount)"
-        )
-
         let outputFrameCapacity = max(
             AVAudioFrameCount(frameLength),
             max(
@@ -347,11 +341,6 @@ final class SystemAudioCapture {
             bufferHandler(inputBuffer)
             return
         }
-
-        let outputLevel = AudioLevelMeter.normalizedLevel(for: outputBuffer)
-        logger.debug(
-            "SystemAudioCapture output level=\(outputLevel, privacy: .public) frameLength=\(outputBuffer.frameLength)"
-        )
 
         bufferHandler(outputBuffer)
     }

@@ -13,9 +13,6 @@ packages:
   Yams:
     url: https://github.com/jpsim/Yams
     from: "5.0.0"
-  WhisperKit:
-    url: https://github.com/argmaxinc/whisperkit
-    from: "0.15.0"
 
 targets:
   Chirami:
@@ -64,8 +61,6 @@ targets:
         product: HotKey
       - package: Yams
         product: Yams
-      - package: WhisperKit
-        product: WhisperKit
   ChiramiTests:
     type: bundle.unit-test
     platform: macOS
