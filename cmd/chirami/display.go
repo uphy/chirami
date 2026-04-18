@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 
 	"github.com/uphy/chirami/cmd/chirami/internal"
 
@@ -96,8 +95,7 @@ func runDisplay(cmd *cobra.Command, args []string, fileFlag string, waitFlag boo
 	}
 
 	// Task 6.7: launch Chirami.app via open command
-	uri := internal.BuildURI("display", params)
-	if err := exec.Command("open", "-g", uri).Run(); err != nil {
+	if err := openURI("display", params); err != nil {
 		return fmt.Errorf("failed to open chirami: %w", err)
 	}
 

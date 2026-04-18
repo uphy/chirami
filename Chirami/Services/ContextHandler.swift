@@ -64,10 +64,7 @@ final class ContextHandler {
                 Darwin.close(fd)
                 return
             }
-            data.withUnsafeBytes { bytes in
-                guard let ptr = bytes.baseAddress else { return }
-                _ = write(fd, ptr, bytes.count)
-            }
+            PipeIO.write(data, to: fd, logger: self?.logger ?? Logger(subsystem: "io.github.uphy.Chirami", category: "ContextHandler"), context: "ContextHandler.writeToPipe")
             Darwin.close(fd)
         }
     }

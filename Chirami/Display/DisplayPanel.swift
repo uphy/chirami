@@ -1,10 +1,12 @@
 import AppKit
+import os
 
 /// A floating panel for Ad-hoc Notes (CLI-initiated content display), sharing NotePanel's visual style.
 class DisplayPanel: NotePanel {
 
     private var callbackPipeFd: Int32 = -1
     var didNotifyClosed = false
+    private let logger = Logger(subsystem: "io.github.uphy.Chirami", category: "DisplayPanel")
 
     init(callbackPipePath: String?, isReadOnly: Bool, transparency: Double = 0.9, customTitle: String? = nil, alwaysOnTop: Bool = true) {
         let frame = NSRect(x: 0, y: 0, width: 400, height: 500)
@@ -56,10 +58,7 @@ class DisplayPanel: NotePanel {
         guard fd >= 0,
               let data = "CLOSED\n".data(using: .utf8) else { return }
         callbackPipeFd = -1
-        data.withUnsafeBytes { bytes in
-            guard let ptr = bytes.baseAddress else { return }
-            _ = write(fd, ptr, bytes.count)
-        }
+        PipeIO.write(data, to: fd, logger: logger, context: "DisplayPanel.notifyClosed")
         _ = Darwin.close(fd)
     }
 

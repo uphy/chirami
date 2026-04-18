@@ -2,6 +2,7 @@ import ServiceManagement
 import SwiftUI
 import Combine
 import os
+import Carbon.HIToolbox.Events
 
 @main
 struct ChiramiApp: App {
@@ -36,6 +37,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private let hotkeyService = GlobalHotkeyService()
     private let karabinerService = KarabinerService.shared
     private var cancellables = Set<AnyCancellable>()
+
+    override init() {
+        super.init()
+        PipeIO.configureProcessWideSignalHandling()
+        NSAppleEventManager.shared().setEventHandler(
+            self,
+            andSelector: #selector(handleGetURLEvent(_:withReplyEvent:)),
+            forEventClass: AEEventClass(kInternetEventClass),
+            andEventID: AEEventID(kAEGetURL)
+        )
+    }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Apply appearance mode from config
@@ -153,6 +165,20 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func application(_ application: NSApplication, open urls: [URL]) {
         logger.debug("application(_:open:) called with \(urls.count, privacy: .public) URL(s)")
+        routeIncomingURLs(urls)
+    }
+
+    @objc private func handleGetURLEvent(_ event: NSAppleEventDescriptor, withReplyEvent _: NSAppleEventDescriptor) {
+        guard let urlString = event.paramDescriptor(forKeyword: AEKeyword(keyDirectObject))?.stringValue,
+              let url = URL(string: urlString) else {
+            logger.error("Failed to decode kAEGetURL Apple Event")
+            return
+        }
+        logger.debug("handleGetURLEvent received URL: \(url.absoluteString, privacy: .public)")
+        routeIncomingURLs([url])
+    }
+
+    private func routeIncomingURLs(_ urls: [URL]) {
         for url in urls {
             logger.debug("URL: \(url.absoluteString, privacy: .public)")
             guard url.scheme == "chirami" else { continue }

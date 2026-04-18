@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"strconv"
 
 	"github.com/spf13/cobra"
@@ -95,8 +94,7 @@ func runContext(cmd *cobra.Command, _ []string) error {
 		params["transcript_value"] = strconv.Itoa(seconds)
 	}
 
-	uri := internal.BuildURI("context", params)
-	if err := exec.Command("open", "-g", uri).Run(); err != nil {
+	if err := openURI("context", params); err != nil {
 		return fmt.Errorf("failed to open chirami: %w", err)
 	}
 
