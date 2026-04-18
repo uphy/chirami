@@ -118,7 +118,9 @@ function buildButton(label: string, title: string, onClick: () => void, variant?
   return button;
 }
 
-function buildIconButton(title: string, onClick: () => void): HTMLButtonElement {
+type TranscriptIconName = "settings" | "clear" | "expand";
+
+function buildIconButton(title: string, icon: TranscriptIconName, onClick: () => void): HTMLButtonElement {
   const button = document.createElement("button");
   button.type = "button";
   button.className = "cm-transcript-icon-button";
@@ -135,6 +137,7 @@ function buildIconButton(title: string, onClick: () => void): HTMLButtonElement 
   button.addEventListener("mouseup", suppress);
   button.addEventListener("pointerdown", (event) => {
     suppress(event);
+    if (button.disabled) return;
     onClick();
   });
 
@@ -143,13 +146,33 @@ function buildIconButton(title: string, onClick: () => void): HTMLButtonElement 
   svg.setAttribute("aria-hidden", "true");
   svg.classList.add("cm-transcript-icon-button-svg");
 
-  const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-  path.setAttribute(
-    "d",
-    "M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.1 7.1 0 0 0-1.63-.94l-.36-2.54a.5.5 0 0 0-.5-.42h-3.84a.5.5 0 0 0-.5.42l-.36 2.54c-.58.22-1.12.53-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.7 8.84a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94L2.82 14.52a.5.5 0 0 0-.12.64l1.92 3.32a.5.5 0 0 0 .6.22l2.39-.96c.5.4 1.05.72 1.63.94l.36 2.54a.5.5 0 0 0 .5.42h3.84a.5.5 0 0 0 .5-.42l.36-2.54c.58-.22 1.13-.54 1.63-.94l2.39.96a.5.5 0 0 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58ZM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7Z",
-  );
-  path.setAttribute("fill", "currentColor");
-  svg.appendChild(path);
+  if (icon === "settings") {
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute(
+      "d",
+      "M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.1 7.1 0 0 0-1.63-.94l-.36-2.54a.5.5 0 0 0-.5-.42h-3.84a.5.5 0 0 0-.5.42l-.36 2.54c-.58.22-1.12.53-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.7 8.84a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94L2.82 14.52a.5.5 0 0 0-.12.64l1.92 3.32a.5.5 0 0 0 .6.22l2.39-.96c.5.4 1.05.72 1.63.94l.36 2.54a.5.5 0 0 0 .5.42h3.84a.5.5 0 0 0 .5-.42l.36-2.54c.58-.22 1.13-.54 1.63-.94l2.39.96a.5.5 0 0 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58ZM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7Z",
+    );
+    path.setAttribute("fill", "currentColor");
+    svg.appendChild(path);
+  } else {
+    svg.setAttribute("fill", "none");
+    svg.setAttribute("stroke", "currentColor");
+    svg.setAttribute("stroke-width", "1.8");
+    svg.setAttribute("stroke-linecap", "round");
+    svg.setAttribute("stroke-linejoin", "round");
+
+    const pathA = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    const pathB = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    if (icon === "clear") {
+      pathA.setAttribute("d", "M3 6h18");
+      pathB.setAttribute("d", "M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M6 6l1 14a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-14");
+    } else {
+      pathA.setAttribute("d", "M9 3H5a2 2 0 0 0-2 2v4M15 3h4a2 2 0 0 1 2 2v4");
+      pathB.setAttribute("d", "M21 15v4a2 2 0 0 1-2 2h-4M3 15v4a2 2 0 0 0 2 2h4");
+    }
+    svg.appendChild(pathA);
+    svg.appendChild(pathB);
+  }
   button.appendChild(svg);
 
   return button;
@@ -274,6 +297,7 @@ function buildPreviewLayoutSignature(
 type RenderTranscriptRowsOptions = {
   compact?: boolean;
   padToCount?: number;
+  showHeader?: boolean;
 };
 
 function renderTranscriptRows(
@@ -286,16 +310,17 @@ function renderTranscriptRows(
   if (options.compact) {
     table.classList.add("cm-transcript-preview-table--compact");
   }
-
-  const headerRow = document.createElement("div");
-  headerRow.className = "cm-transcript-preview-row cm-transcript-preview-row--header";
-  for (const label of ["Time", "Speaker", "Text"]) {
-    const cell = document.createElement("div");
-    cell.className = "cm-transcript-preview-cell";
-    cell.textContent = label;
-    headerRow.appendChild(cell);
+  if (options.showHeader) {
+    const headerRow = document.createElement("div");
+    headerRow.className = "cm-transcript-preview-row cm-transcript-preview-row--header";
+    for (const label of ["Time", "Speaker", "Text"]) {
+      const cell = document.createElement("div");
+      cell.className = "cm-transcript-preview-cell";
+      cell.textContent = label;
+      headerRow.appendChild(cell);
+    }
+    table.appendChild(headerRow);
   }
-  table.appendChild(headerRow);
 
   const rowsToRender = [...rows];
   const padToCount = options.padToCount ?? 0;
@@ -324,6 +349,14 @@ function renderTranscriptRows(
     const speakerEl = document.createElement("div");
     speakerEl.className = "cm-transcript-preview-cell cm-transcript-preview-cell--speaker";
     speakerEl.textContent = isPlaceholder ? "\u00a0" : row.speaker || "—";
+    if (!isPlaceholder) {
+      const normalizedSpeaker = row.speaker.trim().toLowerCase();
+      if (normalizedSpeaker === "you") {
+        speakerEl.classList.add("cm-transcript-preview-cell--speaker-self");
+      } else if (normalizedSpeaker === "live") {
+        speakerEl.classList.add("cm-transcript-preview-cell--speaker-live");
+      }
+    }
 
     const textEl = document.createElement("div");
     textEl.className = "cm-transcript-preview-cell cm-transcript-preview-cell--text";
@@ -353,7 +386,7 @@ function renderTranscriptModalContent(
     target.replaceChildren(empty);
     return;
   }
-  renderTranscriptRows(target, rows);
+  renderTranscriptRows(target, rows, { showHeader: true });
 }
 
 function normalizeLevel(level: number): number {
@@ -386,33 +419,67 @@ function formatProgress(progress?: TranscriptDownloadProgress): string | null {
   return `${percent.toFixed(0)}% · ${receivedMb}/${totalMb} MB`;
 }
 
-function makeMeter(label: string, value: number): HTMLElement {
+function formatMeterDb(level: number): string {
+  if (level <= 0.001) return "-60 dB";
+  return `${Math.round(20 * Math.log10(level))} dB`;
+}
+
+function makeMeter(
+  label: string,
+  sublabel: string,
+  value: number,
+  peak: number,
+  tone: "mic" | "system",
+): HTMLElement {
+  const segmentCount = 28;
+  const litCount = Math.round(normalizeLevel(value) * segmentCount);
+  const peakIndex = Math.max(0, Math.min(segmentCount - 1, Math.round(normalizeLevel(peak) * segmentCount) - 1));
+  const warnStart = Math.round(segmentCount * 0.75);
+  const clipStart = Math.round(segmentCount * 0.92);
   const wrap = document.createElement("div");
   wrap.className = "cm-transcript-meter";
+  wrap.dataset.tone = tone;
 
-  const top = document.createElement("div");
-  top.className = "cm-transcript-meter-top";
+  const titleWrap = document.createElement("div");
+  titleWrap.className = "cm-transcript-meter-title";
 
-  const title = document.createElement("span");
+  const title = document.createElement("div");
   title.className = "cm-transcript-meter-label";
   title.textContent = label;
 
+  const subtitle = document.createElement("div");
+  subtitle.className = "cm-transcript-meter-subtitle";
+  subtitle.textContent = sublabel;
+
   const valueEl = document.createElement("span");
   valueEl.className = "cm-transcript-meter-value";
-  valueEl.textContent = `${Math.round(normalizeLevel(value) * 100)}%`;
+  valueEl.textContent = formatMeterDb(normalizeLevel(peak));
 
   const bar = document.createElement("div");
   bar.className = "cm-transcript-meter-bar";
+  for (let index = 0; index < segmentCount; index += 1) {
+    const segment = document.createElement("div");
+    segment.className = "cm-transcript-meter-segment";
+    if (index < litCount) {
+      segment.classList.add("cm-transcript-meter-segment--active");
+    }
+    if (index >= warnStart) {
+      segment.classList.add("cm-transcript-meter-segment--warn");
+    }
+    if (index >= clipStart) {
+      segment.classList.add("cm-transcript-meter-segment--clip");
+    }
+    if (index === peakIndex) {
+      segment.classList.add("cm-transcript-meter-segment--peak");
+    }
+    bar.appendChild(segment);
+  }
 
-  const fill = document.createElement("div");
-  fill.className = "cm-transcript-meter-fill";
-  fill.style.width = `${Math.round(normalizeLevel(value) * 100)}%`;
-  bar.appendChild(fill);
-
-  top.appendChild(title);
-  top.appendChild(valueEl);
-  wrap.appendChild(top);
+  titleWrap.appendChild(title);
+  titleWrap.appendChild(subtitle);
+  wrap.appendChild(titleWrap);
   wrap.appendChild(bar);
+  wrap.appendChild(valueEl);
   return wrap;
 }
 
@@ -434,6 +501,8 @@ export function createTranscriptWidget(
   let currentStatus: TranscriptStatus = snapshot.status;
   let currentMicLevel = snapshot.micLevel;
   let currentSystemLevel = snapshot.systemLevel;
+  let currentMicPeak = snapshot.micLevel;
+  let currentSystemPeak = snapshot.systemLevel;
   let currentProgress = snapshot.downloadProgress ? { ...snapshot.downloadProgress } : undefined;
   let currentError = snapshot.errorMessage ?? "";
   let currentText = snapshot.text;
@@ -456,6 +525,16 @@ export function createTranscriptWidget(
   let transcriptModalAutoFollow = true;
   let transcriptModalProgrammaticScroll = false;
 
+  function updatePeak(previous: number, next: number): number {
+    return next >= previous ? next : Math.max(next, previous - 0.08);
+  }
+
+  function statusLabelForDisplay(): string {
+    if (currentStatus === "Recording") return "Transcribing";
+    if (currentStatus === "Processing" && currentProgress) return currentProgress.stage;
+    return currentStatus;
+  }
+
   const root = document.createElement("div") as TranscriptWidgetRoot;
   root.dataset.blockFrom = String(currentRange.blockFrom);
   root.dataset.blockTo = String(currentRange.blockTo);
@@ -463,20 +542,15 @@ export function createTranscriptWidget(
   const header = document.createElement("div");
   header.className = "cm-transcript-header";
 
-  const badge = document.createElement("div");
-  badge.className = "cm-transcript-badge";
-  badge.textContent = "Transcript";
-
-  const status = document.createElement("div");
-  status.className = "cm-transcript-status";
-
   const meta = document.createElement("div");
   meta.className = "cm-transcript-meta";
   const headerActions = document.createElement("div");
   headerActions.className = "cm-transcript-header-actions";
+  const status = buildButton("", "Toggle transcript recording", () => {
+    toggleRecording();
+  });
+  status.className = "cm-transcript-status";
 
-  header.appendChild(badge);
-  header.appendChild(status);
   header.appendChild(meta);
   header.appendChild(headerActions);
   root.appendChild(header);
@@ -497,20 +571,12 @@ export function createTranscriptWidget(
   preview.className = "cm-transcript-preview";
   previewShell.appendChild(preview);
 
-  const openTranscriptButton = document.createElement("button");
-  openTranscriptButton.type = "button";
-  openTranscriptButton.className = "cm-transcript-jump";
-  openTranscriptButton.textContent = "Open full transcript";
-  openTranscriptButton.setAttribute("aria-label", "Open full transcript");
-  openTranscriptButton.addEventListener("pointerdown", (event) => {
-    event.preventDefault();
-    event.stopPropagation();
+  const openTranscriptButton = buildIconButton("Open full transcript", "expand", () => {
     if (!transcriptModalBackdrop) return;
     transcriptModalBackdrop.hidden = false;
     transcriptModalAutoFollow = true;
     renderModalTranscript(true);
   });
-  previewShell.appendChild(openTranscriptButton);
 
   transcriptModalBackdrop = document.createElement("div");
   transcriptModalBackdrop.className = "cm-transcript-modal-backdrop";
@@ -558,16 +624,26 @@ export function createTranscriptWidget(
   const error = document.createElement("div");
   error.className = "cm-transcript-error";
   root.appendChild(error);
-
-  const controls = document.createElement("div");
-  controls.className = "cm-transcript-controls";
   const settingsWrap = document.createElement("div");
   settingsWrap.className = "cm-transcript-settings";
   const settingsPanel = document.createElement("div");
   settingsPanel.className = "cm-transcript-settings-panel";
   settingsPanel.hidden = true;
 
-  const recordButton = buildButton("Start", "Begin recording", () => {
+  const clearTranscript = () => {
+    window.chirami.transcriptClearBlock(currentRange);
+    postToSwift({ type: "transcriptRecordClear", range: currentRange });
+    currentError = "";
+    currentProgress = undefined;
+    currentText = "";
+    currentLineCount = 0;
+    currentMicPeak = 0;
+    currentSystemPeak = 0;
+    setStatus("Idle");
+    refresh();
+  };
+
+  const toggleRecording = () => {
     if (currentStatus === "Recording" || currentStatus === "Paused" || currentStatus === "Processing") {
       applyRuntimePatch(currentRange, {
         status: "Processing",
@@ -588,18 +664,12 @@ export function createTranscriptWidget(
       systemDevice: currentSystem,
     });
     setStatus("Processing");
-  }, "primary");
-  const clearButton = buildButton("Clear", "Clear the transcript block", () => {
-    window.chirami.transcriptClearBlock(currentRange);
-    postToSwift({ type: "transcriptRecordClear", range: currentRange });
-    currentError = "";
-    currentProgress = undefined;
-    currentText = "";
-    currentLineCount = 0;
-    setStatus("Idle");
-    refresh();
+  };
+  const clearActionButton = buildIconButton("Clear transcript", "clear", () => {
+    if (currentStatus === "Processing") return;
+    clearTranscript();
   });
-  const settingsButton = buildIconButton("Transcript settings", () => {
+  const settingsButton = buildIconButton("Transcript settings", "settings", () => {
     const nextOpen = currentSettingsPanelOpen !== true;
     if (!nextOpen) {
       syncModelDropdownState(undefined);
@@ -861,8 +931,9 @@ export function createTranscriptWidget(
   syncModelDropdownState(currentModelDropdownOpen, false);
   syncDropdownState(currentDropdownSource, currentRequestSource, false);
 
-  controls.appendChild(recordButton);
-  controls.appendChild(clearButton);
+  headerActions.appendChild(status);
+  headerActions.appendChild(openTranscriptButton);
+  headerActions.appendChild(clearActionButton);
   headerActions.appendChild(settingsWrap);
   settingsWrap.appendChild(settingsButton);
   settingsPanel.appendChild(modelDropdown.wrap);
@@ -870,7 +941,6 @@ export function createTranscriptWidget(
   deviceControls.appendChild(systemDropdown.wrap);
   settingsPanel.appendChild(deviceControls);
   settingsWrap.appendChild(settingsPanel);
-  root.appendChild(controls);
 
   function setStatus(next: TranscriptStatus): void {
     currentStatus = next;
@@ -944,49 +1014,38 @@ export function createTranscriptWidget(
       renderTranscriptRows(preview, visiblePreviewRows, {
         compact: true,
         padToCount: transcriptPreviewVisibleRowCount,
+        showHeader: false,
       });
     }
   }
 
   function refresh(): void {
     root.className = `cm-transcript-container cm-transcript-status-${currentStatus.toLowerCase()}`;
-    status.textContent = currentStatus === "Processing" && currentProgress
-      ? currentProgress.stage
-      : currentStatus;
+    currentMicPeak = updatePeak(currentMicPeak, normalizeLevel(currentMicLevel));
+    currentSystemPeak = updatePeak(currentSystemPeak, normalizeLevel(currentSystemLevel));
+    const isProcessing = currentStatus === "Processing";
+    const isRecordingActive = currentStatus === "Recording" || currentStatus === "Paused";
+    const canStart = currentStatus === "Idle" || currentStatus === "Completed" || currentStatus === "Error";
+    status.className = `cm-transcript-status cm-transcript-status--${currentStatus.toLowerCase()}`;
+    status.textContent = isRecordingActive ? "Transcribing" : canStart ? "Transcribe" : statusLabelForDisplay();
+    status.title = isRecordingActive ? "Stop recording" : canStart ? "Begin recording" : "Processing transcript...";
+    status.disabled = isProcessing;
     meta.textContent = `${currentLineCount} line${currentLineCount === 1 ? "" : "s"}`;
     renderPreview();
-    levelRow.replaceChildren(makeMeter("Mic", currentMicLevel), makeMeter("System", currentSystemLevel));
+    levelRow.replaceChildren(
+      makeMeter("Mic", "You", currentMicLevel, currentMicPeak, "mic"),
+      makeMeter("System", "Others", currentSystemLevel, currentSystemPeak, "system"),
+    );
     const progressText = formatProgress(currentProgress);
     progress.textContent = progressText ? `Model download: ${progressText}` : "";
     error.textContent = currentError ? currentError : "";
     error.hidden = !currentError;
     const previewRows = buildTranscriptPreviewRows(currentText, currentStatus, currentPreviewText);
-    const hasMoreTranscript = previewRows.length > transcriptPreviewVisibleRowCount;
-    openTranscriptButton.classList.toggle(
-      "cm-transcript-jump--visible",
-      hasMoreTranscript,
-    );
+    const hasTranscript = previewRows.length > 0 || Boolean(currentPreviewText?.trim());
+    openTranscriptButton.disabled = !hasTranscript;
     renderModalTranscript();
 
-    const isProcessing = currentStatus === "Processing";
-    const isRecordingActive = currentStatus === "Recording" || currentStatus === "Paused";
-    if (isProcessing) {
-      recordButton.textContent = "Processing";
-      recordButton.title = "Processing transcript...";
-      recordButton.className = "cm-transcript-button";
-      recordButton.disabled = false;
-    } else if (isRecordingActive) {
-      recordButton.textContent = "Stop";
-      recordButton.title = "Stop recording";
-      recordButton.className = "cm-transcript-button cm-transcript-button--danger";
-      recordButton.disabled = false;
-    } else {
-      recordButton.textContent = "Start";
-      recordButton.title = "Begin recording";
-      recordButton.className = "cm-transcript-button cm-transcript-button--primary";
-      recordButton.disabled = false;
-    }
-    clearButton.disabled = currentStatus === "Processing";
+    clearActionButton.disabled = isProcessing;
     const modelSelectionLocked = currentStatus === "Recording" || currentStatus === "Paused" || currentStatus === "Processing";
 
     settingsButton.className = currentSettingsPanelOpen === true
@@ -1014,6 +1073,8 @@ export function createTranscriptWidget(
     currentStatus = nextSnapshot.status;
     currentMicLevel = nextSnapshot.micLevel;
     currentSystemLevel = nextSnapshot.systemLevel;
+    currentMicPeak = updatePeak(currentMicPeak, normalizeLevel(nextSnapshot.micLevel));
+    currentSystemPeak = updatePeak(currentSystemPeak, normalizeLevel(nextSnapshot.systemLevel));
     currentProgress = nextSnapshot.downloadProgress ? { ...nextSnapshot.downloadProgress } : undefined;
     currentError = nextSnapshot.errorMessage ?? "";
     currentText = nextSnapshot.text;

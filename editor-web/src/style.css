@@ -426,16 +426,29 @@ html, body {
   --chirami-transcript-accent-soft: var(--chirami-transcript-accent-soft-color);
   --chirami-transcript-accent-strong: var(--chirami-transcript-accent-strong-color);
   --chirami-transcript-danger: var(--chirami-transcript-danger-color);
+  --chirami-transcript-shadow: var(--chirami-transcript-shadow-color);
+  --chirami-transcript-inset: var(--chirami-transcript-inset-color);
+  --chirami-transcript-row-active: var(--chirami-transcript-row-active-color);
+  --chirami-transcript-row-live: var(--chirami-transcript-row-live-color);
+  --chirami-transcript-recording-badge-bg: var(--chirami-transcript-recording-badge-bg-color);
+  --chirami-transcript-recording-badge-fg: var(--chirami-transcript-recording-badge-fg-color);
+  --chirami-transcript-meter-bg: var(--chirami-transcript-meter-bg-color);
+  --chirami-transcript-meter-mic: var(--chirami-transcript-meter-mic-color);
+  --chirami-transcript-meter-system: var(--chirami-transcript-meter-system-color);
+  --chirami-transcript-meter-warn: var(--chirami-transcript-meter-warn-color);
+  --chirami-transcript-meter-clip: var(--chirami-transcript-meter-clip-color);
 }
 
 .cm-transcript-container {
   position: relative;
   margin: 0;
-  padding: 10px 12px;
-  border-radius: 8px;
+  padding: 0;
+  border-radius: 10px;
   border: 1px solid var(--chirami-transcript-border);
   background: var(--chirami-transcript-surface);
-  box-shadow: inset 0 1px 0 color-mix(in srgb, white 18%, transparent);
+  box-shadow:
+    0 10px 24px var(--chirami-transcript-shadow),
+    inset 0 1px 0 var(--chirami-transcript-inset);
   max-width: var(--cm-block-width, 100%);
   overflow: visible;
   overflow-anchor: none;
@@ -447,29 +460,63 @@ html, body {
   align-items: center;
   gap: 8px;
   min-width: 0;
-}
-
-.cm-transcript-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--chirami-link) 12%, transparent);
-  color: var(--chirami-text);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--chirami-transcript-border);
+  background: var(--chirami-transcript-surface);
 }
 
 .cm-transcript-status {
-  font-size: 12px;
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 11px;
   font-weight: 600;
+  color: var(--chirami-transcript-muted);
+  background: color-mix(in srgb, var(--chirami-transcript-border) 72%, transparent);
+  border: 1px solid color-mix(in srgb, var(--chirami-transcript-border) 92%, transparent);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease, opacity 0.12s ease;
+}
+
+.cm-transcript-status::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: 0.9;
+}
+
+.cm-transcript-status--recording {
+  color: var(--chirami-transcript-recording-badge-fg);
+  background: var(--chirami-transcript-recording-badge-bg);
+  border-color: color-mix(in srgb, var(--chirami-transcript-recording-badge-fg) 18%, transparent);
+}
+
+.cm-transcript-status--recording::before {
+  animation: chirami-transcript-pulse 1.2s ease-in-out infinite;
+}
+
+.cm-transcript-status--processing,
+.cm-transcript-status--paused {
   color: var(--chirami-link);
+  background: color-mix(in srgb, var(--chirami-link) 12%, transparent);
+  border-color: color-mix(in srgb, var(--chirami-link) 16%, transparent);
+}
+
+.cm-transcript-status--error {
+  color: var(--chirami-transcript-danger);
+  background: color-mix(in srgb, var(--chirami-transcript-danger) 12%, transparent);
+  border-color: color-mix(in srgb, var(--chirami-transcript-danger) 18%, transparent);
 }
 
 .cm-transcript-meta {
-  font-size: 12px;
+  font-size: 11px;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
   color: var(--chirami-transcript-muted);
   min-width: 0;
   flex: 1 1 auto;
@@ -480,121 +527,148 @@ html, body {
 
 .cm-transcript-header-actions {
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
+  gap: 6px;
   margin-left: auto;
 }
 
 .cm-transcript-progress {
-  margin-top: 4px;
-  font-size: 12px;
+  padding: 8px 10px 0;
+  font-size: 11px;
   color: var(--chirami-transcript-muted);
+}
+
+.cm-transcript-progress:empty {
+  display: none;
 }
 
 .cm-transcript-level-row {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 8px;
-  margin-top: 6px;
+  padding: 8px 10px 6px;
+  border-bottom: 1px solid var(--chirami-transcript-border);
 }
 
 .cm-transcript-meter {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr) 42px;
+  align-items: center;
+  gap: 8px;
   min-width: 0;
 }
 
-.cm-transcript-meter-top {
+.cm-transcript-meter-title {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-  font-size: 11px;
-  color: var(--chirami-transcript-muted);
+  flex-direction: column;
+  line-height: 1.1;
+  min-width: 0;
 }
 
 .cm-transcript-meter-label {
+  font-size: 10.5px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.02em;
+  color: var(--chirami-transcript-muted);
+}
+
+.cm-transcript-meter-subtitle {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 9.5px;
+  color: color-mix(in srgb, var(--chirami-transcript-muted) 72%, transparent);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .cm-transcript-meter-value {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 10px;
+  color: color-mix(in srgb, var(--chirami-transcript-muted) 86%, transparent);
   font-variant-numeric: tabular-nums;
+  text-align: right;
 }
 
 .cm-transcript-meter-bar {
-  height: 6px;
-  border-radius: 999px;
+  display: grid;
+  grid-template-columns: repeat(28, minmax(0, 1fr));
+  gap: 2px;
+  height: 10px;
+  padding: 1px;
+  border-radius: 4px;
   overflow: hidden;
-  background: color-mix(in srgb, var(--chirami-text) 12%, transparent);
+  background: var(--chirami-transcript-meter-bg);
+  color: var(--chirami-transcript-meter-system);
 }
 
-.cm-transcript-meter-fill {
+.cm-transcript-meter[data-tone="mic"] .cm-transcript-meter-bar {
+  color: var(--chirami-transcript-meter-mic);
+}
+
+.cm-transcript-meter-segment {
+  min-width: 0;
   height: 100%;
-  border-radius: inherit;
-  background: linear-gradient(90deg, rgba(68, 138, 255, 0.55), rgba(68, 138, 255, 0.95));
-  transition: width 0.12s ease-out;
+  border-radius: 1px;
+  background: currentColor;
+  opacity: 0.14;
+  transition: opacity 0.12s ease-out, background-color 0.12s ease-out;
+}
+
+.cm-transcript-meter-segment--active {
+  opacity: 1;
+}
+
+.cm-transcript-meter-segment--warn.cm-transcript-meter-segment--active {
+  background: var(--chirami-transcript-meter-warn);
+}
+
+.cm-transcript-meter-segment--clip.cm-transcript-meter-segment--active {
+  background: var(--chirami-transcript-meter-clip);
+}
+
+.cm-transcript-meter-segment--peak {
+  outline: 1px solid currentColor;
+  outline-offset: 0;
+}
+
+.cm-transcript-meter-segment--warn.cm-transcript-meter-segment--peak {
+  outline-color: var(--chirami-transcript-meter-warn);
+}
+
+.cm-transcript-meter-segment--clip.cm-transcript-meter-segment--peak {
+  outline-color: var(--chirami-transcript-meter-clip);
 }
 
 .cm-transcript-preview-shell {
-  position: relative;
-  margin-top: 10px;
+  padding: 4px 0;
 }
 
 .cm-transcript-preview {
   margin: 0;
-  padding: 8px 10px;
-  border-radius: 6px;
-  border: 1px solid color-mix(in srgb, var(--chirami-transcript-border) 72%, transparent);
+  padding: 0;
   background: var(--chirami-transcript-surface-strong);
   color: var(--chirami-text);
   font-family: ui-monospace, "SF Mono", Menlo, monospace;
   font-size: 12px;
-  line-height: 1.6;
+  line-height: 1.5;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  min-height: 60px;
+  min-height: 150px;
   overflow-anchor: none;
 }
 
 .cm-transcript-preview-empty {
+  padding: 12px 10px;
   white-space: pre-wrap;
-}
-
-.cm-transcript-jump {
-  position: absolute;
-  right: 10px;
-  top: 10px;
-  z-index: 1;
-  appearance: none;
-  border: 1px solid var(--chirami-transcript-border);
-  border-radius: 999px;
-  background: var(--chirami-transcript-surface-raised);
-  color: var(--chirami-text);
-  font-size: 11px;
-  line-height: 1;
-  padding: 5px 9px;
-  cursor: pointer;
-  opacity: 0;
-  pointer-events: none;
-  transform: translateY(-4px);
-  transition: opacity 0.12s ease, transform 0.12s ease;
-  box-shadow: 0 1px 2px color-mix(in srgb, black 10%, transparent);
-}
-
-.cm-transcript-jump--visible {
-  opacity: 1;
-  pointer-events: auto;
-  transform: translateY(0);
 }
 
 .cm-transcript-modal-backdrop {
   position: fixed;
   inset: 0;
   z-index: 1200;
-  background: rgba(0, 0, 0, 0.28);
+  background: var(--chirami-transcript-overlay-color);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -612,7 +686,9 @@ html, body {
   color: var(--chirami-text);
   border: 1px solid var(--chirami-transcript-border);
   border-radius: 12px;
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.24);
+  box-shadow:
+    0 24px 64px var(--chirami-transcript-shadow),
+    inset 0 1px 0 var(--chirami-transcript-inset);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -624,13 +700,14 @@ html, body {
   justify-content: space-between;
   padding: 12px 16px;
   border-bottom: 1px solid var(--chirami-transcript-border);
+  background: var(--chirami-transcript-surface);
 }
 
 .cm-transcript-modal-title {
-  font-size: 13px;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.02em;
-  text-transform: uppercase;
 }
 
 .cm-transcript-modal-close {
@@ -647,21 +724,22 @@ html, body {
 .cm-transcript-modal-content {
   padding: 12px 16px 16px;
   overflow-y: auto;
+  background: var(--chirami-transcript-surface-strong);
 }
 
 .cm-transcript-preview-table {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 0;
 }
 
 .cm-transcript-preview-row {
   display: grid;
-  grid-template-columns: 72px 58px minmax(0, 1fr);
+  grid-template-columns: 64px 56px minmax(0, 1fr);
   gap: 8px;
-  align-items: start;
-  padding: 3px 4px;
-  border-radius: 4px;
+  align-items: baseline;
+  padding: 6px 10px;
+  border-left: 2px solid transparent;
 }
 
 .cm-transcript-preview-row--header {
@@ -671,15 +749,19 @@ html, body {
   text-transform: uppercase;
   letter-spacing: 0.02em;
   opacity: 0.92;
+  border-bottom: 1px solid var(--chirami-transcript-border);
+  background: color-mix(in srgb, var(--chirami-transcript-surface) 84%, transparent);
 }
 
 .cm-transcript-preview-row--latest {
-  background: color-mix(in srgb, var(--chirami-transcript-accent-soft) 84%, var(--chirami-transcript-surface-raised) 16%);
+  background: var(--chirami-transcript-row-active);
+  border-left-color: var(--chirami-transcript-accent-strong);
 }
 
 .cm-transcript-preview-row--provisional {
-  opacity: 0.78;
+  opacity: 0.82;
   font-style: italic;
+  background: var(--chirami-transcript-row-live);
 }
 
 .cm-transcript-preview-row--placeholder {
@@ -695,22 +777,41 @@ html, body {
   color: var(--chirami-transcript-muted);
 }
 
+.cm-transcript-preview-cell--time {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
 .cm-transcript-preview-cell--speaker {
+  font-size: 11.5px;
   font-weight: 700;
 }
 
+.cm-transcript-preview-cell--speaker-self {
+  color: var(--chirami-transcript-accent-strong);
+}
+
+.cm-transcript-preview-cell--speaker-live {
+  color: var(--chirami-link);
+}
+
 .cm-transcript-preview-cell--text {
+  font-size: 13px;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
 
-.cm-transcript-preview-table--compact .cm-transcript-preview-cell--text {
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
+.cm-transcript-preview-table--compact .cm-transcript-preview-row {
+  padding-top: 5px;
+  padding-bottom: 5px;
+}
+
+.cm-transcript-preview-table--compact .cm-transcript-preview-row--header {
+  display: none;
 }
 
 .cm-transcript-error {
-  margin-top: 8px;
+  padding: 0 10px 10px;
   font-size: 12px;
   color: var(--chirami-transcript-danger);
   white-space: pre-wrap;
@@ -720,20 +821,22 @@ html, body {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin-top: 10px;
+  padding: 10px;
   align-items: flex-end;
+  border-top: 1px solid var(--chirami-transcript-border);
 }
 
 .cm-transcript-button {
   appearance: none;
   border: 1px solid var(--chirami-transcript-border);
-  border-radius: 5px;
+  border-radius: 7px;
   background: var(--chirami-transcript-surface-raised);
   color: var(--chirami-text);
   font-size: 12px;
-  padding: 4px 9px;
+  padding: 6px 11px;
   cursor: pointer;
   box-shadow: 0 1px 2px color-mix(in srgb, black 8%, transparent);
+  transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease;
 }
 
 .cm-transcript-button:disabled {
@@ -765,20 +868,26 @@ html, body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   padding: 0;
   appearance: none;
   border: 1px solid var(--chirami-transcript-border);
-  border-radius: 999px;
+  border-radius: 6px;
   background: var(--chirami-transcript-surface-raised);
   color: var(--chirami-transcript-muted);
   cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease, border-color 0.12s ease;
 }
 
 .cm-transcript-icon-button-svg {
-  width: 15px;
-  height: 15px;
+  width: 13px;
+  height: 13px;
+}
+
+.cm-transcript-icon-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .cm-transcript-icon-button.cm-transcript-button--active {
@@ -801,7 +910,7 @@ html, body {
   border: 1px solid var(--chirami-transcript-border);
   border-radius: 10px;
   background: var(--chirami-transcript-surface-raised);
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.14);
+  box-shadow: 0 12px 28px var(--chirami-transcript-shadow);
 }
 
 .cm-transcript-settings-panel[hidden] {
@@ -902,6 +1011,43 @@ html, body {
 .cm-transcript-device-item-detail {
   font-size: 11px;
   opacity: 0.72;
+}
+
+.cm-transcript-button:hover:not(:disabled),
+.cm-transcript-select-trigger:hover:not(:disabled),
+.cm-transcript-modal-close:hover,
+.cm-transcript-status:hover:not(:disabled),
+.cm-transcript-icon-button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--chirami-transcript-accent-soft) 50%, var(--chirami-transcript-surface-raised) 50%);
+}
+
+.cm-transcript-status:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+@keyframes chirami-transcript-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+@media (max-width: 640px) {
+  .cm-transcript-header {
+    gap: 6px;
+  }
+
+  .cm-transcript-meta {
+    flex: 1 1 auto;
+  }
+
+  .cm-transcript-status {
+    min-width: 0;
+  }
+
+  .cm-transcript-preview-row {
+    grid-template-columns: 58px 52px minmax(0, 1fr);
+    gap: 6px;
+  }
 }
 
 /* excalidraw overlay root (full-screen) */

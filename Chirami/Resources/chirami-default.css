@@ -31,6 +31,18 @@
   --chirami-transcript-accent-soft-color: color-mix(in srgb, var(--chirami-link) 14%, transparent);
   --chirami-transcript-accent-strong-color: color-mix(in srgb, var(--chirami-link) 72%, var(--chirami-text) 28%);
   --chirami-transcript-danger-color: color-mix(in srgb, #d92d20 78%, var(--chirami-text) 22%);
+  --chirami-transcript-shadow-color: color-mix(in srgb, black 12%, transparent);
+  --chirami-transcript-inset-color: color-mix(in srgb, white 60%, transparent);
+  --chirami-transcript-row-active-color: color-mix(in srgb, var(--chirami-link) 12%, var(--chirami-transcript-surface-raised-color) 88%);
+  --chirami-transcript-row-live-color: color-mix(in srgb, var(--chirami-link) 8%, transparent);
+  --chirami-transcript-recording-badge-bg-color: color-mix(in srgb, #ff3b30 14%, transparent);
+  --chirami-transcript-recording-badge-fg-color: color-mix(in srgb, #d70015 82%, var(--chirami-text) 18%);
+  --chirami-transcript-meter-bg-color: color-mix(in srgb, var(--chirami-text) 10%, transparent);
+  --chirami-transcript-meter-mic-color: color-mix(in srgb, var(--chirami-link) 84%, white 16%);
+  --chirami-transcript-meter-system-color: color-mix(in srgb, var(--chirami-text) 76%, white 24%);
+  --chirami-transcript-meter-warn-color: #ffb340;
+  --chirami-transcript-meter-clip-color: #ff5c52;
+  --chirami-transcript-overlay-color: rgba(0, 0, 0, 0.28);
   --chirami-font: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
   --chirami-font-size: 14px;
 }
@@ -51,6 +63,18 @@
     --chirami-transcript-accent-soft-color: color-mix(in srgb, var(--chirami-link) 24%, transparent);
     --chirami-transcript-accent-strong-color: color-mix(in srgb, var(--chirami-link) 74%, var(--chirami-text) 26%);
     --chirami-transcript-danger-color: color-mix(in srgb, #ff6b5e 72%, var(--chirami-text) 28%);
+    --chirami-transcript-shadow-color: color-mix(in srgb, black 34%, transparent);
+    --chirami-transcript-inset-color: color-mix(in srgb, white 18%, transparent);
+    --chirami-transcript-row-active-color: color-mix(in srgb, var(--chirami-link) 18%, var(--chirami-transcript-surface-raised-color) 82%);
+    --chirami-transcript-row-live-color: color-mix(in srgb, var(--chirami-link) 14%, transparent);
+    --chirami-transcript-recording-badge-bg-color: color-mix(in srgb, #ff6b5e 22%, transparent);
+    --chirami-transcript-recording-badge-fg-color: color-mix(in srgb, #ff9b94 86%, white 14%);
+    --chirami-transcript-meter-bg-color: color-mix(in srgb, var(--chirami-text) 14%, transparent);
+    --chirami-transcript-meter-mic-color: color-mix(in srgb, var(--chirami-link) 72%, white 28%);
+    --chirami-transcript-meter-system-color: color-mix(in srgb, var(--chirami-text) 92%, white 8%);
+    --chirami-transcript-meter-warn-color: #ffd85c;
+    --chirami-transcript-meter-clip-color: #ff7d73;
+    --chirami-transcript-overlay-color: rgba(0, 0, 0, 0.4);
   }
 }
 
