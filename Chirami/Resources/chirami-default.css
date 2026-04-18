@@ -23,6 +23,14 @@
   --chirami-code: rgb(51, 184, 71);
   --chirami-code-bg: rgba(0, 0, 0, 0.07);
   --chirami-selection: rgba(115, 97, 26, 0.15);
+  --chirami-transcript-border-color: color-mix(in srgb, var(--chirami-text) 16%, transparent);
+  --chirami-transcript-muted-color: color-mix(in srgb, var(--chirami-text) 74%, var(--chirami-bg) 26%);
+  --chirami-transcript-surface-color: color-mix(in srgb, var(--chirami-bg) 96%, white 4%);
+  --chirami-transcript-surface-strong-color: color-mix(in srgb, var(--chirami-bg) 91%, var(--chirami-text) 9%);
+  --chirami-transcript-surface-raised-color: color-mix(in srgb, var(--chirami-bg) 98%, white 2%);
+  --chirami-transcript-accent-soft-color: color-mix(in srgb, var(--chirami-link) 14%, transparent);
+  --chirami-transcript-accent-strong-color: color-mix(in srgb, var(--chirami-link) 72%, var(--chirami-text) 28%);
+  --chirami-transcript-danger-color: color-mix(in srgb, #d92d20 78%, var(--chirami-text) 22%);
   --chirami-font: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
   --chirami-font-size: 14px;
 }
@@ -35,6 +43,14 @@
     --chirami-code: rgb(56, 181, 77);
     --chirami-code-bg: rgba(255, 255, 255, 0.08);
     --chirami-selection: rgba(235, 224, 166, 0.30);
+    --chirami-transcript-border-color: color-mix(in srgb, var(--chirami-text) 24%, transparent);
+    --chirami-transcript-muted-color: color-mix(in srgb, var(--chirami-text) 82%, var(--chirami-bg) 18%);
+    --chirami-transcript-surface-color: color-mix(in srgb, var(--chirami-bg) 80%, var(--chirami-text) 20%);
+    --chirami-transcript-surface-strong-color: color-mix(in srgb, var(--chirami-bg) 72%, var(--chirami-text) 28%);
+    --chirami-transcript-surface-raised-color: color-mix(in srgb, var(--chirami-bg) 64%, var(--chirami-text) 36%);
+    --chirami-transcript-accent-soft-color: color-mix(in srgb, var(--chirami-link) 24%, transparent);
+    --chirami-transcript-accent-strong-color: color-mix(in srgb, var(--chirami-link) 74%, var(--chirami-text) 26%);
+    --chirami-transcript-danger-color: color-mix(in srgb, #ff6b5e 72%, var(--chirami-text) 28%);
   }
 }
 

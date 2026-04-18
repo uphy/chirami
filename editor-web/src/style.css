@@ -418,14 +418,14 @@ html, body {
 /* transcript container */
 .cm-transcript-container,
 .cm-transcript-modal {
-  --chirami-transcript-border: color-mix(in srgb, var(--chirami-text) 18%, transparent);
-  --chirami-transcript-muted: color-mix(in srgb, var(--chirami-text) 68%, var(--chirami-bg) 32%);
-  --chirami-transcript-surface: color-mix(in srgb, var(--chirami-bg) 88%, var(--chirami-text) 12%);
-  --chirami-transcript-surface-strong: color-mix(in srgb, var(--chirami-bg) 80%, var(--chirami-text) 20%);
-  --chirami-transcript-surface-raised: color-mix(in srgb, var(--chirami-bg) 72%, var(--chirami-text) 28%);
-  --chirami-transcript-accent-soft: color-mix(in srgb, var(--chirami-link) 20%, transparent);
-  --chirami-transcript-accent-strong: color-mix(in srgb, var(--chirami-link) 58%, var(--chirami-text) 42%);
-  --chirami-transcript-danger: color-mix(in srgb, #d92d20 70%, var(--chirami-text) 30%);
+  --chirami-transcript-border: var(--chirami-transcript-border-color);
+  --chirami-transcript-muted: var(--chirami-transcript-muted-color);
+  --chirami-transcript-surface: var(--chirami-transcript-surface-color);
+  --chirami-transcript-surface-strong: var(--chirami-transcript-surface-strong-color);
+  --chirami-transcript-surface-raised: var(--chirami-transcript-surface-raised-color);
+  --chirami-transcript-accent-soft: var(--chirami-transcript-accent-soft-color);
+  --chirami-transcript-accent-strong: var(--chirami-transcript-accent-strong-color);
+  --chirami-transcript-danger: var(--chirami-transcript-danger-color);
 }
 
 .cm-transcript-container {
@@ -435,6 +435,7 @@ html, body {
   border-radius: 8px;
   border: 1px solid var(--chirami-transcript-border);
   background: var(--chirami-transcript-surface);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, white 18%, transparent);
   max-width: var(--cm-block-width, 100%);
   overflow: visible;
   overflow-anchor: none;
@@ -453,7 +454,7 @@ html, body {
   align-items: center;
   padding: 2px 8px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--chirami-text) 10%, transparent);
+  background: color-mix(in srgb, var(--chirami-link) 12%, transparent);
   color: var(--chirami-text);
   font-size: 12px;
   font-weight: 700;
@@ -545,6 +546,7 @@ html, body {
   margin: 0;
   padding: 8px 10px;
   border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--chirami-transcript-border) 72%, transparent);
   background: var(--chirami-transcript-surface-strong);
   color: var(--chirami-text);
   font-family: ui-monospace, "SF Mono", Menlo, monospace;
@@ -579,6 +581,7 @@ html, body {
   pointer-events: none;
   transform: translateY(-4px);
   transition: opacity 0.12s ease, transform 0.12s ease;
+  box-shadow: 0 1px 2px color-mix(in srgb, black 10%, transparent);
 }
 
 .cm-transcript-jump--visible {
@@ -667,10 +670,11 @@ html, body {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.02em;
+  opacity: 0.92;
 }
 
 .cm-transcript-preview-row--latest {
-  background: var(--chirami-transcript-accent-soft);
+  background: color-mix(in srgb, var(--chirami-transcript-accent-soft) 84%, var(--chirami-transcript-surface-raised) 16%);
 }
 
 .cm-transcript-preview-row--provisional {
@@ -729,6 +733,12 @@ html, body {
   font-size: 12px;
   padding: 4px 9px;
   cursor: pointer;
+  box-shadow: 0 1px 2px color-mix(in srgb, black 8%, transparent);
+}
+
+.cm-transcript-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .cm-transcript-button--primary {
