@@ -44,11 +44,19 @@ From lowest to highest:
 | Variable | Description |
 |---|---|
 | `--chirami-bg` | Note background color |
-| `--chirami-text` | Body text color |
-| `--chirami-link` | Link color |
+| `--chirami-text` | Primary text color |
+| `--chirami-accent` | Interactive / emphasis color |
+| `--chirami-muted` | Secondary text color |
+| `--chirami-border` | Standard border color |
+| `--chirami-surface` | Embedded widget surface |
+| `--chirami-surface-strong` | Stronger embedded surface |
+| `--chirami-surface-raised` | Raised controls / popovers |
 | `--chirami-code` | Inline code text color |
 | `--chirami-code-bg` | Inline code background color |
 | `--chirami-selection` | Text selection highlight color |
+| `--chirami-danger` | Danger / destructive color |
+| `--chirami-warning` | Warning color |
+| `--chirami-overlay` | Modal overlay color |
 | `--chirami-font` | Font family |
 | `--chirami-font-size` | Base font size (e.g. `14px`) |
 
@@ -88,10 +96,12 @@ All built-in themes support both light and dark mode via `@media (prefers-color-
 [data-chirami-theme="monokai"] {
   --chirami-bg: #272822;
   --chirami-text: #f8f8f2;
-  --chirami-link: #66d9e8;
+  --chirami-accent: #66d9e8;
   --chirami-code: #a6e22e;
-  --chirami-code-bg: rgba(255, 255, 255, 0.05);
-  --chirami-selection: rgba(248, 248, 242, 0.20);
+  --chirami-muted: color-mix(in srgb, var(--chirami-text) 72%, var(--chirami-bg) 28%);
+  --chirami-border: color-mix(in srgb, var(--chirami-text) 20%, transparent);
+  --chirami-surface: color-mix(in srgb, var(--chirami-bg) 88%, white 12%);
+  --chirami-surface-raised: color-mix(in srgb, var(--chirami-bg) 76%, white 24%);
 }
 ```
 
