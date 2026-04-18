@@ -28,6 +28,7 @@ const PARENT_SPAN_MARKS = new Set([
 const LINK_MARK_NODES = new Set(["LinkMark", "URL"]);
 
 const HIDDEN_DECORATION = Decoration.replace({ inclusive: false });
+const CLICKABLE_LINK = Decoration.mark({ class: "cm-clickable-link" });
 
 const LIST_MARK_RE   = /^[-*+]/;
 const TASK_MARK_RE   = /^ \[([ xX])\] ?/;
@@ -380,6 +381,9 @@ class LivePreviewPlugin {
             // Also show raw when cursor is on the same line (e.g. "[!NOTE]" in callout headers).
             if (cursorInSpan(cursorPos, spanFrom, spanTo)) return;
             if (view.state.doc.lineAt(node.from).number === cursorLine) return;
+            if (node.name === "URL") {
+              decorations.push(CLICKABLE_LINK.range(spanFrom, spanTo));
+            }
             decorations.push(HIDDEN_DECORATION.range(node.from, node.to));
             return;
           }

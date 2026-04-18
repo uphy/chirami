@@ -180,10 +180,9 @@ function dedentListItem(view: EditorView): boolean {
   return true;
 }
 
-function openLinkAtCursor(view: EditorView): boolean {
-  const pos = view.state.selection.main.head;
+function linkUrlAtPosition(view: EditorView, pos: number): string | null {
   const tree = syntaxTree(view.state);
-  let node = tree.resolve(pos, -1);
+  const node = tree.resolve(pos, -1);
 
   // Walk up the tree looking for a Link or URL node
   for (let n: typeof node | null = node; n; n = n.parent) {
@@ -192,20 +191,27 @@ function openLinkAtCursor(view: EditorView): boolean {
       let child = n.firstChild;
       while (child) {
         if (child.name === "URL") {
-          const url = view.state.sliceDoc(child.from, child.to);
-          postToSwift({ type: "openLink", url });
-          return true;
+          return view.state.sliceDoc(child.from, child.to);
         }
         child = child.nextSibling;
       }
     }
     if (n.name === "URL") {
-      const url = view.state.sliceDoc(n.from, n.to);
-      postToSwift({ type: "openLink", url });
-      return true;
+      return view.state.sliceDoc(n.from, n.to);
     }
   }
-  return false;
+  return null;
+}
+
+export function openLinkAtPosition(view: EditorView, pos: number): boolean {
+  const url = linkUrlAtPosition(view, pos);
+  if (!url) return false;
+  postToSwift({ type: "openLink", url });
+  return true;
+}
+
+function openLinkAtCursor(view: EditorView): boolean {
+  return openLinkAtPosition(view, view.state.selection.main.head);
 }
 
 export const tightListEnterKeymap: KeyBinding[] = [

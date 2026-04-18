@@ -7,7 +7,7 @@ import { EditorState, Prec, Transaction } from "@codemirror/state";
 import { EditorView, ViewUpdate, keymap, drawSelection } from "@codemirror/view";
 import { GFM } from "@lezer/markdown";
 import { classHighlighter, tags } from "@lezer/highlight";
-import { chiramiKeymap, tightListEnterKeymap, surroundSelectionHandler } from "./extensions/keymap";
+import { chiramiKeymap, openLinkAtPosition, tightListEnterKeymap, surroundSelectionHandler } from "./extensions/keymap";
 import { livePreview } from "./extensions/livePreview";
 import { tableExtension } from "./extensions/table";
 import { mermaidExtension } from "./extensions/mermaid";
@@ -173,6 +173,23 @@ export function createEditor(parent: HTMLElement, callbacks: EditorCallbacks): E
     scroll: (_event, view) => {
       callbacks.onScrollChanged(view.scrollDOM.scrollTop);
       return false;
+    },
+    mousedown: (event, view) => {
+      if (event.button !== 0) return false;
+      if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return false;
+
+      const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
+      if (pos === null) return false;
+
+      const clickedLine = view.state.doc.lineAt(pos).number;
+      const cursorLine = view.state.doc.lineAt(view.state.selection.main.head).number;
+      if (clickedLine === cursorLine) return false;
+
+      const opened = openLinkAtPosition(view, pos);
+      if (!opened) return false;
+
+      event.preventDefault();
+      return true;
     },
   });
 

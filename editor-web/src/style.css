@@ -54,6 +54,7 @@ html, body {
 /* Links */
 .cm-editor .tok-link { color: var(--chirami-link); text-decoration: underline; }
 .cm-editor .tok-url { color: var(--chirami-link); }
+.cm-editor .cm-clickable-link { cursor: pointer; }
 
 /* Inline code */
 .chirami-inline-code {
