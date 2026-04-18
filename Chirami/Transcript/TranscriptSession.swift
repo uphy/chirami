@@ -19,6 +19,7 @@ protocol SystemAudioCapturing: AnyObject {
 struct TranscriptSessionContext: Sendable {
     var range: TranscriptBlockRange
     var modelLabel: String
+    var micEnabled: Bool
     var micDeviceLabel: String
     var systemDeviceLabel: String
     var labels: TranscriptLabelConfig
@@ -135,11 +136,13 @@ actor TranscriptSession {
         recordedAudioOffset = 0
         activeRecordingWallClock = nil
 
-        do {
-            try await requestMicrophoneAccess()
-        } catch {
-            await transitionToError(error.localizedDescription)
-            return
+        if context.micEnabled {
+            do {
+                try await requestMicrophoneAccess()
+            } catch {
+                await transitionToError(error.localizedDescription)
+                return
+            }
         }
 
         do {
@@ -162,15 +165,17 @@ actor TranscriptSession {
 
         await clearModelDownloadProgress()
 
-        do {
-            try microphoneCapture.start { [weak self] buffer in
-                Task {
-                    await self?.handleBuffer(source: .mic, buffer: buffer)
+        if context.micEnabled {
+            do {
+                try microphoneCapture.start { [weak self] buffer in
+                    Task {
+                        await self?.handleBuffer(source: .mic, buffer: buffer)
+                    }
                 }
+            } catch {
+                await transitionToError(error.localizedDescription)
+                return
             }
-        } catch {
-            await transitionToError(error.localizedDescription)
-            return
         }
 
         if let systemAudioCapture, !systemProcesses.isEmpty {
@@ -197,7 +202,9 @@ actor TranscriptSession {
             return
         }
 
-        microphoneCapture.pause()
+        if context.micEnabled {
+            microphoneCapture.pause()
+        }
         systemAudioCapture?.pause()
         closeRecordingTimelineSegment(at: dateProvider())
         status = .paused
@@ -212,7 +219,9 @@ actor TranscriptSession {
         }
 
         do {
-            try microphoneCapture.resume()
+            if context.micEnabled {
+                try microphoneCapture.resume()
+            }
             try systemAudioCapture?.resume()
         } catch {
             await transitionToError(error.localizedDescription)
@@ -648,6 +657,127 @@ actor TranscriptSession {
         }
         let anchor = recordingTimeline.last(where: { $0.audioOffset <= audioOffset }) ?? recordingTimeline[0]
         return anchor.wallClock.addingTimeInterval(audioOffset - anchor.audioOffset).timeIntervalSince1970
+    }
+}
+
+actor TranscriptLevelMonitor {
+    private static let logger = Logger(subsystem: "io.github.uphy.Chirami", category: "TranscriptLevelMonitor")
+    private static let updateInterval: TimeInterval = 1.0 / 8.0
+    private static let minimumLevelDelta: Double = 0.04
+
+    private let range: TranscriptBlockRange
+    private let micEnabled: Bool
+    private let systemProcesses: [AudioProcessDescriptor]
+    private let microphoneCapture: MicrophoneCapturing
+    private let systemAudioCapture: SystemAudioCapturing?
+    private let requestMicrophoneAccess: @Sendable () async throws -> Void
+    private let sendLevelUpdate: @MainActor (TranscriptLevelUpdateMessage) -> Void
+    private var isRunning = false
+    private var lastMicLevel = 0.0
+    private var lastSystemLevel = 0.0
+    private var lastMicSentAt = 0.0
+    private var lastSystemSentAt = 0.0
+
+    init(
+        range: TranscriptBlockRange,
+        micEnabled: Bool,
+        systemProcesses: [AudioProcessDescriptor],
+        microphoneCapture: MicrophoneCapturing = MicrophoneCapture(),
+        systemAudioCapture: SystemAudioCapturing? = SystemAudioCapture(),
+        requestMicrophoneAccess: @escaping @Sendable () async throws -> Void = {
+            try await MicrophoneCapture.requestAccessIfNeeded()
+        },
+        sendLevelUpdate: @escaping @MainActor (TranscriptLevelUpdateMessage) -> Void
+    ) {
+        self.range = range
+        self.micEnabled = micEnabled
+        self.systemProcesses = systemProcesses
+        self.microphoneCapture = microphoneCapture
+        self.systemAudioCapture = systemAudioCapture
+        self.requestMicrophoneAccess = requestMicrophoneAccess
+        self.sendLevelUpdate = sendLevelUpdate
+    }
+
+    func start() async {
+        guard !isRunning else { return }
+        if micEnabled {
+            do {
+                try await requestMicrophoneAccess()
+            } catch {
+                Self.logger.error("TranscriptLevelMonitor microphone access failed: \(error.localizedDescription, privacy: .public)")
+            }
+        }
+
+        if micEnabled {
+            do {
+                try microphoneCapture.start { [weak self] buffer in
+                    Task {
+                        await self?.handleBuffer(source: .mic, buffer: buffer)
+                    }
+                }
+            } catch {
+                Self.logger.error("TranscriptLevelMonitor microphone start failed: \(error.localizedDescription, privacy: .public)")
+            }
+        }
+
+        if let systemAudioCapture, !systemProcesses.isEmpty {
+            do {
+                try systemAudioCapture.start(processes: systemProcesses) { [weak self] buffer in
+                    Task {
+                        await self?.handleBuffer(source: .system, buffer: buffer)
+                    }
+                }
+            } catch {
+                Self.logger.error("TranscriptLevelMonitor system start failed: \(error.localizedDescription, privacy: .public)")
+            }
+        }
+
+        isRunning = true
+        await sendLevel(source: .mic, level: 0)
+        await sendLevel(source: .system, level: 0)
+    }
+
+    func stop() async {
+        guard isRunning else {
+            await sendLevel(source: .mic, level: 0)
+            await sendLevel(source: .system, level: 0)
+            return
+        }
+        microphoneCapture.stop()
+        systemAudioCapture?.stop()
+        isRunning = false
+        await sendLevel(source: .mic, level: 0)
+        await sendLevel(source: .system, level: 0)
+    }
+
+    private func handleBuffer(source: TranscriptSource, buffer: AVAudioPCMBuffer) async {
+        guard isRunning else { return }
+        let level = AudioLevelMeter.normalizedLevel(for: buffer)
+        let now = ProcessInfo.processInfo.systemUptime
+        let lastSentAt = source == .mic ? lastMicSentAt : lastSystemSentAt
+        let lastLevel = source == .mic ? lastMicLevel : lastSystemLevel
+        let shouldSend = now - lastSentAt >= Self.updateInterval || abs(level - lastLevel) >= Self.minimumLevelDelta
+        guard shouldSend else { return }
+        await sendLevel(source: source, level: level)
+    }
+
+    private func sendLevel(source: TranscriptSource, level: Double) async {
+        let now = ProcessInfo.processInfo.systemUptime
+        if source == .mic {
+            lastMicLevel = level
+            lastMicSentAt = now
+        } else {
+            lastSystemLevel = level
+            lastSystemSentAt = now
+        }
+        let message = TranscriptLevelUpdateMessage(
+            range: range,
+            source: source,
+            level: level
+        )
+        await MainActor.run {
+            sendLevelUpdate(message)
+        }
     }
 }
 

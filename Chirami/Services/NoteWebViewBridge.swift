@@ -25,6 +25,8 @@ final class NoteWebViewBridge: NSObject, WKScriptMessageHandler {
     var onTranscriptRecordResume: ((TranscriptBlockRange) -> Void)?
     var onTranscriptRecordStop: ((TranscriptBlockRange) -> Void)?
     var onTranscriptRecordClear: ((TranscriptBlockRange) -> Void)?
+    var onTranscriptLevelMonitorStart: ((TranscriptLevelMonitorStartMessage) -> Void)?
+    var onTranscriptLevelMonitorStop: ((TranscriptBlockRange) -> Void)?
     var onTranscriptDevicesRequest: ((TranscriptDevicesRequestMessage) -> Void)?
     var onTranscriptDeviceSelect: ((TranscriptDeviceSelectionMessage) -> Void)?
     var onTranscriptModelRequest: ((TranscriptModelRequestMessage) -> Void)?
@@ -128,6 +130,18 @@ final class NoteWebViewBridge: NSObject, WKScriptMessageHandler {
                     onTranscriptRecordClear?(range)
                 } else {
                     logger.warning("transcriptRecordClear payload could not be decoded")
+                }
+            case "transcriptLevelMonitorStart":
+                if let message: TranscriptLevelMonitorStartMessage = decodeBody(body, as: TranscriptLevelMonitorStartMessage.self) {
+                    onTranscriptLevelMonitorStart?(message)
+                } else {
+                    logger.warning("transcriptLevelMonitorStart payload could not be decoded")
+                }
+            case "transcriptLevelMonitorStop":
+                if let range = decodeRange(body) {
+                    onTranscriptLevelMonitorStop?(range)
+                } else {
+                    logger.warning("transcriptLevelMonitorStop payload could not be decoded")
                 }
             case "transcriptDevicesRequest":
                 if let request: TranscriptDevicesRequestMessage = decodeBody(body, as: TranscriptDevicesRequestMessage.self) {

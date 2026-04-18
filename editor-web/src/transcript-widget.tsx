@@ -4,6 +4,7 @@ import type {
   TranscriptDeviceOption,
   TranscriptDeviceSnapshot,
   TranscriptDownloadProgress,
+  TranscriptModelMetadata,
   TranscriptSource,
   TranscriptStatus,
 } from "./bridge";
@@ -15,6 +16,7 @@ export interface TranscriptWidgetSnapshot {
   status: TranscriptStatus;
   modelLabel: string;
   currentModelValue: string;
+  modelMetadata?: TranscriptModelMetadata;
   models: TranscriptDeviceOption[];
   previewText?: string;
   micDevice: TranscriptDeviceSnapshot;
@@ -27,6 +29,7 @@ export interface TranscriptWidgetSnapshot {
   systemDevices: TranscriptDeviceOption[];
   devicesRevision: number;
   settingsPanelOpen?: boolean;
+  minimized?: boolean;
   modelDropdownOpen?: boolean;
   deviceDropdownSource?: TranscriptSource;
   deviceRequestSource?: TranscriptSource;
@@ -39,6 +42,7 @@ export interface TranscriptWidgetRuntimePatch {
 
 export interface TranscriptWidgetUiPatch {
   settingsPanelOpen?: boolean;
+  minimized?: boolean;
   modelDropdownOpen?: boolean;
   deviceDropdownSource?: TranscriptSource;
   deviceRequestSource?: TranscriptSource;
@@ -101,24 +105,29 @@ function buildButton(label: string, title: string, onClick: () => void, variant?
   button.className = `cm-transcript-button${variant ? ` cm-transcript-button--${variant}` : ""}`;
   button.textContent = label;
   button.title = title;
-  const suppress = (event: Event) => {
-    event.preventDefault();
-    event.stopPropagation();
-  };
-  button.addEventListener("pointerdown", suppress);
-  button.addEventListener("mousedown", suppress);
-  button.addEventListener("click", suppress);
-  button.addEventListener("pointerup", suppress);
-  button.addEventListener("mouseup", suppress);
-  button.addEventListener("pointerdown", (event) => {
-    suppress(event);
-    if (button.disabled) return;
-    onClick();
-  });
+  bindTranscriptPress(button, onClick);
   return button;
 }
 
-type TranscriptIconName = "settings" | "clear" | "expand";
+function suppressTranscriptPress(event: Event): void {
+  event.preventDefault();
+  event.stopPropagation();
+}
+
+function bindTranscriptPress(button: HTMLButtonElement, onClick: () => void): void {
+  button.addEventListener("pointerdown", suppressTranscriptPress);
+  button.addEventListener("mousedown", suppressTranscriptPress);
+  button.addEventListener("click", suppressTranscriptPress);
+  button.addEventListener("pointerup", suppressTranscriptPress);
+  button.addEventListener("mouseup", suppressTranscriptPress);
+  button.addEventListener("pointerdown", (event) => {
+    suppressTranscriptPress(event);
+    if (button.disabled) return;
+    onClick();
+  });
+}
+
+type TranscriptIconName = "settings" | "clear" | "fullscreen" | "minimize" | "restore";
 
 function buildIconButton(title: string, icon: TranscriptIconName, onClick: () => void): HTMLButtonElement {
   const button = document.createElement("button");
@@ -126,20 +135,7 @@ function buildIconButton(title: string, icon: TranscriptIconName, onClick: () =>
   button.className = "cm-transcript-icon-button";
   button.title = title;
   button.setAttribute("aria-label", title);
-  const suppress = (event: Event) => {
-    event.preventDefault();
-    event.stopPropagation();
-  };
-  button.addEventListener("pointerdown", suppress);
-  button.addEventListener("mousedown", suppress);
-  button.addEventListener("click", suppress);
-  button.addEventListener("pointerup", suppress);
-  button.addEventListener("mouseup", suppress);
-  button.addEventListener("pointerdown", (event) => {
-    suppress(event);
-    if (button.disabled) return;
-    onClick();
-  });
+  bindTranscriptPress(button, onClick);
 
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   svg.setAttribute("viewBox", "0 0 24 24");
@@ -166,9 +162,15 @@ function buildIconButton(title: string, icon: TranscriptIconName, onClick: () =>
     if (icon === "clear") {
       pathA.setAttribute("d", "M3 6h18");
       pathB.setAttribute("d", "M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M6 6l1 14a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-14");
-    } else {
+    } else if (icon === "fullscreen") {
       pathA.setAttribute("d", "M9 3H5a2 2 0 0 0-2 2v4M15 3h4a2 2 0 0 1 2 2v4");
       pathB.setAttribute("d", "M21 15v4a2 2 0 0 1-2 2h-4M3 15v4a2 2 0 0 0 2 2h4");
+    } else if (icon === "restore") {
+      pathA.setAttribute("d", "M4 14l6 6M4 20h6v-6");
+      pathB.setAttribute("d", "M20 10l-6-6M20 4h-6v6");
+    } else {
+      pathA.setAttribute("d", "M20 14h-6v6M14 14l6 6");
+      pathB.setAttribute("d", "M4 10h6V4M10 10L4 4");
     }
     svg.appendChild(pathA);
     svg.appendChild(pathB);
@@ -195,21 +197,17 @@ function buildSelectItem(
   detailEl.textContent = detail;
   button.appendChild(labelEl);
   button.appendChild(detailEl);
-  const suppress = (event: Event) => {
-    event.preventDefault();
-    event.stopPropagation();
-  };
   button.addEventListener("pointerdown", (event) => {
-    suppress(event);
+    suppressTranscriptPress(event);
     onClick();
   });
-  button.addEventListener("mousedown", suppress);
-  button.addEventListener("click", suppress);
-  button.addEventListener("pointerup", suppress);
-  button.addEventListener("mouseup", suppress);
+  button.addEventListener("mousedown", suppressTranscriptPress);
+  button.addEventListener("click", suppressTranscriptPress);
+  button.addEventListener("pointerup", suppressTranscriptPress);
+  button.addEventListener("mouseup", suppressTranscriptPress);
   button.addEventListener("keydown", (event) => {
     if (event.key !== "Enter" && event.key !== " ") return;
-    suppress(event);
+    suppressTranscriptPress(event);
     onClick();
   });
   return button;
@@ -292,6 +290,14 @@ function buildPreviewLayoutSignature(
     progressStage: progressStage ?? "",
     hasError,
   });
+}
+
+function latestTranscriptRow(rows: TranscriptPreviewRow[]): TranscriptPreviewRow | undefined {
+  for (let index = rows.length - 1; index >= 0; index -= 1) {
+    const row = rows[index];
+    if (row?.latest) return row;
+  }
+  return rows[rows.length - 1];
 }
 
 type RenderTranscriptRowsOptions = {
@@ -424,6 +430,27 @@ function formatMeterDb(level: number): string {
   return `${Math.round(20 * Math.log10(level))} dB`;
 }
 
+function formatBytes(bytes?: number): string | null {
+  if (!bytes || bytes <= 0) return null;
+  const mb = bytes / (1024 * 1024);
+  if (mb < 1024) {
+    return `${Math.round(mb)} MB`;
+  }
+  return `${(mb / 1024).toFixed(1)} GB`;
+}
+
+function preferredEnabledDevice(
+  devices: TranscriptDeviceOption[],
+  fallbackValue: string,
+): TranscriptDeviceOption | undefined {
+  return (
+    devices.find((device) => device.value === fallbackValue) ??
+    devices.find((device) => device.value !== "off" && device.active) ??
+    devices.find((device) => device.value !== "off" && device.value !== "default" && device.value !== "all") ??
+    devices.find((device) => device.value !== "off")
+  );
+}
+
 function makeMeter(
   label: string,
   sublabel: string,
@@ -483,6 +510,104 @@ function makeMeter(
   return wrap;
 }
 
+function buildTranscriptGlyph(kind: "model" | "mic" | "system" | "close"): SVGSVGElement {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("aria-hidden", "true");
+  svg.classList.add("cm-transcript-settings-glyph");
+
+  if (kind === "close") {
+    svg.setAttribute("fill", "none");
+    svg.setAttribute("stroke", "currentColor");
+    svg.setAttribute("stroke-width", "1.8");
+    svg.setAttribute("stroke-linecap", "round");
+    const pathA = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    const pathB = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    pathA.setAttribute("d", "M6 6l12 12");
+    pathB.setAttribute("d", "M18 6 6 18");
+    svg.append(pathA, pathB);
+    return svg;
+  }
+
+  svg.setAttribute("fill", "none");
+  svg.setAttribute("stroke", "currentColor");
+  svg.setAttribute("stroke-width", "1.8");
+  svg.setAttribute("stroke-linecap", "round");
+  svg.setAttribute("stroke-linejoin", "round");
+
+  const paths: string[] = [];
+  if (kind === "model") {
+    paths.push("M12 3 4 7v10l8 4 8-4V7l-8-4Z");
+    paths.push("M12 12 20 7");
+    paths.push("M12 12 4 7");
+    paths.push("M12 21V12");
+  } else if (kind === "mic") {
+    paths.push("M9 4a3 3 0 0 1 6 0v5a3 3 0 0 1-6 0V4Z");
+    paths.push("M5 10a7 7 0 0 0 14 0");
+    paths.push("M12 17v3");
+  } else {
+    paths.push("M11 5 6 9H3v6h3l5 4V5Z");
+    paths.push("M15.5 8.5a4 4 0 0 1 0 7");
+    paths.push("M18.5 5.5a8 8 0 0 1 0 13");
+  }
+
+  for (const d of paths) {
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", d);
+    svg.appendChild(path);
+  }
+  return svg;
+}
+
+function buildCaretGlyph(): HTMLSpanElement {
+  const caret = document.createElement("span");
+  caret.className = "cm-transcript-settings-caret";
+  caret.textContent = "▾";
+  return caret;
+}
+
+function makeSettingsMeter(value: number, peak: number, tone: "mic" | "system"): HTMLElement {
+  const meter = makeMeter("", "", value, peak, tone);
+  meter.classList.add("cm-transcript-settings-meter");
+  meter.querySelector(".cm-transcript-meter-title")?.remove();
+  const valueEl = meter.querySelector(".cm-transcript-meter-value");
+  if (valueEl) {
+    valueEl.className = "cm-transcript-settings-meter-value";
+  }
+  const bar = meter.querySelector(".cm-transcript-meter-bar");
+  if (bar) {
+    bar.classList.add("cm-transcript-settings-meter-bar");
+  }
+  meter.querySelectorAll(".cm-transcript-meter-segment").forEach((segment) => {
+    segment.classList.add("cm-transcript-settings-meter-segment");
+  });
+  return meter;
+}
+
+function updateMeterElement(
+  meter: HTMLElement,
+  label: string,
+  sublabel: string,
+  value: number,
+  peak: number,
+): void {
+  meter.querySelector<HTMLElement>(".cm-transcript-meter-label")?.replaceChildren(document.createTextNode(label));
+  meter.querySelector<HTMLElement>(".cm-transcript-meter-subtitle")?.replaceChildren(document.createTextNode(sublabel));
+  const normalizedValue = normalizeLevel(value);
+  const normalizedPeak = normalizeLevel(peak);
+  const segmentCount = 28;
+  const litCount = Math.round(normalizedValue * segmentCount);
+  const peakIndex = Math.max(0, Math.min(segmentCount - 1, Math.round(normalizedPeak * segmentCount) - 1));
+  meter
+    .querySelector<HTMLElement>(".cm-transcript-meter-value, .cm-transcript-settings-meter-value")
+    ?.replaceChildren(document.createTextNode(formatMeterDb(normalizedPeak)));
+  const segments = meter.querySelectorAll<HTMLElement>(".cm-transcript-meter-segment");
+  segments.forEach((segment, index) => {
+    segment.classList.toggle("cm-transcript-meter-segment--active", index < litCount);
+    segment.classList.toggle("cm-transcript-meter-segment--peak", index === peakIndex);
+  });
+}
+
 export function createTranscriptWidget(
   snapshot: TranscriptWidgetSnapshot,
   applyRuntimePatch: (range: TranscriptBlockRange, patch: TranscriptWidgetRuntimePatch) => void,
@@ -492,10 +617,13 @@ export function createTranscriptWidget(
   let currentRange = { ...snapshot.range };
   let currentModelLabel = snapshot.modelLabel;
   let currentModelValue = snapshot.currentModelValue;
+  let currentModelMetadata = snapshot.modelMetadata ? { ...snapshot.modelMetadata } : undefined;
   let currentModels = snapshot.models.map((model) => ({ ...model }));
   let currentPreviewText = snapshot.previewText;
   let currentMic = { ...snapshot.micDevice };
   let currentSystem = { ...snapshot.systemDevice };
+  let lastEnabledMic = snapshot.micDevice.value !== "off" ? { ...snapshot.micDevice } : undefined;
+  let lastEnabledSystem = snapshot.systemDevice.value !== "off" ? { ...snapshot.systemDevice } : undefined;
   let currentMicDevices = snapshot.micDevices.map((device) => ({ ...device }));
   let currentSystemDevices = snapshot.systemDevices.map((device) => ({ ...device }));
   let currentStatus: TranscriptStatus = snapshot.status;
@@ -508,6 +636,7 @@ export function createTranscriptWidget(
   let currentText = snapshot.text;
   let currentLineCount = snapshot.lineCount;
   let currentSettingsPanelOpen = snapshot.settingsPanelOpen;
+  let currentMinimized = snapshot.minimized;
   let currentModelDropdownOpen = snapshot.modelDropdownOpen;
   let currentDropdownSource = snapshot.deviceDropdownSource;
   let currentRequestSource = snapshot.deviceRequestSource;
@@ -524,6 +653,8 @@ export function createTranscriptWidget(
   let transcriptModalContent: HTMLDivElement | null = null;
   let transcriptModalAutoFollow = true;
   let transcriptModalProgrammaticScroll = false;
+  let currentLevelMonitorSignature = "";
+  let currentLevelMonitorRange: TranscriptBlockRange | null = null;
 
   function updatePeak(previous: number, next: number): number {
     return next >= previous ? next : Math.max(next, previous - 0.08);
@@ -546,7 +677,7 @@ export function createTranscriptWidget(
   meta.className = "cm-transcript-meta";
   const headerActions = document.createElement("div");
   headerActions.className = "cm-transcript-header-actions";
-  const status = buildButton("", "Toggle transcript recording", () => {
+  const status = buildButton("", "Toggle transcribing", () => {
     toggleRecording();
   });
   status.className = "cm-transcript-status";
@@ -562,6 +693,9 @@ export function createTranscriptWidget(
   const levelRow = document.createElement("div");
   levelRow.className = "cm-transcript-level-row";
   root.appendChild(levelRow);
+  const micLevelMeter = makeMeter("Mic", "You", currentMicLevel, currentMicPeak, "mic");
+  const systemLevelMeter = makeMeter("System", "Others", currentSystemLevel, currentSystemPeak, "system");
+  levelRow.append(micLevelMeter, systemLevelMeter);
 
   const previewShell = document.createElement("div");
   previewShell.className = "cm-transcript-preview-shell";
@@ -570,8 +704,36 @@ export function createTranscriptWidget(
   const preview = document.createElement("div");
   preview.className = "cm-transcript-preview";
   previewShell.appendChild(preview);
+  const minimizedBar = document.createElement("div");
+  minimizedBar.className = "cm-transcript-minimized";
+  minimizedBar.hidden = true;
+  const minimizedToggle = document.createElement("button");
+  minimizedToggle.type = "button";
+  minimizedToggle.className = "cm-transcript-minimized-toggle";
+  const minimizedDot = document.createElement("span");
+  minimizedDot.className = "cm-transcript-minimized-dot";
+  minimizedToggle.appendChild(minimizedDot);
+  const minimizedText = document.createElement("div");
+  minimizedText.className = "cm-transcript-minimized-text";
+  const minimizedSpeaker = document.createElement("span");
+  minimizedSpeaker.className = "cm-transcript-minimized-speaker";
+  const minimizedMessage = document.createElement("span");
+  minimizedMessage.className = "cm-transcript-minimized-message";
+  minimizedText.append(minimizedSpeaker, minimizedMessage);
+  const minimizedActions = document.createElement("div");
+  minimizedActions.className = "cm-transcript-minimized-actions";
+  minimizedBar.append(minimizedToggle, minimizedText, minimizedActions);
+  minimizedBar.title = "Expand transcript";
+  minimizedBar.setAttribute("aria-label", "Expand transcript");
+  minimizedBar.addEventListener("mousedown", suppressTranscriptPress);
+  minimizedBar.addEventListener("click", suppressTranscriptPress);
+  minimizedBar.addEventListener("pointerdown", (event) => {
+    suppressTranscriptPress(event);
+    syncMinimizedState(false);
+  });
+  root.appendChild(minimizedBar);
 
-  const openTranscriptButton = buildIconButton("Open full transcript", "expand", () => {
+  const openTranscriptButton = buildIconButton("Open full transcript", "fullscreen", () => {
     if (!transcriptModalBackdrop) return;
     transcriptModalBackdrop.hidden = false;
     transcriptModalAutoFollow = true;
@@ -629,6 +791,28 @@ export function createTranscriptWidget(
   const settingsPanel = document.createElement("div");
   settingsPanel.className = "cm-transcript-settings-panel";
   settingsPanel.hidden = true;
+  const settingsPanelHeader = document.createElement("div");
+  settingsPanelHeader.className = "cm-transcript-settings-panel-header";
+  const settingsPanelTitle = document.createElement("div");
+  settingsPanelTitle.className = "cm-transcript-settings-panel-title";
+  settingsPanelTitle.textContent = "Transcript settings";
+  const settingsCloseButton = document.createElement("button");
+  settingsCloseButton.type = "button";
+  settingsCloseButton.className = "cm-transcript-settings-close";
+  settingsCloseButton.title = "Close transcript settings";
+  settingsCloseButton.setAttribute("aria-label", "Close transcript settings");
+  settingsCloseButton.appendChild(buildTranscriptGlyph("close"));
+  bindTranscriptPress(settingsCloseButton, () => {
+    syncModelDropdownState(undefined);
+    syncDropdownState(undefined, undefined);
+    syncSettingsPanelState(undefined);
+  });
+  settingsPanelHeader.append(settingsPanelTitle, settingsCloseButton);
+  settingsPanel.appendChild(settingsPanelHeader);
+
+  const settingsPanelBody = document.createElement("div");
+  settingsPanelBody.className = "cm-transcript-settings-panel-body";
+  settingsPanel.appendChild(settingsPanelBody);
 
   const clearTranscript = () => {
     window.chirami.transcriptClearBlock(currentRange);
@@ -665,9 +849,16 @@ export function createTranscriptWidget(
     });
     setStatus("Processing");
   };
+  bindTranscriptPress(minimizedToggle, () => {
+    toggleRecording();
+  });
   const clearActionButton = buildIconButton("Clear transcript", "clear", () => {
     if (currentStatus === "Processing") return;
     clearTranscript();
+  });
+  const minimizeActionButton = buildIconButton("Minimize transcript", "minimize", () => {
+    syncSettingsPanelState(undefined);
+    syncMinimizedState(true);
   });
   const settingsButton = buildIconButton("Transcript settings", "settings", () => {
     const nextOpen = currentSettingsPanelOpen !== true;
@@ -679,13 +870,18 @@ export function createTranscriptWidget(
     }
     syncSettingsPanelState(true);
   });
-
-  const deviceControls = document.createElement("div");
-  deviceControls.className = "cm-transcript-device-controls";
+  const expandActionButton = buildIconButton("Restore transcript", "restore", () => {
+    syncMinimizedState(false);
+  });
 
   type DeviceDropdown = {
     wrap: HTMLDivElement;
     trigger: HTMLButtonElement;
+    toggle: HTMLButtonElement;
+    name: HTMLDivElement;
+    subtitle: HTMLDivElement;
+    detail: HTMLDivElement;
+    meter: HTMLDivElement;
     requestHint: HTMLDivElement;
     menu: HTMLDivElement;
   };
@@ -693,49 +889,66 @@ export function createTranscriptWidget(
   type ModelDropdown = {
     wrap: HTMLDivElement;
     trigger: HTMLButtonElement;
+    name: HTMLDivElement;
+    detail: HTMLDivElement;
+    hint: HTMLDivElement;
+    status: HTMLSpanElement;
     menu: HTMLDivElement;
   };
 
   type DropdownLike = {
-    trigger: HTMLButtonElement;
     menu: HTMLDivElement;
   };
 
   function positionFloatingMenu(dropdown: DropdownLike): void {
-    const { trigger, menu } = dropdown;
-    if (menu.hidden) return;
-
-    const triggerRect = trigger.getBoundingClientRect();
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
-    const horizontalMargin = 12;
-    const verticalGap = 6;
-    const width = Math.min(
-      Math.max(triggerRect.width, 240),
-      Math.max(240, viewportWidth - horizontalMargin * 2),
-    );
-    const maxHeight = 260;
-
-    menu.style.position = "fixed";
-    menu.style.width = `${width}px`;
-    menu.style.left = `${Math.min(
-      Math.max(horizontalMargin, triggerRect.left),
-      Math.max(horizontalMargin, viewportWidth - width - horizontalMargin),
-    )}px`;
-
-    const estimatedHeight = Math.min(maxHeight, Math.max(menu.scrollHeight, 80));
-    const spaceBelow = viewportHeight - triggerRect.bottom - horizontalMargin;
-    const shouldOpenUpward = spaceBelow < estimatedHeight + verticalGap && triggerRect.top > spaceBelow;
-    menu.style.top = shouldOpenUpward
-      ? `${Math.max(horizontalMargin, triggerRect.top - estimatedHeight - verticalGap)}px`
-      : `${Math.min(viewportHeight - horizontalMargin - estimatedHeight, triggerRect.bottom + verticalGap)}px`;
-    menu.style.maxHeight = `${maxHeight}px`;
+    void dropdown;
   }
 
   function positionVisibleMenus(): void {
-    positionFloatingMenu(modelDropdown);
-    positionFloatingMenu(micDropdown);
-    positionFloatingMenu(systemDropdown);
+    return;
+  }
+
+  function stopLevelMonitor(): void {
+    if (!currentLevelMonitorRange) return;
+    postToSwift({ type: "transcriptLevelMonitorStop", range: currentLevelMonitorRange });
+    currentLevelMonitorSignature = "";
+    currentLevelMonitorRange = null;
+  }
+
+  function syncLevelMonitor(): void {
+    const micEnabled = currentMic.value !== "off";
+    const systemEnabled = currentSystem.value !== "off";
+    const shouldMonitor =
+      currentSettingsPanelOpen === true &&
+      currentStatus !== "Recording" &&
+      currentStatus !== "Paused" &&
+      currentStatus !== "Processing" &&
+      (micEnabled || systemEnabled);
+
+    if (!shouldMonitor) {
+      stopLevelMonitor();
+      return;
+    }
+
+    const signature = JSON.stringify({
+      blockFrom: currentRange.blockFrom,
+      blockTo: currentRange.blockTo,
+      mic: currentMic,
+      system: currentSystem,
+    });
+    if (signature === currentLevelMonitorSignature) return;
+
+    if (currentLevelMonitorRange) {
+      postToSwift({ type: "transcriptLevelMonitorStop", range: currentLevelMonitorRange });
+    }
+    postToSwift({
+      type: "transcriptLevelMonitorStart",
+      range: currentRange,
+      micDevice: currentMic,
+      systemDevice: currentSystem,
+    });
+    currentLevelMonitorSignature = signature;
+    currentLevelMonitorRange = { ...currentRange };
   }
 
   function syncSettingsPanelState(nextOpen?: boolean, patchUi = true): void {
@@ -745,6 +958,7 @@ export function createTranscriptWidget(
       syncModelDropdownState(undefined, false);
       syncDropdownState(undefined, undefined, false);
     }
+    syncLevelMonitor();
     if (patchUi) {
       applyUiPatch(currentRange, {
         settingsPanelOpen: currentSettingsPanelOpen,
@@ -752,9 +966,22 @@ export function createTranscriptWidget(
     }
   }
 
+  function syncMinimizedState(nextMinimized?: boolean, patchUi = true): void {
+    if (currentMinimized === nextMinimized) return;
+    currentMinimized = nextMinimized;
+    if (patchUi) {
+      applyUiPatch(currentRange, {
+        minimized: currentMinimized,
+      });
+    }
+    refresh();
+    requestMeasure();
+  }
+
   function syncModelDropdownState(nextOpen?: boolean, patchUi = true): void {
     currentModelDropdownOpen = nextOpen;
     modelDropdown.menu.hidden = currentModelDropdownOpen !== true;
+    modelDropdown.wrap.classList.toggle("cm-transcript-settings-model--open", currentModelDropdownOpen === true);
     if (currentModelDropdownOpen === true) {
       positionFloatingMenu(modelDropdown);
     }
@@ -773,6 +1000,8 @@ export function createTranscriptWidget(
     }
     micDropdown.menu.hidden = currentDropdownSource !== "mic";
     systemDropdown.menu.hidden = currentDropdownSource !== "system";
+    micDropdown.wrap.classList.toggle("cm-transcript-settings-source--open", currentDropdownSource === "mic");
+    systemDropdown.wrap.classList.toggle("cm-transcript-settings-source--open", currentDropdownSource === "system");
     if (currentDropdownSource === "mic") {
       positionFloatingMenu(micDropdown);
     } else if (currentDropdownSource === "system") {
@@ -799,16 +1028,31 @@ export function createTranscriptWidget(
     postToSwift({ type: "transcriptModelRequest", range: currentRange });
   }
 
-  function createDeviceDropdown(source: TranscriptSource, label: string): DeviceDropdown {
+  function createSettingsGroup(label: string): HTMLDivElement {
     const wrap = document.createElement("div");
-    wrap.className = "cm-transcript-device-dropdown";
-
+    wrap.className = "cm-transcript-settings-group";
     const title = document.createElement("div");
-    title.className = "cm-transcript-device-dropdown-label";
+    title.className = "cm-transcript-settings-group-label";
     title.textContent = label;
     wrap.appendChild(title);
+    return wrap;
+  }
 
-    const trigger = buildButton("", `${label} device`, () => {
+  function createDeviceDropdown(
+    source: TranscriptSource,
+    label: string,
+    subtitle: string,
+    glyph: "mic" | "system",
+  ): DeviceDropdown {
+    const wrap = document.createElement("div");
+    wrap.className = "cm-transcript-settings-source";
+
+    const trigger = document.createElement("button");
+    trigger.type = "button";
+    trigger.className = "cm-transcript-settings-card cm-transcript-settings-source-card";
+    trigger.title = `${label} device`;
+    trigger.setAttribute("aria-label", `${label} device`);
+    bindTranscriptPress(trigger, () => {
       const nextOpen = currentDropdownSource !== source;
       if (!nextOpen) {
         syncDropdownState(undefined, undefined);
@@ -816,8 +1060,46 @@ export function createTranscriptWidget(
       }
       requestDevices(source);
     });
-    trigger.className = "cm-transcript-select-trigger";
+
+    const iconWrap = document.createElement("div");
+    iconWrap.className = "cm-transcript-settings-card-icon";
+    iconWrap.appendChild(buildTranscriptGlyph(glyph));
+
+    const toggle = document.createElement("button");
+    toggle.type = "button";
+    toggle.className = "cm-transcript-source-toggle";
+    toggle.title = `${label} source toggle`;
+    toggle.setAttribute("aria-label", `${label} source toggle`);
+    const toggleThumb = document.createElement("span");
+    toggleThumb.className = "cm-transcript-source-toggle-thumb";
+    toggle.appendChild(toggleThumb);
+
+    const body = document.createElement("div");
+    body.className = "cm-transcript-settings-card-body";
+
+    const titleRow = document.createElement("div");
+    titleRow.className = "cm-transcript-settings-card-title-row";
+
+    const name = document.createElement("div");
+    name.className = "cm-transcript-settings-card-title";
+
+    const caret = buildCaretGlyph();
+    titleRow.append(name, caret);
+
+    const subtitleEl = document.createElement("div");
+    subtitleEl.className = "cm-transcript-settings-card-subtitle";
+    subtitleEl.textContent = subtitle;
+
+    const detail = document.createElement("div");
+    detail.className = "cm-transcript-settings-card-detail";
+
+    const meter = document.createElement("div");
+    meter.className = "cm-transcript-settings-card-meter";
+
+    body.append(titleRow, subtitleEl, detail, meter);
+    trigger.append(iconWrap, body);
     wrap.appendChild(trigger);
+    wrap.appendChild(toggle);
 
     const requestHint = document.createElement("div");
     requestHint.className = "cm-transcript-device-request";
@@ -827,24 +1109,75 @@ export function createTranscriptWidget(
     const menu = document.createElement("div");
     menu.className = "cm-transcript-device-menu";
     menu.hidden = true;
-    document.body.appendChild(menu);
+    wrap.appendChild(menu);
 
-    return { wrap, trigger, requestHint, menu };
+    return { wrap, trigger, toggle, name, subtitle: subtitleEl, detail, meter, requestHint, menu };
   }
 
-  const micDropdown = createDeviceDropdown("mic", "Mic");
-  const systemDropdown = createDeviceDropdown("system", "System");
+  const modelGroup = createSettingsGroup("Model");
+  const audioGroup = createSettingsGroup("Audio sources");
+  const audioSourceList = document.createElement("div");
+  audioSourceList.className = "cm-transcript-settings-source-list";
+  audioGroup.appendChild(audioSourceList);
+
+  const micDropdown = createDeviceDropdown("mic", "Mic", "Your voice", "mic");
+  const systemDropdown = createDeviceDropdown("system", "System", "Everyone else", "system");
+  const micSettingsMeter = makeSettingsMeter(currentMicLevel, currentMicPeak, "mic");
+  const systemSettingsMeter = makeSettingsMeter(currentSystemLevel, currentSystemPeak, "system");
+  micDropdown.meter.appendChild(micSettingsMeter);
+  systemDropdown.meter.appendChild(systemSettingsMeter);
+
+  function toggleSourceEnabled(source: TranscriptSource): void {
+    const isMic = source === "mic";
+    const currentDevice = isMic ? currentMic : currentSystem;
+    const currentDevices = isMic ? currentMicDevices : currentSystemDevices;
+    const lastEnabledDevice = isMic ? lastEnabledMic : lastEnabledSystem;
+    const isEnabled = currentDevice.value !== "off";
+    const nextDevice = isEnabled
+      ? { value: "off", label: "Off" }
+      : lastEnabledDevice ?? preferredEnabledDevice(currentDevices, isMic ? "default" : "all");
+
+    if (!nextDevice) return;
+
+    postToSwift({
+      type: "transcriptDeviceSelect",
+      range: currentRange,
+      source,
+      value: nextDevice.value,
+      label: nextDevice.label,
+    });
+    if (isMic) {
+      currentMic = { value: nextDevice.value, label: nextDevice.label };
+      if (nextDevice.value !== "off") {
+        lastEnabledMic = { ...currentMic };
+      }
+    } else {
+      currentSystem = { value: nextDevice.value, label: nextDevice.label };
+      if (nextDevice.value !== "off") {
+        lastEnabledSystem = { ...currentSystem };
+      }
+    }
+    refresh();
+    syncDropdownState(undefined, undefined);
+  }
+
+  bindTranscriptPress(micDropdown.toggle, () => {
+    toggleSourceEnabled("mic");
+  });
+  bindTranscriptPress(systemDropdown.toggle, () => {
+    toggleSourceEnabled("system");
+  });
 
   function createModelDropdown(label: string): ModelDropdown {
     const wrap = document.createElement("div");
-    wrap.className = "cm-transcript-device-dropdown";
+    wrap.className = "cm-transcript-settings-model";
 
-    const title = document.createElement("div");
-    title.className = "cm-transcript-device-dropdown-label";
-    title.textContent = label;
-    wrap.appendChild(title);
-
-    const trigger = buildButton("", `${label} model`, () => {
+    const trigger = document.createElement("button");
+    trigger.type = "button";
+    trigger.className = "cm-transcript-settings-card cm-transcript-settings-model-card";
+    trigger.title = `${label} model`;
+    trigger.setAttribute("aria-label", `${label} model`);
+    bindTranscriptPress(trigger, () => {
       const modelSelectionLocked =
         currentStatus === "Recording" || currentStatus === "Paused" || currentStatus === "Processing";
       if (modelSelectionLocked) return;
@@ -858,18 +1191,53 @@ export function createTranscriptWidget(
       syncModelDropdownState(true);
       requestModelState();
     });
-    trigger.className = "cm-transcript-select-trigger";
+
+    const iconWrap = document.createElement("div");
+    iconWrap.className = "cm-transcript-settings-card-icon cm-transcript-settings-card-icon--model";
+    iconWrap.appendChild(buildTranscriptGlyph("model"));
+
+    const body = document.createElement("div");
+    body.className = "cm-transcript-settings-card-body";
+
+    const titleRow = document.createElement("div");
+    titleRow.className = "cm-transcript-settings-card-title-row";
+    const name = document.createElement("div");
+    name.className = "cm-transcript-settings-card-title";
+    const status = document.createElement("span");
+    status.className = "cm-transcript-settings-badge";
+    titleRow.append(name, status);
+
+    const detail = document.createElement("div");
+    detail.className = "cm-transcript-settings-card-detail";
+
+    const hint = document.createElement("div");
+    hint.className = "cm-transcript-settings-model-hint";
+
+    body.append(titleRow, detail, hint);
+    trigger.append(iconWrap, body, buildCaretGlyph());
     wrap.appendChild(trigger);
 
     const menu = document.createElement("div");
     menu.className = "cm-transcript-device-menu";
     menu.hidden = true;
-    document.body.appendChild(menu);
+    wrap.appendChild(menu);
 
-    return { wrap, trigger, menu };
+    return { wrap, trigger, name, detail, hint, status, menu };
   }
 
   const modelDropdown = createModelDropdown("Model");
+
+  function selectedModelOption(): TranscriptDeviceOption | undefined {
+    return currentModels.find((model) => model.value === currentModelValue);
+  }
+
+  function selectedDeviceOption(
+    source: TranscriptSource,
+    selected: TranscriptDeviceSnapshot,
+  ): TranscriptDeviceOption | undefined {
+    const options = source === "mic" ? currentMicDevices : currentSystemDevices;
+    return options.find((device) => device.value === selected.value);
+  }
 
   function renderDropdownMenu(
     dropdown: DeviceDropdown,
@@ -878,8 +1246,9 @@ export function createTranscriptWidget(
     devices: TranscriptDeviceOption[],
   ): void {
     dropdown.menu.replaceChildren();
+    const visibleDevices = devices.filter((device) => device.value !== "off");
 
-    for (const device of devices) {
+    for (const device of visibleDevices) {
       dropdown.menu.appendChild(
         buildSelectItem(device.label, device.detail ?? device.value, () => {
           postToSwift({
@@ -891,8 +1260,14 @@ export function createTranscriptWidget(
           });
           if (source === "mic") {
             currentMic = { value: device.value, label: device.label };
+            if (device.value !== "off") {
+              lastEnabledMic = { ...currentMic };
+            }
           } else {
             currentSystem = { value: device.value, label: device.label };
+            if (device.value !== "off") {
+              lastEnabledSystem = { ...currentSystem };
+            }
           }
           refresh();
           syncDropdownState(undefined, undefined);
@@ -928,18 +1303,20 @@ export function createTranscriptWidget(
   renderDeviceMenus();
   renderModelMenu();
   syncSettingsPanelState(currentSettingsPanelOpen, false);
+  syncMinimizedState(currentMinimized, false);
   syncModelDropdownState(currentModelDropdownOpen, false);
   syncDropdownState(currentDropdownSource, currentRequestSource, false);
 
   headerActions.appendChild(status);
-  headerActions.appendChild(openTranscriptButton);
   headerActions.appendChild(clearActionButton);
   headerActions.appendChild(settingsWrap);
+  headerActions.appendChild(minimizeActionButton);
+  headerActions.appendChild(openTranscriptButton);
   settingsWrap.appendChild(settingsButton);
-  settingsPanel.appendChild(modelDropdown.wrap);
-  deviceControls.appendChild(micDropdown.wrap);
-  deviceControls.appendChild(systemDropdown.wrap);
-  settingsPanel.appendChild(deviceControls);
+  settingsPanelBody.appendChild(modelGroup);
+  settingsPanelBody.appendChild(audioGroup);
+  modelGroup.appendChild(modelDropdown.wrap);
+  audioSourceList.append(micDropdown.wrap, systemDropdown.wrap);
   settingsWrap.appendChild(settingsPanel);
 
   function setStatus(next: TranscriptStatus): void {
@@ -1020,43 +1397,127 @@ export function createTranscriptWidget(
   }
 
   function refresh(): void {
-    root.className = `cm-transcript-container cm-transcript-status-${currentStatus.toLowerCase()}`;
+    root.className = `cm-transcript-container cm-transcript-status-${currentStatus.toLowerCase()}${currentMinimized === true ? " cm-transcript-container--minimized" : ""}`;
     currentMicPeak = updatePeak(currentMicPeak, normalizeLevel(currentMicLevel));
     currentSystemPeak = updatePeak(currentSystemPeak, normalizeLevel(currentSystemLevel));
+    const micEnabled = currentMic.value !== "off";
+    const systemEnabled = currentSystem.value !== "off";
+    const hasEnabledSource = micEnabled || systemEnabled;
     const isProcessing = currentStatus === "Processing";
     const isRecordingActive = currentStatus === "Recording" || currentStatus === "Paused";
     const canStart = currentStatus === "Idle" || currentStatus === "Completed" || currentStatus === "Error";
+    const canStartRecording = canStart && hasEnabledSource;
     status.className = `cm-transcript-status cm-transcript-status--${currentStatus.toLowerCase()}`;
     status.textContent = isRecordingActive ? "Transcribing" : canStart ? "Transcribe" : statusLabelForDisplay();
-    status.title = isRecordingActive ? "Stop recording" : canStart ? "Begin recording" : "Processing transcript...";
-    status.disabled = isProcessing;
+    status.title = isRecordingActive
+      ? "Stop transcribing"
+      : canStartRecording
+        ? "Begin transcribing"
+        : canStart
+          ? "Enable at least one audio source"
+          : "Processing transcript...";
+    status.disabled = isProcessing || (canStart && !canStartRecording);
     meta.textContent = `${currentLineCount} line${currentLineCount === 1 ? "" : "s"}`;
     renderPreview();
-    levelRow.replaceChildren(
-      makeMeter("Mic", "You", currentMicLevel, currentMicPeak, "mic"),
-      makeMeter("System", "Others", currentSystemLevel, currentSystemPeak, "system"),
-    );
+    updateMeterElement(micLevelMeter, "Mic", micEnabled ? "You" : "Disabled", micEnabled ? currentMicLevel : 0, micEnabled ? currentMicPeak : 0);
+    updateMeterElement(systemLevelMeter, "System", systemEnabled ? "Others" : "Disabled", systemEnabled ? currentSystemLevel : 0, systemEnabled ? currentSystemPeak : 0);
     const progressText = formatProgress(currentProgress);
     progress.textContent = progressText ? `Model download: ${progressText}` : "";
     error.textContent = currentError ? currentError : "";
-    error.hidden = !currentError;
+    error.hidden = currentMinimized === true || !currentError;
     const previewRows = buildTranscriptPreviewRows(currentText, currentStatus, currentPreviewText);
     const hasTranscript = previewRows.length > 0 || Boolean(currentPreviewText?.trim());
     openTranscriptButton.disabled = !hasTranscript;
     renderModalTranscript();
+    header.hidden = currentMinimized === true;
+    progress.hidden = currentMinimized === true || progressText === null;
+    levelRow.hidden = currentMinimized === true;
+    previewShell.hidden = currentMinimized === true;
+    minimizedBar.hidden = currentMinimized !== true;
 
     clearActionButton.disabled = isProcessing;
+    minimizeActionButton.disabled = currentMinimized === true;
     const modelSelectionLocked = currentStatus === "Recording" || currentStatus === "Paused" || currentStatus === "Processing";
 
     settingsButton.className = currentSettingsPanelOpen === true
       ? "cm-transcript-icon-button cm-transcript-button--active"
       : "cm-transcript-icon-button";
-    modelDropdown.trigger.textContent =
-      currentModels.find((model) => model.value === currentModelValue)?.label ?? currentModelLabel;
+    modelDropdown.trigger.classList.toggle("cm-transcript-settings-card--active", currentModelDropdownOpen === true);
+    const modelOption = selectedModelOption();
+    const modelProgressText = formatProgress(currentProgress);
+    const installedSizeLabel = formatBytes(currentModelMetadata?.installedSizeBytes);
+    const kindLabel = currentModelMetadata?.kindLabel ?? "On-device";
+    const configuredLanguage = currentModelMetadata?.configuredLanguage?.trim() || "auto";
+    const supportedLanguages = currentModelMetadata?.supportedLanguages?.join(", ");
+    modelDropdown.name.textContent = modelOption?.label ?? currentModelLabel;
+    modelDropdown.detail.textContent = [
+      kindLabel,
+      installedSizeLabel,
+      "on-device",
+    ].filter(Boolean).join(" · ") || "On-device speech model";
+    modelDropdown.hint.textContent = modelProgressText
+      ? `Model download: ${modelProgressText}`
+      : [
+          currentModelMetadata?.installed ? "Downloaded" : "Not downloaded",
+          supportedLanguages,
+          `Configured: ${configuredLanguage}`,
+        ].filter(Boolean).join(" · ");
+    modelDropdown.status.textContent = modelProgressText ? currentProgress?.stage ?? "Working" : "Active";
+    modelDropdown.status.className = modelProgressText
+      ? "cm-transcript-settings-badge cm-transcript-settings-badge--progress"
+      : "cm-transcript-settings-badge";
     modelDropdown.trigger.disabled = modelSelectionLocked;
-    micDropdown.trigger.textContent = currentMic.label;
-    systemDropdown.trigger.textContent = currentSystem.label;
+    const micOption = selectedDeviceOption("mic", currentMic);
+    const systemOption = selectedDeviceOption("system", currentSystem);
+    micDropdown.trigger.classList.toggle("cm-transcript-settings-card--active", currentDropdownSource === "mic");
+    micDropdown.toggle.classList.toggle("cm-transcript-source-toggle--on", micEnabled);
+    micDropdown.toggle.title = micEnabled ? "Disable microphone capture" : "Enable microphone capture";
+    micDropdown.name.textContent = currentMic.label;
+    micDropdown.subtitle.textContent = micEnabled ? "Your voice" : "Disabled";
+    micDropdown.detail.textContent = micEnabled
+      ? (micOption?.detail ?? "Input source for your voice")
+      : "No microphone audio will be captured";
+    updateMeterElement(micSettingsMeter, "", "", micEnabled ? currentMicLevel : 0, micEnabled ? currentMicPeak : 0);
+    systemDropdown.trigger.classList.toggle("cm-transcript-settings-card--active", currentDropdownSource === "system");
+    systemDropdown.toggle.classList.toggle("cm-transcript-source-toggle--on", systemEnabled);
+    systemDropdown.toggle.title = systemEnabled ? "Disable system audio capture" : "Enable system audio capture";
+    systemDropdown.name.textContent = currentSystem.label;
+    systemDropdown.subtitle.textContent = systemEnabled ? "Everyone else" : "Disabled";
+    systemDropdown.detail.textContent = systemOption?.detail ?? (!systemEnabled
+      ? "No system audio will be captured"
+      : "Capture app and meeting audio");
+    updateMeterElement(systemSettingsMeter, "", "", systemEnabled ? currentSystemLevel : 0, systemEnabled ? currentSystemPeak : 0);
+    const latestRow = latestTranscriptRow(previewRows);
+    const latestSpeaker = latestRow?.speaker?.trim() ?? "";
+    const latestText = latestRow?.text?.trim() || buildFallbackPreview(currentText, currentStatus, currentPreviewText, currentProgress).replace(/\s+/g, " ").trim();
+    minimizedDot.className = `cm-transcript-minimized-dot cm-transcript-minimized-dot--${currentStatus.toLowerCase()}`;
+    minimizedToggle.disabled = isProcessing || (canStart && !canStartRecording);
+    minimizedToggle.title = isRecordingActive
+      ? "Stop transcribing"
+      : canStartRecording
+        ? "Begin transcribing"
+        : canStart
+          ? "Enable at least one audio source"
+          : "Processing transcript...";
+    minimizedToggle.setAttribute("aria-label", minimizedToggle.title);
+    minimizedSpeaker.textContent = latestSpeaker;
+    minimizedSpeaker.hidden = latestSpeaker.length === 0 || latestSpeaker.toLowerCase() === "live";
+    minimizedSpeaker.className = "cm-transcript-minimized-speaker";
+    if (latestSpeaker.toLowerCase() === "you") {
+      minimizedSpeaker.classList.add("cm-transcript-minimized-speaker--self");
+    }
+    minimizedMessage.textContent = latestText;
+    settingsButton.className = currentSettingsPanelOpen === true
+      ? "cm-transcript-icon-button cm-transcript-button--active"
+      : "cm-transcript-icon-button";
+    if (currentMinimized === true) {
+      minimizedActions.replaceChildren(settingsWrap, expandActionButton, openTranscriptButton, clearActionButton);
+    } else {
+      headerActions.replaceChildren(status, settingsWrap, minimizeActionButton, openTranscriptButton, clearActionButton);
+      minimizedActions.replaceChildren();
+    }
     positionVisibleMenus();
+    syncLevelMonitor();
   }
 
   root.__chiramiTranscriptApplySnapshot = (nextSnapshot) => {
@@ -1064,10 +1525,17 @@ export function createTranscriptWidget(
     currentRange = { ...nextSnapshot.range };
     currentModelLabel = nextSnapshot.modelLabel;
     currentModelValue = nextSnapshot.currentModelValue;
+    currentModelMetadata = nextSnapshot.modelMetadata ? { ...nextSnapshot.modelMetadata } : undefined;
     currentModels = nextSnapshot.models.map((model) => ({ ...model }));
     currentPreviewText = nextSnapshot.previewText;
     currentMic = { ...nextSnapshot.micDevice };
     currentSystem = { ...nextSnapshot.systemDevice };
+    if (currentMic.value !== "off") {
+      lastEnabledMic = { ...currentMic };
+    }
+    if (currentSystem.value !== "off") {
+      lastEnabledSystem = { ...currentSystem };
+    }
     currentMicDevices = nextSnapshot.micDevices.map((device) => ({ ...device }));
     currentSystemDevices = nextSnapshot.systemDevices.map((device) => ({ ...device }));
     currentStatus = nextSnapshot.status;
@@ -1084,6 +1552,7 @@ export function createTranscriptWidget(
     renderModelMenu();
     renderDeviceMenus();
     syncSettingsPanelState(nextSnapshot.settingsPanelOpen, false);
+    syncMinimizedState(nextSnapshot.minimized, false);
     syncModelDropdownState(nextSnapshot.modelDropdownOpen, false);
     syncDropdownState(nextSnapshot.deviceDropdownSource, nextSnapshot.deviceRequestSource, false);
     lastPreviewLayoutSignature = buildPreviewLayoutSignature(
@@ -1100,6 +1569,7 @@ export function createTranscriptWidget(
   };
   root.__chiramiTranscriptRequestMeasure = requestMeasure;
   root.__chiramiTranscriptCleanup = () => {
+    stopLevelMonitor();
     transcriptModalBackdrop?.remove();
     modelDropdown.menu.remove();
     micDropdown.menu.remove();

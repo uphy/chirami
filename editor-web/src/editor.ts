@@ -177,6 +177,10 @@ export function createEditor(parent: HTMLElement, callbacks: EditorCallbacks): E
     mousedown: (event, view) => {
       if (event.button !== 0) return false;
       if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return false;
+      const target = event.target;
+      if (!(target instanceof Element) || !target.closest(".cm-clickable-link")) {
+        return false;
+      }
 
       const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
       if (pos === null) return false;

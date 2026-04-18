@@ -58,6 +58,16 @@ struct TranscriptModelStateMessage: Codable, Equatable {
     var modelLabel: String
     var selectedValue: String
     var models: [TranscriptDeviceOptionMessage]
+    var metadata: TranscriptModelMetadataMessage?
+}
+
+struct TranscriptModelMetadataMessage: Codable, Equatable {
+    var detail: String?
+    var kindLabel: String?
+    var configuredLanguage: String?
+    var supportedLanguages: [String]?
+    var installed: Bool?
+    var installedSizeBytes: Int64?
 }
 
 struct TranscriptDeviceSnapshot: Codable, Equatable {
@@ -66,6 +76,12 @@ struct TranscriptDeviceSnapshot: Codable, Equatable {
 }
 
 struct TranscriptRecordStartMessage: Codable, Equatable {
+    var range: TranscriptBlockRange
+    var micDevice: TranscriptDeviceSnapshot
+    var systemDevice: TranscriptDeviceSnapshot
+}
+
+struct TranscriptLevelMonitorStartMessage: Codable, Equatable {
     var range: TranscriptBlockRange
     var micDevice: TranscriptDeviceSnapshot
     var systemDevice: TranscriptDeviceSnapshot

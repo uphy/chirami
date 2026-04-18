@@ -9,6 +9,7 @@ import {
   TranscriptDownloadProgress,
   TranscriptErrorPayload,
   TranscriptLevelPayload,
+  TranscriptModelMetadata,
   TranscriptModelStatePayload,
   TranscriptStatePayload,
   TranscriptStatus,
@@ -38,6 +39,7 @@ interface TranscriptRuntimeState {
   status: TranscriptStatus;
   modelLabel: string;
   modelValue: string;
+  modelMetadata?: TranscriptModelMetadata;
   liveText?: string;
   previewText?: string;
   micDevice: TranscriptDeviceSnapshot;
@@ -54,6 +56,7 @@ interface TranscriptRuntimeState {
 
 interface TranscriptUiState {
   settingsPanelOpen?: boolean;
+  minimized?: boolean;
   modelDropdownOpen?: boolean;
   deviceDropdownSource?: TranscriptSource;
   deviceRequestSource?: TranscriptSource;
@@ -77,6 +80,7 @@ function defaultRuntimeState(block: TranscriptBlockRef): TranscriptRuntimeState 
     status: block.text.trim().length > 0 ? "Completed" : "Idle",
     modelLabel: "Configured model",
     modelValue: "",
+    modelMetadata: undefined,
     previewText: undefined,
     micDevice: { value: "default", label: "Default" },
     systemDevice: { value: "all", label: "All System Audio" },
@@ -92,6 +96,7 @@ function defaultRuntimeState(block: TranscriptBlockRef): TranscriptRuntimeState 
 function cloneRuntimeState(runtime: TranscriptRuntimeState): TranscriptRuntimeState {
   return {
     ...runtime,
+    modelMetadata: runtime.modelMetadata ? { ...runtime.modelMetadata } : undefined,
     liveText: runtime.liveText,
     micDevice: { ...runtime.micDevice },
     systemDevice: { ...runtime.systemDevice },
@@ -108,6 +113,7 @@ const transcriptUiState = new Map<number, TranscriptUiState>();
 function readUiState(blockFrom: number): TranscriptUiState {
   return transcriptUiState.get(blockFrom) ?? {
     settingsPanelOpen: undefined,
+    minimized: undefined,
     modelDropdownOpen: undefined,
     deviceDropdownSource: undefined,
     deviceRequestSource: undefined,
@@ -121,6 +127,10 @@ function writeUiState(blockFrom: number, patch: TranscriptWidgetUiPatch): void {
       Object.prototype.hasOwnProperty.call(patch, "settingsPanelOpen")
         ? patch.settingsPanelOpen
         : current.settingsPanelOpen,
+    minimized:
+      Object.prototype.hasOwnProperty.call(patch, "minimized")
+        ? patch.minimized
+        : current.minimized,
     modelDropdownOpen:
       Object.prototype.hasOwnProperty.call(patch, "modelDropdownOpen")
         ? patch.modelDropdownOpen
@@ -189,6 +199,7 @@ function buildWidgetSnapshot(block: TranscriptBlockRef, runtime: TranscriptRunti
     status: runtime.status,
     modelLabel: runtime.modelLabel,
     currentModelValue: runtime.modelValue,
+    modelMetadata: runtime.modelMetadata,
     models: runtime.models,
     previewText: runtime.previewText,
     micDevice: runtime.micDevice,
@@ -201,6 +212,7 @@ function buildWidgetSnapshot(block: TranscriptBlockRef, runtime: TranscriptRunti
     systemDevices: runtime.systemDevices,
     devicesRevision: runtime.devicesRevision,
     settingsPanelOpen: ui.settingsPanelOpen,
+    minimized: ui.minimized,
     deviceDropdownSource: ui.deviceDropdownSource,
     deviceRequestSource: ui.deviceRequestSource,
     modelDropdownOpen: ui.modelDropdownOpen,
@@ -224,6 +236,19 @@ function sameModelOptions(left: TranscriptDeviceOption[], right: TranscriptDevic
   return sameDeviceOptions(left, right);
 }
 
+function sameModelMetadata(left?: TranscriptModelMetadata, right?: TranscriptModelMetadata): boolean {
+  if (!left && !right) return true;
+  if (!left || !right) return false;
+  return (
+    (left.detail ?? "") === (right.detail ?? "") &&
+    (left.kindLabel ?? "") === (right.kindLabel ?? "") &&
+    (left.configuredLanguage ?? "") === (right.configuredLanguage ?? "") &&
+    (left.installed ?? false) === (right.installed ?? false) &&
+    (left.installedSizeBytes ?? 0) === (right.installedSizeBytes ?? 0) &&
+    JSON.stringify(left.supportedLanguages ?? []) === JSON.stringify(right.supportedLanguages ?? [])
+  );
+}
+
 class TranscriptBlockWidget extends WidgetType {
   constructor(
     private snapshot: TranscriptWidgetSnapshot,
@@ -240,6 +265,7 @@ class TranscriptBlockWidget extends WidgetType {
       other.snapshot.status === this.snapshot.status &&
       other.snapshot.modelLabel === this.snapshot.modelLabel &&
       other.snapshot.currentModelValue === this.snapshot.currentModelValue &&
+      sameModelMetadata(other.snapshot.modelMetadata, this.snapshot.modelMetadata) &&
       other.snapshot.micLevel === this.snapshot.micLevel &&
       other.snapshot.systemLevel === this.snapshot.systemLevel &&
       other.snapshot.errorMessage === this.snapshot.errorMessage &&
@@ -251,6 +277,7 @@ class TranscriptBlockWidget extends WidgetType {
       sameDeviceOptions(other.snapshot.micDevices, this.snapshot.micDevices) &&
       sameDeviceOptions(other.snapshot.systemDevices, this.snapshot.systemDevices) &&
       other.snapshot.settingsPanelOpen === this.snapshot.settingsPanelOpen &&
+      other.snapshot.minimized === this.snapshot.minimized &&
       other.snapshot.modelDropdownOpen === this.snapshot.modelDropdownOpen &&
       other.snapshot.deviceDropdownSource === this.snapshot.deviceDropdownSource &&
       other.snapshot.deviceRequestSource === this.snapshot.deviceRequestSource
@@ -672,10 +699,14 @@ export function updateTranscriptDevices(view: EditorView, payload: TranscriptDev
   const current = view.state.field(transcriptRuntimeField).get(block.blockFrom) ?? defaultRuntimeState(block);
   const devices = payload.devices.map((device) => ({ ...device }));
   const selectedValue = payload.selectedValue ?? (payload.source === "mic" ? current.micDevice.value : current.systemDevice.value);
+  const previousSelection = payload.source === "mic" ? current.micDevice : current.systemDevice;
   const selectedDevice =
+    selectedValue === "off"
+      ? { value: "off", label: "Off" }
+      :
     devices.find((device) => device.value === selectedValue) ??
     devices.find((device) => device.active) ??
-    (payload.source === "mic" ? current.micDevice : current.systemDevice);
+    previousSelection;
 
   dispatchRuntimeUpdate(view, {
     range: { blockFrom: block.blockFrom, blockTo: block.blockTo },
@@ -704,6 +735,7 @@ export function updateTranscriptModelState(view: EditorView, payload: Transcript
     patch: {
       modelLabel: payload.modelLabel,
       modelValue: payload.selectedValue,
+      modelMetadata: payload.metadata ? { ...payload.metadata } : undefined,
       models,
     },
   });

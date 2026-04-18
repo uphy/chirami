@@ -46,6 +46,8 @@ final class NoteWebView: NSView {
     var onTranscriptRecordResume: ((TranscriptBlockRange) -> Void)?
     var onTranscriptRecordStop: ((TranscriptBlockRange) -> Void)?
     var onTranscriptRecordClear: ((TranscriptBlockRange) -> Void)?
+    var onTranscriptLevelMonitorStart: ((TranscriptLevelMonitorStartMessage) -> Void)?
+    var onTranscriptLevelMonitorStop: ((TranscriptBlockRange) -> Void)?
     var onTranscriptDevicesRequest: ((TranscriptDevicesRequestMessage) -> Void)?
     var onTranscriptDeviceSelect: ((TranscriptDeviceSelectionMessage) -> Void)?
     var onTranscriptModelRequest: ((TranscriptModelRequestMessage) -> Void)?
@@ -160,6 +162,8 @@ final class NoteWebView: NSView {
         bridge.onTranscriptRecordResume = { [weak self] range in self?.onTranscriptRecordResume?(range) }
         bridge.onTranscriptRecordStop = { [weak self] range in self?.onTranscriptRecordStop?(range) }
         bridge.onTranscriptRecordClear = { [weak self] range in self?.onTranscriptRecordClear?(range) }
+        bridge.onTranscriptLevelMonitorStart = { [weak self] message in self?.onTranscriptLevelMonitorStart?(message) }
+        bridge.onTranscriptLevelMonitorStop = { [weak self] range in self?.onTranscriptLevelMonitorStop?(range) }
         bridge.onTranscriptDevicesRequest = { [weak self] request in self?.onTranscriptDevicesRequest?(request) }
         bridge.onTranscriptDeviceSelect = { [weak self] selection in self?.onTranscriptDeviceSelect?(selection) }
         bridge.onTranscriptModelRequest = { [weak self] request in self?.onTranscriptModelRequest?(request) }
@@ -681,6 +685,12 @@ struct NoteWebViewRepresentable: NSViewRepresentable {
         }
         view.onTranscriptRecordClear = { [model] range in
             model.onTranscriptRecordClear?(range)
+        }
+        view.onTranscriptLevelMonitorStart = { [model] message in
+            model.onTranscriptLevelMonitorStart?(message)
+        }
+        view.onTranscriptLevelMonitorStop = { [model] range in
+            model.onTranscriptLevelMonitorStop?(range)
         }
         view.onTranscriptDevicesRequest = { [model] request in
             model.onTranscriptDevicesRequest?(request)

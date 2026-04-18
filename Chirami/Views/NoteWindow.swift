@@ -25,6 +25,7 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
     private var pendingFadeIn: Bool = false
     /// Safety timer that forces fade-in if the WebView never signals readiness.
     private var fadeInTimeoutTask: Task<Void, Never>?
+    private var transcriptLevelMonitors: [Int: TranscriptLevelMonitor] = [:]
     nonisolated(unsafe) private var warpEventMonitor: Any?
     nonisolated(unsafe) private var fontSizeEventMonitor: Any?
 
@@ -359,14 +360,26 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
 
     private func applyNoteUpdate(_ updated: Note) {
         guard let panel = window as? NotePanel else { return }
+        let pathChanged = updated.path != note.path
+
+        note = updated
+
+        if pathChanged {
+            reloadContentForNavigation()
+            if !isFadingOut {
+                panel.alphaValue = updated.transparency
+            }
+            panel.level = updated.alwaysOnTop ? .floating : .normal
+            return
+        }
+
         // Skip alpha update during fade-out to avoid interrupting animation
         if !isFadingOut {
             panel.alphaValue = updated.transparency
         }
         panel.title = updated.title
         panel.level = updated.alwaysOnTop ? .floating : .normal
-        note.position = updated.position
-        note.transparency = updated.transparency  // Keep in sync for fade-in target
+        contentModel.applyNoteMetadata(updated)
     }
 
     // MARK: - NSWindowDelegate
@@ -692,6 +705,7 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
             self.logger.info("transcriptRecordStart blockFrom=\(message.range.blockFrom) blockTo=\(message.range.blockTo)")
             let session = self.makeTranscriptSession(for: message)
             Task {
+                await self.stopTranscriptLevelMonitor(for: message.range)
                 await TranscriptSessionRegistry.shared.start(session)
             }
         }
@@ -710,13 +724,27 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
         contentModel.onTranscriptRecordStop = { [weak self] range in
             self?.logger.info("transcriptRecordStop blockFrom=\(range.blockFrom) blockTo=\(range.blockTo)")
             Task {
+                await self?.stopTranscriptLevelMonitor(for: range)
                 await TranscriptSessionRegistry.shared.stop(range: range)
             }
         }
         contentModel.onTranscriptRecordClear = { [weak self] range in
             self?.logger.info("transcriptRecordClear blockFrom=\(range.blockFrom) blockTo=\(range.blockTo)")
             Task {
+                await self?.stopTranscriptLevelMonitor(for: range)
                 await TranscriptSessionRegistry.shared.clear(range: range)
+            }
+        }
+        contentModel.onTranscriptLevelMonitorStart = { [weak self] message in
+            guard let self else { return }
+            Task {
+                await self.startTranscriptLevelMonitor(for: message)
+            }
+        }
+        contentModel.onTranscriptLevelMonitorStop = { [weak self] range in
+            guard let self else { return }
+            Task {
+                await self.stopTranscriptLevelMonitor(for: range)
             }
         }
         contentModel.onTranscriptDevicesRequest = { [weak self] request in
@@ -784,6 +812,7 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
         let context = TranscriptSessionContext(
             range: message.range,
             modelLabel: transcriptModelLabel(),
+            micEnabled: resolvedMicDevice.value != "off",
             micDeviceLabel: resolvedMicDevice.label,
             systemDeviceLabel: resolvedSystem.selection.label,
             labels: transcriptConfig.labels
@@ -801,11 +830,52 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
         )
     }
 
+    private func startTranscriptLevelMonitor(for message: TranscriptLevelMonitorStartMessage) async {
+        await stopTranscriptLevelMonitor(for: message.range)
+
+        let transcriptConfig = AppConfig.shared.transcriptConfig
+        let availableMicDevices = AudioDeviceEnumerator.audioInputDevices()
+        let defaultMicDevice = AudioDeviceEnumerator.defaultAudioInputDevice()
+        let resolvedMicDevice = TranscriptDeviceResolver.resolveMicSelection(
+            blockSelection: message.micDevice,
+            configuredValue: transcriptConfig.devices.mic,
+            availableDevices: availableMicDevices,
+            defaultDevice: defaultMicDevice
+        )
+        let availableSystemProcesses = AudioProcessEnumerator.runningOutputProcesses()
+        let resolvedSystem = TranscriptDeviceResolver.resolveSystemSelection(
+            blockSelection: message.systemDevice,
+            configuredValue: transcriptConfig.devices.system,
+            availableProcesses: availableSystemProcesses
+        )
+
+        let monitor = TranscriptLevelMonitor(
+            range: message.range,
+            micEnabled: resolvedMicDevice.value != "off",
+            systemProcesses: resolvedSystem.processes
+        ) { [weak self] update in
+            self?.contentModel.transcriptSendLevel?(update)
+        }
+        transcriptLevelMonitors[message.range.blockFrom] = monitor
+        await monitor.start()
+    }
+
+    private func stopTranscriptLevelMonitor(for range: TranscriptBlockRange) async {
+        guard let monitor = transcriptLevelMonitors.removeValue(forKey: range.blockFrom) else {
+            return
+        }
+        await monitor.stop()
+    }
+
     private struct ConfiguredTranscriptModel: Sendable {
         let identifier: String
         let label: String
+        let detail: String?
         let language: String?
         let kind: SherpaOnnxModelKind
+        let supportedLanguages: [String]
+        let installed: Bool
+        let installedSizeBytes: Int64?
     }
 
     private func configuredTranscriptModel() -> ConfiguredTranscriptModel? {
@@ -820,9 +890,22 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
         return ConfiguredTranscriptModel(
             identifier: resolvedCatalogModel.identifier,
             label: resolvedCatalogModel.label,
+            detail: resolvedCatalogModel.detail,
             language: transcriptConfig.language,
-            kind: resolvedCatalogModel.kind
+            kind: resolvedCatalogModel.kind,
+            supportedLanguages: resolvedCatalogModel.supportedLanguages,
+            installed: modelStore.modelExists(for: resolvedCatalogModel.identifier),
+            installedSizeBytes: modelStore.installedSizeBytes(for: resolvedCatalogModel.identifier)
         )
+    }
+
+    private func transcriptModelKindLabel(_ kind: SherpaOnnxModelKind) -> String {
+        switch kind {
+        case .senseVoice:
+            return "SenseVoice"
+        case .nemoCTC:
+            return "NeMo CTC"
+        }
     }
 
     private func transcriptModelLabel() -> String {
@@ -848,7 +931,15 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
                 range: range,
                 modelLabel: currentModel.label,
                 selectedValue: currentModel.identifier,
-                models: options
+                models: options,
+                metadata: TranscriptModelMetadataMessage(
+                    detail: currentModel.detail,
+                    kindLabel: transcriptModelKindLabel(currentModel.kind),
+                    configuredLanguage: currentModel.language,
+                    supportedLanguages: currentModel.supportedLanguages,
+                    installed: currentModel.installed,
+                    installedSizeBytes: currentModel.installedSizeBytes
+                )
             )
         )
     }
@@ -946,13 +1037,16 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
             .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
         let defaultDevice = AudioDeviceEnumerator.defaultAudioInputDevice()
         let deviceValues = Set(inputDevices.map(\.uniqueID))
+        let normalizedSelectedValue = selectedValue == "off" ? "off" : selectedValue
         var options: [TranscriptDeviceOptionMessage] = []
 
-        if selectedValue != "default" && !deviceValues.contains(selectedValue) {
+        if normalizedSelectedValue != "default" &&
+            normalizedSelectedValue != "off" &&
+            !deviceValues.contains(normalizedSelectedValue) {
             options.append(
                 TranscriptDeviceOptionMessage(
-                    value: selectedValue,
-                    label: selectedValue,
+                    value: normalizedSelectedValue,
+                    label: normalizedSelectedValue,
                     detail: "Unavailable",
                     active: true
                 )
@@ -964,7 +1058,7 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
                 value: "default",
                 label: "Default",
                 detail: defaultDevice?.name ?? "System default",
-                active: selectedValue == "default"
+                active: normalizedSelectedValue == "default"
             )
         )
 
@@ -973,7 +1067,7 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
                 value: device.uniqueID,
                 label: device.name,
                 detail: device.uniqueID == defaultDevice?.uniqueID ? "System default" : nil,
-                active: device.uniqueID == selectedValue
+                active: device.uniqueID == normalizedSelectedValue
             )
         })
 
@@ -1014,15 +1108,6 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
             )
         })
 
-        options.append(
-            TranscriptDeviceOptionMessage(
-                value: "off",
-                label: "Off",
-                detail: "Do not capture system audio",
-                active: normalizedSelectedValue == "off"
-            )
-        )
-
         return options
     }
 }
@@ -1059,11 +1144,13 @@ class NoteContentModel: ObservableObject {
     var onTranscriptRecordResume: ((TranscriptBlockRange) -> Void)?
     var onTranscriptRecordStop: ((TranscriptBlockRange) -> Void)?
     var onTranscriptRecordClear: ((TranscriptBlockRange) -> Void)?
+    var onTranscriptLevelMonitorStart: ((TranscriptLevelMonitorStartMessage) -> Void)?
+    var onTranscriptLevelMonitorStop: ((TranscriptBlockRange) -> Void)?
     var onTranscriptDevicesRequest: ((TranscriptDevicesRequestMessage) -> Void)?
     var onTranscriptDeviceSelect: ((TranscriptDeviceSelectionMessage) -> Void)?
     var onTranscriptModelRequest: ((TranscriptModelRequestMessage) -> Void)?
     var onTranscriptModelSelect: ((TranscriptModelSelectionMessage) -> Void)?
-    private let note: Note
+    private var note: Note
     private let imagePasteService = ImagePasteService()
     private let logger = Logger(subsystem: "io.github.uphy.Chirami", category: "NoteContentModel")
     private var isSaving = false
@@ -1105,6 +1192,12 @@ class NoteContentModel: ObservableObject {
         lastSavedContent = newContent
         text = newContent
         isReloading = false
+    }
+
+    func applyNoteMetadata(_ updated: Note) {
+        note = updated
+        theme = updated.theme
+        notePath = updated.path.path
     }
 
     /// Decodes a data URL, saves the image to the attachments directory, and calls completion with the Markdown text.

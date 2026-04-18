@@ -15,6 +15,10 @@ enum TranscriptDeviceResolver {
         let normalizedBlock = normalize(blockSelection.value)
         let normalizedConfigured = normalize(configuredValue)
 
+        if normalizedBlock == "off" || normalizedConfigured == "off" {
+            return TranscriptDeviceSnapshot(value: "off", label: "Off")
+        }
+
         if let matched = findMicDevice(for: normalizedBlock, in: availableDevices) {
             return TranscriptDeviceSnapshot(value: matched.uniqueID, label: matched.name)
         }

@@ -131,6 +131,7 @@ final class SherpaOnnxModelStore: @unchecked Sendable {
         let kind: SherpaOnnxModelKind
         let label: String
         let detail: String?
+        let supportedLanguages: [String]
         let archiveURL: URL
         let extractedDirectoryName: String
         let relativeModelPath: String
@@ -147,6 +148,7 @@ final class SherpaOnnxModelStore: @unchecked Sendable {
             kind: .senseVoice,
             label: "SenseVoice",
             detail: "Multilingual Japanese/English meeting model",
+            supportedLanguages: ["zh", "en", "ja", "ko", "yue"],
             archiveURL: URL(string: "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17.tar.bz2")!,
             extractedDirectoryName: defaultModelIdentifier,
             relativeModelPath: "model.int8.onnx",
@@ -157,6 +159,7 @@ final class SherpaOnnxModelStore: @unchecked Sendable {
             kind: .nemoCTC,
             label: "Parakeet Japanese",
             detail: "Japanese-focused ReazonSpeech 35k-hour model",
+            supportedLanguages: ["ja"],
             archiveURL: URL(string: "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-nemo-parakeet-tdt_ctc-0.6b-ja-35000-int8.tar.bz2")!,
             extractedDirectoryName: parakeetJapaneseModelIdentifier,
             relativeModelPath: "model.int8.onnx",
@@ -221,6 +224,30 @@ final class SherpaOnnxModelStore: @unchecked Sendable {
         }
         return fileManager.fileExists(atPath: url.appendingPathComponent(model.relativeModelPath).path) &&
             fileManager.fileExists(atPath: url.appendingPathComponent(model.relativeTokensPath).path)
+    }
+
+    func installedSizeBytes(for identifier: String) -> Int64? {
+        let url = resolvedModelURL(for: identifier)
+        guard modelExists(for: identifier) else {
+            return nil
+        }
+        guard let enumerator = fileManager.enumerator(
+            at: url,
+            includingPropertiesForKeys: [.isRegularFileKey, .totalFileAllocatedSizeKey, .fileAllocatedSizeKey],
+            options: [.skipsHiddenFiles]
+        ) else {
+            return nil
+        }
+
+        var total: Int64 = 0
+        for case let fileURL as URL in enumerator {
+            guard let values = try? fileURL.resourceValues(forKeys: [.isRegularFileKey, .totalFileAllocatedSizeKey, .fileAllocatedSizeKey]),
+                  values.isRegularFile == true else {
+                continue
+            }
+            total += Int64(values.totalFileAllocatedSize ?? values.fileAllocatedSize ?? 0)
+        }
+        return total > 0 ? total : nil
     }
 
     func resolvedCatalogModel(for identifier: String) throws -> CatalogModel {

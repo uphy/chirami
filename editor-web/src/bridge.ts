@@ -19,6 +19,15 @@ export interface TranscriptDeviceSnapshot {
   label: string;
 }
 
+export interface TranscriptModelMetadata {
+  detail?: string;
+  kindLabel?: string;
+  configuredLanguage?: string;
+  supportedLanguages?: string[];
+  installed?: boolean;
+  installedSizeBytes?: number;
+}
+
 export interface TranscriptDownloadProgress {
   fractionCompleted: number;
   receivedBytes: number;
@@ -66,6 +75,7 @@ export interface TranscriptModelStatePayload {
   modelLabel: string;
   selectedValue: string;
   models: TranscriptDeviceOption[];
+  metadata?: TranscriptModelMetadata;
 }
 
 export interface TranscriptModelDownloadProgressPayload {
@@ -129,6 +139,8 @@ type JsToSwiftMessage =
   | { type: "transcriptRecordResume"; range: TranscriptBlockRange }
   | { type: "transcriptRecordStop"; range: TranscriptBlockRange }
   | { type: "transcriptRecordClear"; range: TranscriptBlockRange }
+  | { type: "transcriptLevelMonitorStart"; range: TranscriptBlockRange; micDevice: TranscriptDeviceSnapshot; systemDevice: TranscriptDeviceSnapshot }
+  | { type: "transcriptLevelMonitorStop"; range: TranscriptBlockRange }
   | { type: "transcriptDevicesRequest"; range: TranscriptBlockRange; source: TranscriptSource }
   | { type: "transcriptDeviceSelect"; range: TranscriptBlockRange; source: TranscriptSource; value: string; label: string }
   | { type: "transcriptModelRequest"; range: TranscriptBlockRange }
