@@ -569,10 +569,18 @@ export function createTranscriptWidget(
 
   const recordButton = buildButton("Start", "Begin recording", () => {
     if (currentStatus === "Recording" || currentStatus === "Paused" || currentStatus === "Processing") {
+      applyRuntimePatch(currentRange, {
+        status: "Processing",
+      });
       postToSwift({ type: "transcriptRecordStop", range: currentRange });
       setStatus("Processing");
       return;
     }
+    applyRuntimePatch(currentRange, {
+      status: "Processing",
+      errorMessage: undefined,
+      downloadProgress: undefined,
+    });
     postToSwift({
       type: "transcriptRecordStart",
       range: currentRange,

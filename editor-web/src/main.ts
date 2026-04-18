@@ -2,6 +2,7 @@ import { createEditor, setEditorContent, getEditorContext } from "./editor";
 import { postToSwift, exposeApi } from "./bridge";
 import { debounce } from "./extensions/utils";
 import { applyFoldingFromLines } from "./extensions/foldMarkdown";
+import { Transaction } from "@codemirror/state";
 import {
   appendTranscriptChunk,
   clearTranscriptBlock,
@@ -47,8 +48,76 @@ const view = createEditor(container, {
   }, 1000),
 });
 
+let compositionDepth = 0;
+let transcriptMutationEpoch = 0;
+let deferredTranscriptMutations: Array<{ epoch: number; run: () => void }> = [];
+
+function isCompositionActive(): boolean {
+  return compositionDepth > 0 || view.composing;
+}
+
+function flushDeferredTranscriptMutations(): void {
+  if (isCompositionActive() || deferredTranscriptMutations.length === 0) return;
+  const queued = deferredTranscriptMutations;
+  deferredTranscriptMutations = [];
+  for (const mutation of queued) {
+    if (mutation.epoch !== transcriptMutationEpoch) continue;
+    mutation.run();
+  }
+}
+
+function scheduleDeferredTranscriptFlush(): void {
+  window.setTimeout(() => {
+    flushDeferredTranscriptMutations();
+  }, 0);
+}
+
+function syncCompositionClass(): void {
+  view.dom.classList.toggle("chirami-ime-composing", isCompositionActive());
+}
+
+function flushDeferredDecorations(): void {
+  // livePreview defers rebuilds while IME composition is active. Trigger a no-op
+  // transaction after composition ends so pending decorations are recomputed even
+  // when no further document change occurs.
+  view.dispatch({
+    annotations: Transaction.userEvent.of("input.compose.flush"),
+  });
+}
+
+function dispatchTranscriptMutation(mutation: () => void): void {
+  const epoch = transcriptMutationEpoch;
+  if (isCompositionActive()) {
+    deferredTranscriptMutations.push({ epoch, run: mutation });
+    return;
+  }
+  flushDeferredTranscriptMutations();
+  mutation();
+}
+
+view.contentDOM.addEventListener("compositionstart", () => {
+  compositionDepth += 1;
+  syncCompositionClass();
+});
+
+view.contentDOM.addEventListener("compositionend", () => {
+  compositionDepth = Math.max(0, compositionDepth - 1);
+  syncCompositionClass();
+  flushDeferredDecorations();
+  scheduleDeferredTranscriptFlush();
+});
+
+view.contentDOM.addEventListener("blur", () => {
+  compositionDepth = 0;
+  syncCompositionClass();
+  flushDeferredDecorations();
+  scheduleDeferredTranscriptFlush();
+});
+
 exposeApi({
   setContent: (text) => {
+    transcriptMutationEpoch += 1;
+    deferredTranscriptMutations = [];
     suppressChangeNotification = true;
     try {
       setEditorContent(view, text);
@@ -76,32 +145,40 @@ exposeApi({
   },
   getEditorContext: (options) => getEditorContext(view, options),
   transcriptClearBlock: (range) => {
-    clearTranscriptBlock(view, range);
+    dispatchTranscriptMutation(() => {
+      clearTranscriptBlock(view, range);
+    });
   },
   transcriptChunk: (payload) => {
     try {
-      const appended = appendTranscriptChunk(view, payload);
-      if (!appended) {
-        postToSwift({
-          type: "log",
-          level: "error",
-          message: `transcriptChunk dropped: blockFrom=${payload.range.blockFrom} blockTo=${payload.range.blockTo}`,
-        });
-      }
+      dispatchTranscriptMutation(() => {
+        const appended = appendTranscriptChunk(view, payload);
+        if (!appended) {
+          postToSwift({
+            type: "log",
+            level: "error",
+            message: `transcriptChunk dropped: blockFrom=${payload.range.blockFrom} blockTo=${payload.range.blockTo}`,
+          });
+        }
+      });
     } catch (error) {
       logJsError("transcriptChunk failed", error);
     }
   },
   transcriptPreviewUpdate: (payload) => {
     try {
-      updateTranscriptPreview(view, payload);
+      dispatchTranscriptMutation(() => {
+        updateTranscriptPreview(view, payload);
+      });
     } catch (error) {
       logJsError("transcriptPreviewUpdate failed", error);
     }
   },
   transcriptStateChanged: (payload) => {
     try {
-      updateTranscriptState(view, payload);
+      dispatchTranscriptMutation(() => {
+        updateTranscriptState(view, payload);
+      });
     } catch (error) {
       logJsError("transcriptStateChanged failed", error);
     }

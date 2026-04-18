@@ -180,13 +180,22 @@ class CalloutTitleWidget extends WidgetType {
 
 class LivePreviewPlugin {
   decorations: DecorationSet;
+  private pendingRebuild = false;
 
   constructor(view: EditorView) {
     this.decorations = this.build(view);
   }
 
   update(update: ViewUpdate) {
-    if (shouldRebuild(update)) this.decorations = this.build(update.view);
+    const needsRebuild = shouldRebuild(update);
+    if (update.view.composing) {
+      this.pendingRebuild ||= needsRebuild;
+      return;
+    }
+    if (this.pendingRebuild || needsRebuild) {
+      this.pendingRebuild = false;
+      this.decorations = this.build(update.view);
+    }
   }
 
   private build(view: EditorView): DecorationSet {

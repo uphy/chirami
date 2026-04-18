@@ -1,5 +1,6 @@
 import Foundation
 import AVFoundation
+import OSLog
 
 protocol MicrophoneCapturing: AnyObject {
     func start(bufferHandler: @escaping @Sendable (AVAudioPCMBuffer) -> Void) throws
@@ -67,6 +68,8 @@ typealias TranscriptTranscriptionEngineFactory = @Sendable (
 ) async throws -> TranscriptionEngine?
 
 actor TranscriptSession {
+    private static let logger = Logger(subsystem: "io.github.uphy.Chirami", category: "TranscriptSession")
+
     private let context: TranscriptSessionContext
     private let callbacks: TranscriptSessionCallbacks
     private let microphoneCapture: MicrophoneCapturing
@@ -76,6 +79,7 @@ actor TranscriptSession {
     private let requestMicrophoneAccess: @Sendable () async throws -> Void
     private let dateProvider: @Sendable () -> Date
     private let lineFormatter: TranscriptLineFormatter
+    private let transcriptionStopTimeoutNanoseconds: UInt64
 
     private var status: TranscriptStatus = .idle
     private var chunkForwardingTask: Task<Void, Never>?
@@ -106,7 +110,8 @@ actor TranscriptSession {
             try await MicrophoneCapture.requestAccessIfNeeded()
         },
         dateProvider: @escaping @Sendable () -> Date = Date.init,
-        timeZone: TimeZone = .current
+        timeZone: TimeZone = .current,
+        transcriptionStopTimeoutNanoseconds: UInt64 = 5_000_000_000
     ) {
         self.context = context
         self.callbacks = callbacks
@@ -118,6 +123,7 @@ actor TranscriptSession {
         self.requestMicrophoneAccess = requestMicrophoneAccess
         self.dateProvider = dateProvider
         self.lineFormatter = TranscriptLineFormatter(labels: context.labels, timeZone: timeZone)
+        self.transcriptionStopTimeoutNanoseconds = transcriptionStopTimeoutNanoseconds
     }
 
     func start() async {
@@ -413,13 +419,56 @@ actor TranscriptSession {
         }
 
         if flushFinalChunks {
-            await engine.stop(mode: .flushFinalChunks)
-            _ = await chunkTask?.result
-            _ = await previewTask?.result
+            let didFinish = await completeWithin(timeoutNanoseconds: transcriptionStopTimeoutNanoseconds) {
+                await engine.stop(mode: .flushFinalChunks)
+                _ = await chunkTask?.result
+                _ = await previewTask?.result
+            }
+            if !didFinish {
+                chunkTask?.cancel()
+                previewTask?.cancel()
+                Self.logger.warning("Timed out while flushing final transcript chunks during stop; forcing completion")
+            }
         } else {
             chunkTask?.cancel()
             previewTask?.cancel()
-            await engine.stop(mode: .discardPendingWork)
+            let didFinish = await completeWithin(timeoutNanoseconds: transcriptionStopTimeoutNanoseconds) {
+                await engine.stop(mode: .discardPendingWork)
+            }
+            if !didFinish {
+                Self.logger.warning("Timed out while discarding transcript work during shutdown")
+            }
+        }
+    }
+
+    private func completeWithin(
+        timeoutNanoseconds: UInt64,
+        operation: @escaping @Sendable () async -> Void
+    ) async -> Bool {
+        await withCheckedContinuation { continuation in
+            let lock = NSLock()
+            var resumed = false
+            var timeoutTask: Task<Void, Never>?
+
+            func resume(_ value: Bool) {
+                lock.lock()
+                defer { lock.unlock() }
+                guard !resumed else { return }
+                resumed = true
+                continuation.resume(returning: value)
+            }
+
+            let operationTask = Task {
+                await operation()
+                timeoutTask?.cancel()
+                resume(true)
+            }
+
+            timeoutTask = Task {
+                try? await Task.sleep(nanoseconds: timeoutNanoseconds)
+                operationTask.cancel()
+                resume(false)
+            }
         }
     }
 

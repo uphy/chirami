@@ -645,6 +645,7 @@ export function updateTranscriptState(view: EditorView, payload: TranscriptState
       },
     }),
   });
+  applySnapshotToRenderedBlock(view, payload.range);
   return true;
 }
 

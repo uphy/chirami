@@ -128,6 +128,28 @@ private final class MockTranscriptionEngine: TranscriptionEngine {
     }
 }
 
+private final class HangingStopTranscriptionEngine: TranscriptionEngine {
+    var chunks: AsyncStream<TranscriptChunk> { AsyncStream { _ in } }
+    var previews: AsyncStream<TranscriptPreview> { AsyncStream { _ in } }
+
+    private(set) var stopModes: [TranscriptionEngineStopMode] = []
+
+    func start(audioFormat: AVAudioFormat) async throws {
+        _ = audioFormat
+    }
+
+    func feed(buffer: AVAudioPCMBuffer, source: TranscriptSource) async throws {
+        _ = buffer
+        _ = source
+    }
+
+    func stop(mode: TranscriptionEngineStopMode) async {
+        stopModes.append(mode)
+        await withCheckedContinuation { (_: CheckedContinuation<Void, Never>) in
+        }
+    }
+}
+
 @Suite("Transcript session")
 struct TranscriptSessionTests {
     @Test("start emits recording state and forwards mic/system levels")
@@ -473,6 +495,42 @@ struct TranscriptSessionTests {
 
         #expect(recorder.chunks.last?.text == "[2026-04-16 12:00:02] You: final chunk")
         #expect(recorder.states.last?.status == .completed)
+    }
+
+    @Test("stop completes even when transcription engine flush hangs")
+    func stopCompletesEvenWhenTranscriptionEngineFlushHangs() async {
+        let fixedDate = Date(timeIntervalSince1970: 1_776_340_800)
+        let recorder = TranscriptEventRecorder()
+        let callbacks = TranscriptSessionCallbacks()
+        callbacks.sendState = { recorder.states.append($0) }
+        callbacks.sendLevel = { recorder.levels.append($0) }
+
+        let micCapture = MockMicrophoneCapture()
+        let hangingEngine = HangingStopTranscriptionEngine()
+        let session = TranscriptSession(
+            context: TranscriptSessionContext(
+                range: TranscriptBlockRange(blockFrom: 1, blockTo: 2),
+                modelLabel: "test-model",
+                micDeviceLabel: "Default",
+                systemDeviceLabel: "Off",
+                labels: TranscriptLabelConfig(mic: "You", system: "Others")
+            ),
+            callbacks: callbacks,
+            microphoneCapture: micCapture,
+            systemAudioCapture: nil,
+            transcriptionEngine: hangingEngine,
+            systemProcesses: [],
+            requestMicrophoneAccess: {},
+            dateProvider: { fixedDate },
+            timeZone: TimeZone(secondsFromGMT: 0)!,
+            transcriptionStopTimeoutNanoseconds: 1_000_000
+        )
+
+        await session.start()
+        await session.stop()
+
+        #expect(hangingEngine.stopModes == [.flushFinalChunks])
+        #expect(recorder.states.map(\.status) == [.recording, .processing, .completed])
     }
 
     @Test("permission failure transitions to error without starting capture")

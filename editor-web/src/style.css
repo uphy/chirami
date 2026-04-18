@@ -41,6 +41,11 @@ html, body {
   background-color: var(--chirami-selection) !important;
 }
 
+.cm-editor.chirami-ime-composing .cm-selectionBackground,
+.cm-editor.chirami-ime-composing ::selection {
+  background-color: transparent !important;
+}
+
 .cm-scroller {
   line-height: 2;
   padding-right: 16px;
