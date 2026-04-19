@@ -152,12 +152,12 @@ html, body {
    creating the correct visual indentation per nesting level.
    The extra 6px matches CodeMirror's default .cm-line padding-left (0 2px 0 6px)
    which is overridden by setting padding-left here, so we restore it explicitly. */
-/* line-height larger than base (1.75) to add vertical breathing room equivalent
-   to the design's padding: '3px 0' per row. calc(1.75em + 6px) is font-size-independent. */
 .cm-editor .cm-line.cm-list-item {
   padding-left: calc(var(--list-indent) + 6px);
   text-indent: calc(-1 * var(--list-gutter));
-  line-height: calc(1.75em + 6px);
+  line-height: 1.5;
+  padding-top: 4px;
+  padding-bottom: 4px;
 }
 
 

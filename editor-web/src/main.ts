@@ -51,6 +51,7 @@ const view = createEditor(container, {
 let compositionDepth = 0;
 let transcriptMutationEpoch = 0;
 let deferredTranscriptMutations: Array<{ epoch: number; run: () => void }> = [];
+const POST_COMPOSITION_RETRY_LIMIT = 10;
 
 function isCompositionActive(): boolean {
   return compositionDepth > 0 || view.composing;
@@ -66,8 +67,14 @@ function flushDeferredTranscriptMutations(): void {
   }
 }
 
-function scheduleDeferredTranscriptFlush(): void {
+function scheduleDeferredTranscriptFlush(attempt = 0): void {
   window.setTimeout(() => {
+    if (isCompositionActive()) {
+      if (attempt < POST_COMPOSITION_RETRY_LIMIT) {
+        scheduleDeferredTranscriptFlush(attempt + 1);
+      }
+      return;
+    }
     flushDeferredTranscriptMutations();
   }, 0);
 }
@@ -83,6 +90,18 @@ function flushDeferredDecorations(): void {
   view.dispatch({
     annotations: Transaction.userEvent.of("input.compose.flush"),
   });
+}
+
+function scheduleDeferredDecorationFlush(attempt = 0): void {
+  window.setTimeout(() => {
+    if (isCompositionActive()) {
+      if (attempt < POST_COMPOSITION_RETRY_LIMIT) {
+        scheduleDeferredDecorationFlush(attempt + 1);
+      }
+      return;
+    }
+    flushDeferredDecorations();
+  }, 0);
 }
 
 function dispatchTranscriptMutation(mutation: () => void): void {
@@ -103,14 +122,14 @@ view.contentDOM.addEventListener("compositionstart", () => {
 view.contentDOM.addEventListener("compositionend", () => {
   compositionDepth = Math.max(0, compositionDepth - 1);
   syncCompositionClass();
-  flushDeferredDecorations();
+  scheduleDeferredDecorationFlush();
   scheduleDeferredTranscriptFlush();
 });
 
 view.contentDOM.addEventListener("blur", () => {
   compositionDepth = 0;
   syncCompositionClass();
-  flushDeferredDecorations();
+  scheduleDeferredDecorationFlush();
   scheduleDeferredTranscriptFlush();
 });
 

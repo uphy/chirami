@@ -195,10 +195,13 @@ class LivePreviewPlugin {
         (tr) => tr.isUserEvent("input.type.compose") || tr.isUserEvent("input.compose"),
       );
     if (isComposing) {
-      this.pendingRebuild ||= needsRebuild;
-      if (this.decorations !== Decoration.none) {
-        this.decorations = Decoration.none;
-        this.pendingRebuild = true;
+      // Keep the previous preview visible during IME composition. Dropping all
+      // decorations forces the whole viewport back to raw Markdown, which is
+      // visually disruptive for lists and can remain stuck until the next
+      // cursor move if composition teardown races the rebuild signal.
+      this.pendingRebuild = this.pendingRebuild || needsRebuild || update.docChanged;
+      if (update.docChanged && this.decorations !== Decoration.none) {
+        this.decorations = this.decorations.map(update.changes);
       }
       return;
     }
@@ -379,9 +382,10 @@ class LivePreviewPlugin {
                   decorations.push(Decoration.line({ class: "cm-task-checked" }).range(itemLine.from));
                 }
                 const innerPos = node.from + 3; // skip '-', ' ', '[' to reach checkbox char
+                decorations.push(HIDDEN_DECORATION.range(node.from, prefixTo));
                 decorations.push(
-                  Decoration.replace({ widget: new CheckboxWidget(checked, innerPos) })
-                    .range(node.from, prefixTo)
+                  Decoration.widget({ widget: new CheckboxWidget(checked, innerPos), side: -1 })
+                    .range(prefixTo)
                 );
               } else {
                 decorations.push(

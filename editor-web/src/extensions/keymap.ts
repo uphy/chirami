@@ -2,9 +2,32 @@ import { syntaxTree, indentUnit } from "@codemirror/language";
 import { EditorSelection } from "@codemirror/state";
 import { EditorView, KeyBinding } from "@codemirror/view";
 import { insertNewlineContinueMarkup } from "@codemirror/lang-markdown";
-import { postToSwift } from "../bridge";
 
 const LIST_ITEM_RE = /^([ \t]*)([-*+])([ \t]+)/;
+const TASK_ITEM_RE = /^\[(?: |x|X)\][ \t]*/;
+
+function listContentStartOffset(lineText: string): number | null {
+  const match = LIST_ITEM_RE.exec(lineText);
+  if (!match) return null;
+  const trailingText = lineText.slice(match[0].length);
+  const taskMatch = TASK_ITEM_RE.exec(trailingText);
+  return match[0].length + (taskMatch?.[0].length ?? 0);
+}
+
+function normalizeCursorToListContent(view: EditorView): void {
+  const head = view.state.selection.main.head;
+  const line = view.state.doc.lineAt(head);
+  const contentOffset = listContentStartOffset(line.text);
+  if (contentOffset === null) return;
+
+  const contentStart = line.from + contentOffset;
+  if (head >= contentStart) return;
+
+  view.dispatch({
+    selection: EditorSelection.cursor(contentStart),
+    scrollIntoView: true,
+  });
+}
 
 // Wraps insertNewlineContinueMarkup to prevent spurious blank lines in tight lists.
 // CodeMirror's nonTightList heuristic sometimes misclassifies long (visually
@@ -41,6 +64,8 @@ function tightListEnter(view: EditorView): boolean {
       }
     }
   }
+
+  normalizeCursorToListContent(view);
 
   return true;
 }
@@ -125,13 +150,23 @@ function resolveListItemContext(view: EditorView) {
 
   const line = state.doc.lineAt(sel.head);
   const match = LIST_ITEM_RE.exec(line.text);
-  if (!match) return null;
+  const contentOffset = listContentStartOffset(line.text);
+  if (!match || contentOffset === null) return null;
 
   const unit = state.facet(indentUnit);
-  const contentStart = line.from + match[0].length;
+  const contentStart = line.from + contentOffset;
+  const contentText = line.text.slice(contentStart - line.from);
   const cursorBeforeContent = sel.head < contentStart;
 
-  return { line, match, unit, contentStart, cursorBeforeContent, sel };
+  return {
+    line,
+    match,
+    unit,
+    contentStart,
+    contentText,
+    cursorBeforeContent,
+    sel,
+  };
 }
 
 // Indents a list item in a single dispatch to avoid visual flicker.
@@ -142,13 +177,14 @@ function resolveListItemContext(view: EditorView) {
 function indentListItem(view: EditorView): boolean {
   const ctx = resolveListItemContext(view);
   if (!ctx) return false;
-  const { line, unit, contentStart, cursorBeforeContent, sel } = ctx;
+  const { line, unit, contentStart, contentText, cursorBeforeContent, sel } = ctx;
+  const keepAtContentStart = cursorBeforeContent || contentText.length === 0;
+  const contentOffset = keepAtContentStart ? 0 : Math.max(0, sel.head - contentStart);
+  const targetPos = contentStart + unit.length + contentOffset;
 
   view.dispatch({
     changes: { from: line.from, insert: unit },
-    selection: EditorSelection.cursor(
-      cursorBeforeContent ? contentStart + unit.length : sel.head + unit.length
-    ),
+    selection: EditorSelection.cursor(targetPos),
     scrollIntoView: true,
   });
 
@@ -160,20 +196,19 @@ function indentListItem(view: EditorView): boolean {
 function dedentListItem(view: EditorView): boolean {
   const ctx = resolveListItemContext(view);
   if (!ctx) return false;
-  const { line, match, unit, contentStart, cursorBeforeContent, sel } = ctx;
+  const { line, match, unit, contentStart, contentText, cursorBeforeContent, sel } = ctx;
 
   const currentIndent = match[1];
   if (currentIndent.length === 0) return false;
 
   const removeLen = Math.min(unit.length, currentIndent.length);
+  const keepAtContentStart = cursorBeforeContent || contentText.length === 0;
+  const contentOffset = keepAtContentStart ? 0 : Math.max(0, sel.head - contentStart);
+  const targetPos = Math.max(line.from, contentStart - removeLen + contentOffset);
 
   view.dispatch({
     changes: { from: line.from, to: line.from + removeLen },
-    selection: EditorSelection.cursor(
-      cursorBeforeContent
-        ? contentStart - removeLen
-        : Math.max(line.from, sel.head - removeLen)
-    ),
+    selection: EditorSelection.cursor(targetPos),
     scrollIntoView: true,
   });
 
