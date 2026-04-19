@@ -34,9 +34,9 @@ const LIST_MARK_RE   = /^[-*+]/;
 const TASK_MARK_RE   = /^ \[([ xX])\] ?/;
 const BQ_PREFIX_RE   = /^(>\s?)+/;
 const GUTTER_EM      = 1.0;
-// Task items use a wider gutter so the checkbox widget (13px + 3px margin ≈ 16px)
-// plus a small gap fits inside, keeping wrapped lines aligned with text.
-const TASK_GUTTER_EM = 1.4;
+// Task items use a wider gutter: 16px checkbox + ~10px gap (design gap: 10).
+// At 13px font: 1.9em ≈ 24.7px → ~8.7px gap. At 14px: 1.9em = 26.6px → ~10.6px gap.
+const TASK_GUTTER_EM = 1.9;
 
 // Using an inline-block span (same as BulletWidget) ensures the widget occupies
 // exactly TASK_GUTTER_EM regardless of the checkbox's pixel size, so wrapped
@@ -188,8 +188,18 @@ class LivePreviewPlugin {
 
   update(update: ViewUpdate) {
     const needsRebuild = shouldRebuild(update);
-    if (update.view.composing) {
+    // view.composing misses some IME events; transaction events cover the gap.
+    const isComposing =
+      update.view.composing ||
+      update.transactions.some(
+        (tr) => tr.isUserEvent("input.type.compose") || tr.isUserEvent("input.compose"),
+      );
+    if (isComposing) {
       this.pendingRebuild ||= needsRebuild;
+      if (this.decorations !== Decoration.none) {
+        this.decorations = Decoration.none;
+        this.pendingRebuild = true;
+      }
       return;
     }
     if (this.pendingRebuild || needsRebuild) {

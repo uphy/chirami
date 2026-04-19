@@ -2,6 +2,8 @@ import type { AppState, BinaryFiles, LibraryItems } from "@excalidraw/excalidraw
 import type { ExcalidrawElement } from "@excalidraw/excalidraw/element/types";
 import { tryParseJSON } from "./utils";
 
+export const EXCALIDRAW_BG_COLOR = "#ffffff";
+
 export type ExcalidrawSceneData = {
   elements: readonly ExcalidrawElement[];
   appState?: Partial<AppState>;

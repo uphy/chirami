@@ -1511,9 +1511,9 @@ export function createTranscriptWidget(
       ? "cm-transcript-icon-button cm-transcript-button--active"
       : "cm-transcript-icon-button";
     if (currentMinimized === true) {
-      minimizedActions.replaceChildren(settingsWrap, expandActionButton, openTranscriptButton, clearActionButton);
+      minimizedActions.replaceChildren(settingsWrap, expandActionButton);
     } else {
-      headerActions.replaceChildren(status, settingsWrap, minimizeActionButton, openTranscriptButton, clearActionButton);
+      headerActions.replaceChildren(status, clearActionButton, settingsWrap, minimizeActionButton, openTranscriptButton);
       minimizedActions.replaceChildren();
     }
     positionVisibleMenus();

@@ -5,7 +5,7 @@ import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 import type { LibraryItems } from "@excalidraw/excalidraw/types";
 import { postToSwift, requestPluginState, savePluginState } from "./bridge";
 import { tryParseJSON } from "./extensions/utils";
-import { parseExcalidrawScene } from "./extensions/excalidrawShared";
+import { EXCALIDRAW_BG_COLOR, parseExcalidrawScene } from "./extensions/excalidrawShared";
 
 const PLUGIN_ID = "excalidraw";
 const LIBRARY_SAVE_DEBOUNCE_MS = 150;
@@ -69,7 +69,12 @@ function ExcalidrawOverlay({ initialSnapshot, initialLibraryItems, externalItemI
 
   const initialData = useMemo(() => {
     const scene = parseExcalidrawScene(initialSnapshot);
-    return scene ? { ...scene, libraryItems: initialLibraryItems } : { elements: [], libraryItems: initialLibraryItems };
+    const base = scene ?? { elements: [] };
+    return {
+      ...base,
+      appState: { ...base.appState, viewBackgroundColor: EXCALIDRAW_BG_COLOR },
+      libraryItems: initialLibraryItems,
+    };
   }, [initialLibraryItems, initialSnapshot]);
 
   const handleClose = useCallback(() => {
@@ -104,7 +109,7 @@ function ExcalidrawOverlay({ initialSnapshot, initialLibraryItems, externalItemI
   }, [handleClose]);
 
   return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 900 }}>
+    <div style={{ position: "fixed", inset: 0, zIndex: 900, background: EXCALIDRAW_BG_COLOR }}>
       <Excalidraw
         initialData={initialData}
         excalidrawAPI={(api) => {

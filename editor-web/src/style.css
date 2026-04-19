@@ -47,7 +47,7 @@ html, body {
 }
 
 .cm-scroller {
-  line-height: 2;
+  line-height: 1.65 !important;
   padding-right: 16px;
   overflow-anchor: none;
 }
@@ -152,9 +152,12 @@ html, body {
    creating the correct visual indentation per nesting level.
    The extra 6px matches CodeMirror's default .cm-line padding-left (0 2px 0 6px)
    which is overridden by setting padding-left here, so we restore it explicitly. */
+/* line-height larger than base (1.75) to add vertical breathing room equivalent
+   to the design's padding: '3px 0' per row. calc(1.75em + 6px) is font-size-independent. */
 .cm-editor .cm-line.cm-list-item {
   padding-left: calc(var(--list-indent) + 6px);
   text-indent: calc(-1 * var(--list-gutter));
+  line-height: calc(1.75em + 6px);
 }
 
 
@@ -217,19 +220,20 @@ html, body {
 
 /* Task item checkbox — appearance:none so the checked state is stable even when
    the window is inactive (macOS dims native controls on focus loss).
-   Uses CSS system colors to follow the OS light/dark/accent-color settings. */
+   Circle style matching Glass Light/Dark design (size=16, strokeWidth=2 equivalent). */
 .cm-editor input[type="checkbox"] {
   appearance: none;
   -webkit-appearance: none;
-  width: 13px;
-  height: 13px;
-  border: 1.5px solid color-mix(in srgb, currentColor 40%, transparent);
-  border-radius: 3px;
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid color-mix(in srgb, var(--chirami-text) 30%, transparent);
+  border-radius: 50%;
   background: transparent;
   cursor: pointer;
   vertical-align: middle;
-  margin: 0 3px 1px 0;
+  margin: 0 0 1px 0;
   position: relative;
+  flex-shrink: 0;
 }
 
 .cm-editor input[type="checkbox"]:checked {
@@ -237,22 +241,26 @@ html, body {
   border-color: AccentColor;
 }
 
+/* Checkmark sized to match SVG path M3 8l3.5 3.5L13 5 at 60% of 16px (9.6px rendered).
+   Short arm ~3px, long arm ~6px, strokeWidth 1.5px. */
 .cm-editor input[type="checkbox"]:checked::after {
   content: '';
   position: absolute;
   left: 50%;
-  top: 45%;
-  width: 5px;
-  height: 8px;
+  top: 50%;
+  width: 3px;
+  height: 6px;
   border: 1.5px solid white;
   border-top: none;
   border-left: none;
   transform: translate(-50%, -60%) rotate(45deg);
 }
 
-/* Checked task line dimming */
+/* Checked task line dimming with strikethrough */
 .cm-task-checked {
-  color: color-mix(in srgb, var(--chirami-text) 40%, transparent);
+  color: color-mix(in srgb, var(--chirami-text) 55%, transparent);
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, var(--chirami-text) 30%, transparent);
 }
 
 /* Horizontal rule */
@@ -350,7 +358,7 @@ html, body {
   position: relative;
   margin: 0;
   padding: 8px 0;
-  background: var(--chirami-surface-raised);
+  background: #ffffff;
   border-radius: 6px;
   overflow: hidden;
   border: 1px solid var(--chirami-border);
@@ -361,7 +369,7 @@ html, body {
 /* excalidraw SVG preview */
 .cm-excalidraw-preview-inner {
   width: 100%;
-  background: var(--chirami-surface-raised);
+  background: #ffffff;
 }
 
 .cm-excalidraw-preview-inner img {
@@ -418,22 +426,23 @@ html, body {
 /* transcript container */
 .cm-transcript-container,
 .cm-transcript-modal {
-  --widget-radius: 10px;
-  --widget-surface: var(--chirami-bg);
-  --widget-surface-strong: color-mix(in srgb, var(--chirami-bg) 98.5%, var(--chirami-text) 1.5%);
-  --widget-surface-raised: color-mix(in srgb, var(--chirami-bg) 97%, var(--chirami-text) 3%);
-  --widget-muted: color-mix(in srgb, var(--chirami-text) 72%, var(--chirami-bg) 28%);
-  --widget-accent-soft: color-mix(in srgb, var(--chirami-accent) 14%, transparent);
+  --widget-radius: 12px;
+  --widget-surface: color-mix(in srgb, var(--chirami-bg) 78%, transparent);
+  --widget-surface-strong: color-mix(in srgb, var(--chirami-bg) 94%, var(--chirami-text) 3%);
+  --widget-surface-raised: color-mix(in srgb, var(--chirami-bg) 90%, var(--chirami-text) 6%);
+  --widget-muted: color-mix(in srgb, var(--chirami-text) 55%, transparent);
+  --widget-accent-soft: color-mix(in srgb, var(--chirami-accent) 12%, transparent);
   --widget-accent-strong: var(--chirami-accent);
-  --widget-shadow: color-mix(in srgb, var(--chirami-text) 10%, transparent);
-  --widget-inset: color-mix(in srgb, var(--chirami-border) 30%, transparent);
-  --widget-row-active: color-mix(in srgb, var(--chirami-accent) 10%, var(--widget-surface-raised) 90%);
+  --widget-shadow: color-mix(in srgb, black 25%, transparent);
+  --widget-inset: color-mix(in srgb, white 65%, transparent);
+  --widget-row-active: color-mix(in srgb, var(--chirami-accent) 10%, transparent);
   --widget-row-live: color-mix(in srgb, var(--chirami-accent) 8%, transparent);
-  --widget-recording-badge-bg: color-mix(in srgb, var(--chirami-danger) 16%, transparent);
+  --widget-recording-badge-bg: color-mix(in srgb, var(--chirami-danger) 14%, transparent);
   --widget-recording-badge-fg: var(--chirami-danger);
-  --widget-meter-bg: color-mix(in srgb, var(--chirami-text) 6%, transparent);
-  --widget-meter-mic: color-mix(in srgb, var(--chirami-accent) 84%, var(--widget-surface-raised) 16%);
-  --widget-meter-system: color-mix(in srgb, var(--chirami-text) 76%, var(--widget-surface-raised) 24%);
+  --widget-meter-bg: color-mix(in srgb, var(--chirami-text) 4%, transparent);
+  --widget-meter-mic: color-mix(in srgb, var(--chirami-accent) 84%, transparent);
+  --widget-meter-system: color-mix(in srgb, var(--chirami-text) 70%, transparent);
+  --widget-border: 0.5px solid color-mix(in srgb, var(--chirami-text) 10%, transparent);
 }
 
 .cm-transcript-container {
@@ -441,10 +450,13 @@ html, body {
   margin: 0;
   padding: 0;
   border-radius: var(--widget-radius);
-  border: 1px solid var(--chirami-border);
+  border: var(--widget-border);
   background: var(--widget-surface);
+  backdrop-filter: blur(50px) saturate(180%);
+  -webkit-backdrop-filter: blur(50px) saturate(180%);
   box-shadow:
-    0 4px 10px color-mix(in srgb, var(--widget-shadow) 70%, transparent),
+    0 24px 60px var(--widget-shadow),
+    0 0 0 0.5px color-mix(in srgb, var(--chirami-text) 8%, transparent),
     inset 0 1px 0 var(--widget-inset);
   max-width: var(--cm-block-width, 100%);
   overflow: visible;
@@ -460,7 +472,7 @@ html, body {
   padding: 8px 10px;
   border-top-left-radius: inherit;
   border-top-right-radius: inherit;
-  border-bottom: 1px solid var(--chirami-border);
+  border-bottom: var(--widget-border);
   background: var(--widget-surface);
 }
 
@@ -470,12 +482,12 @@ html, body {
   align-items: center;
   gap: 6px;
   padding: 3px 9px;
-  border-radius: 999px;
+  border-radius: 6px;
   font-size: 11px;
   font-weight: 600;
-  color: color-mix(in srgb, var(--chirami-text) 72%, var(--chirami-bg) 28%);
+  color: var(--widget-muted);
   background: var(--widget-surface-raised);
-  border: 1px solid color-mix(in srgb, var(--chirami-border) 90%, transparent);
+  border: var(--widget-border);
   white-space: nowrap;
   cursor: pointer;
   transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease, opacity 0.12s ease;
@@ -650,7 +662,7 @@ html, body {
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 8px;
   padding: 8px 10px 6px;
-  border-bottom: 1px solid var(--chirami-border);
+  border-bottom: var(--widget-border);
 }
 
 .cm-transcript-meter {
@@ -789,10 +801,13 @@ html, body {
   max-height: min(80vh, 720px);
   background: var(--widget-surface);
   color: var(--chirami-text);
-  border: 1px solid var(--chirami-border);
-  border-radius: 12px;
+  border: var(--widget-border);
+  border-radius: 14px;
+  backdrop-filter: blur(50px) saturate(180%);
+  -webkit-backdrop-filter: blur(50px) saturate(180%);
   box-shadow:
-    0 24px 64px var(--widget-shadow),
+    0 24px 60px var(--widget-shadow),
+    0 0 0 0.5px color-mix(in srgb, var(--chirami-text) 8%, transparent),
     inset 0 1px 0 var(--widget-inset);
   display: flex;
   flex-direction: column;
@@ -804,7 +819,7 @@ html, body {
   align-items: center;
   justify-content: space-between;
   padding: 12px 16px;
-  border-bottom: 1px solid var(--chirami-border);
+  border-bottom: var(--widget-border);
   background: var(--widget-surface-raised);
 }
 
@@ -817,7 +832,7 @@ html, body {
 
 .cm-transcript-modal-close {
   appearance: none;
-  border: 1px solid var(--chirami-border);
+  border: var(--widget-border);
   border-radius: 6px;
   background: var(--widget-surface-raised);
   color: var(--chirami-text);
@@ -846,7 +861,7 @@ html, body {
   grid-template-columns: 64px 56px minmax(0, 1fr);
   gap: 8px;
   align-items: baseline;
-  padding: 6px 10px;
+  padding: 5px 10px;
 }
 
 .cm-transcript-preview-row--header {
@@ -856,7 +871,7 @@ html, body {
   text-transform: uppercase;
   letter-spacing: 0.02em;
   opacity: 0.92;
-  border-bottom: 1px solid var(--chirami-border);
+  border-bottom: var(--widget-border);
   background: color-mix(in srgb, var(--widget-surface-raised) 92%, transparent);
 }
 
@@ -930,12 +945,12 @@ html, body {
   gap: 6px;
   padding: 10px;
   align-items: flex-end;
-  border-top: 1px solid var(--chirami-border);
+  border-top: var(--widget-border);
 }
 
 .cm-transcript-button {
   appearance: none;
-  border: 1px solid var(--chirami-border);
+  border: var(--widget-border);
   border-radius: 7px;
   background: var(--widget-surface-raised);
   color: var(--chirami-text);
@@ -979,7 +994,7 @@ html, body {
   height: 24px;
   padding: 0;
   appearance: none;
-  border: 1px solid var(--chirami-border);
+  border: var(--widget-border);
   border-radius: 6px;
   background: var(--widget-surface-raised);
   color: var(--widget-muted);
@@ -1009,11 +1024,14 @@ html, body {
   right: 0;
   z-index: 4;
   width: min(440px, calc(100vw - 56px));
-  border: 1px solid color-mix(in srgb, var(--chirami-border) 72%, transparent);
+  border: var(--widget-border);
   border-radius: 14px;
-  background: color-mix(in srgb, var(--widget-surface-raised) 96%, var(--chirami-bg) 4%);
+  background: color-mix(in srgb, var(--chirami-bg) 82%, transparent);
+  backdrop-filter: blur(50px) saturate(180%);
+  -webkit-backdrop-filter: blur(50px) saturate(180%);
   box-shadow:
-    0 18px 40px var(--widget-shadow),
+    0 24px 60px var(--widget-shadow),
+    0 0 0 0.5px color-mix(in srgb, var(--chirami-text) 8%, transparent),
     inset 0 1px 0 var(--widget-inset);
   overflow: visible;
 }
@@ -1030,7 +1048,7 @@ html, body {
   padding: 13px 14px 11px;
   border-top-left-radius: inherit;
   border-top-right-radius: inherit;
-  border-bottom: 1px solid var(--chirami-border);
+  border-bottom: var(--widget-border);
   background: color-mix(in srgb, var(--widget-surface-raised) 72%, var(--widget-surface-strong) 28%);
   background-clip: padding-box;
 }
@@ -1056,7 +1074,7 @@ html, body {
   height: 24px;
   padding: 0;
   appearance: none;
-  border: 1px solid var(--chirami-border);
+  border: var(--widget-border);
   border-radius: 999px;
   background: var(--widget-surface);
   color: var(--widget-muted);
@@ -1104,7 +1122,7 @@ html, body {
   gap: 10px;
   padding: 12px;
   appearance: none;
-  border: 1px solid var(--chirami-border);
+  border: var(--widget-border);
   border-radius: 11px;
   background: var(--widget-surface);
   color: var(--chirami-text);
@@ -1135,7 +1153,7 @@ html, body {
   align-items: center;
   justify-content: center;
   border-radius: 9px;
-  border: 1px solid color-mix(in srgb, var(--chirami-border) 88%, transparent);
+  border: var(--widget-border);
   background: var(--widget-surface-raised);
   color: var(--widget-muted);
 }
@@ -1224,7 +1242,7 @@ html, body {
   height: 20px;
   padding: 0;
   appearance: none;
-  border: 1px solid color-mix(in srgb, var(--chirami-border) 92%, transparent);
+  border: var(--widget-border);
   border-radius: 999px;
   background: var(--widget-surface-raised);
   cursor: pointer;
@@ -1333,7 +1351,7 @@ html, body {
 .cm-transcript-select-trigger {
   width: 100%;
   justify-content: space-between;
-  border: 1px solid var(--chirami-border);
+  border: var(--widget-border);
   border-radius: 6px;
   background: var(--widget-surface);
   color: var(--chirami-text);
@@ -1363,10 +1381,12 @@ html, body {
   max-height: 260px;
   overflow: auto;
   padding: 8px;
-  border-radius: 8px;
-  border: 1px solid var(--chirami-border);
-  background: var(--widget-surface-raised);
-  box-shadow: 0 10px 32px var(--widget-shadow);
+  border-radius: 10px;
+  border: var(--widget-border);
+  background: color-mix(in srgb, var(--chirami-bg) 84%, transparent);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  box-shadow: 0 16px 48px var(--widget-shadow);
   z-index: 1100;
 }
 
@@ -1377,7 +1397,7 @@ html, body {
   width: 100%;
   margin-top: 6px;
   padding: 6px 8px;
-  border: 1px solid var(--chirami-border);
+  border: var(--widget-border);
   border-radius: 6px;
   background: var(--widget-surface);
   color: var(--chirami-text);
@@ -1454,6 +1474,7 @@ html, body {
   position: fixed;
   inset: 0;
   z-index: 900;
+  background: #ffffff;
 }
 
 /* Hide Excalidraw UI elements that are non-functional in this context */

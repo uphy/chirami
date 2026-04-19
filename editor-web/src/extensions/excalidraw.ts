@@ -10,7 +10,7 @@ import {
 } from "@codemirror/view";
 import { exportToSvg } from "@excalidraw/excalidraw";
 import { openExcalidrawOverlay } from "../excalidraw-overlay";
-import { isEmptyExcalidrawScene, parseExcalidrawScene } from "./excalidrawShared";
+import { EXCALIDRAW_BG_COLOR, isEmptyExcalidrawScene, parseExcalidrawScene } from "./excalidrawShared";
 import { CodeBlockSizeOptions, applySizeOptions, cursorLineFromState, makeDecorationField, parseCodeBlockInfo, sizeOptionsEq } from "./utils";
 
 interface ExcalidrawBlockRef {
@@ -90,8 +90,8 @@ class ExcalidrawPreviewWidget extends WidgetType {
         elements: scene.elements,
         appState: {
           ...(scene.appState ?? {}),
-          exportBackground: false,
-          viewBackgroundColor: "transparent",
+          exportBackground: true,
+          viewBackgroundColor: EXCALIDRAW_BG_COLOR,
         },
         files: scene.files ?? {},
         exportPadding: 8,
