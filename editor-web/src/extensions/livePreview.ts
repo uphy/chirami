@@ -30,8 +30,8 @@ const LINK_MARK_NODES = new Set(["LinkMark", "URL"]);
 const HIDDEN_DECORATION = Decoration.replace({ inclusive: false });
 const CLICKABLE_LINK = Decoration.mark({ class: "cm-clickable-link" });
 
-const LIST_MARK_RE   = /^[-*+]/;
-const TASK_MARK_RE   = /^ \[([ xX])\] ?/;
+const LIST_MARK_RE   = /^[-*+](?=[ \t])/;
+const TASK_MARK_RE   = /^ \[([ xX])\](?=[ \t])/;
 const BQ_PREFIX_RE   = /^(>\s?)+/;
 const GUTTER_EM      = 1.0;
 // Task items use a wider gutter: 16px checkbox + ~10px gap (design gap: 10).
@@ -350,10 +350,9 @@ class LivePreviewPlugin {
             // both inside and outside blockquotes.
             let prefixTo: number;
             if (taskMatch) {
-              prefixTo = node.from + 1 + taskMatch[0].length;
+              prefixTo = node.from + 1 + taskMatch[0].length + 1;
             } else {
-              const trailingChar = textFromNode[1] ?? "";
-              prefixTo = (trailingChar === " " || trailingChar === "\t") ? node.from + 2 : node.from + 1;
+              prefixTo = node.from + 2;
             }
 
             // Cursor lines: --list-gutter = totalEm so the raw prefix starts at 0em
