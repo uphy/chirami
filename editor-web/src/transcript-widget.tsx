@@ -655,6 +655,7 @@ export function createTranscriptWidget(
   let transcriptModalProgrammaticScroll = false;
   let currentLevelMonitorSignature = "";
   let currentLevelMonitorRange: TranscriptBlockRange | null = null;
+  let lastActionPlacement: "expanded" | "minimized" | null = null;
 
   function updatePeak(previous: number, next: number): number {
     return next >= previous ? next : Math.max(next, previous - 0.08);
@@ -1396,6 +1397,19 @@ export function createTranscriptWidget(
     }
   }
 
+  function syncActionPlacement(nextPlacement: "expanded" | "minimized"): void {
+    if (lastActionPlacement === nextPlacement) return;
+
+    if (nextPlacement === "minimized") {
+      minimizedActions.replaceChildren(settingsWrap, expandActionButton);
+    } else {
+      headerActions.replaceChildren(status, clearActionButton, settingsWrap, minimizeActionButton, openTranscriptButton);
+      minimizedActions.replaceChildren();
+    }
+
+    lastActionPlacement = nextPlacement;
+  }
+
   function refresh(): void {
     root.className = `cm-transcript-container cm-transcript-status-${currentStatus.toLowerCase()}${currentMinimized === true ? " cm-transcript-container--minimized" : ""}`;
     currentMicPeak = updatePeak(currentMicPeak, normalizeLevel(currentMicLevel));
@@ -1510,12 +1524,7 @@ export function createTranscriptWidget(
     settingsButton.className = currentSettingsPanelOpen === true
       ? "cm-transcript-icon-button cm-transcript-button--active"
       : "cm-transcript-icon-button";
-    if (currentMinimized === true) {
-      minimizedActions.replaceChildren(settingsWrap, expandActionButton);
-    } else {
-      headerActions.replaceChildren(status, clearActionButton, settingsWrap, minimizeActionButton, openTranscriptButton);
-      minimizedActions.replaceChildren();
-    }
+    syncActionPlacement(currentMinimized === true ? "minimized" : "expanded");
     positionVisibleMenus();
     syncLevelMonitor();
   }

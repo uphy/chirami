@@ -35,11 +35,12 @@ const COMMANDS: SlashCommand[] = [
     label: "/transcript",
     description: "Insert a transcript block",
     execute(view, lineFrom) {
-      const block = "```transcript\n\n```";
-      const lineTo = view.state.doc.lineAt(lineFrom).to;
+      const block = "```transcript\n\n```\n";
+      const line = view.state.doc.lineAt(lineFrom);
+      const lineTo = line.to < view.state.doc.length ? line.to + 1 : line.to;
       view.dispatch({
         changes: { from: lineFrom, to: lineTo, insert: block },
-        selection: { anchor: lineFrom + "```transcript\n".length },
+        selection: { anchor: lineFrom + block.length },
       });
     },
   },
