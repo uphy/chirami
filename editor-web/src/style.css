@@ -468,6 +468,10 @@ body ::selection {
   overflow-anchor: none;
 }
 
+.cm-transcript-container--overlay-active {
+  z-index: 40;
+}
+
 .cm-transcript-header {
   display: flex;
   flex-wrap: nowrap;
@@ -1031,9 +1035,7 @@ body ::selection {
   width: min(440px, calc(100vw - 56px));
   border: var(--widget-border);
   border-radius: 14px;
-  background: color-mix(in srgb, var(--chirami-bg) 82%, transparent);
-  backdrop-filter: blur(50px) saturate(180%);
-  -webkit-backdrop-filter: blur(50px) saturate(180%);
+  background: var(--widget-surface-strong);
   box-shadow:
     0 24px 60px var(--widget-shadow),
     0 0 0 0.5px color-mix(in srgb, var(--chirami-text) 8%, transparent),

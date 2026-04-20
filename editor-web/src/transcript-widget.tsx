@@ -952,6 +952,18 @@ export function createTranscriptWidget(
     currentLevelMonitorRange = { ...currentRange };
   }
 
+  function isOverlayActive(): boolean {
+    return (
+      currentSettingsPanelOpen === true ||
+      currentModelDropdownOpen === true ||
+      currentDropdownSource !== undefined
+    );
+  }
+
+  function syncRootClass(): void {
+    root.className = `cm-transcript-container cm-transcript-status-${currentStatus.toLowerCase()}${currentMinimized === true ? " cm-transcript-container--minimized" : ""}${isOverlayActive() ? " cm-transcript-container--overlay-active" : ""}`;
+  }
+
   function syncSettingsPanelState(nextOpen?: boolean, patchUi = true): void {
     currentSettingsPanelOpen = nextOpen;
     settingsPanel.hidden = currentSettingsPanelOpen !== true;
@@ -959,6 +971,7 @@ export function createTranscriptWidget(
       syncModelDropdownState(undefined, false);
       syncDropdownState(undefined, undefined, false);
     }
+    syncRootClass();
     syncLevelMonitor();
     if (patchUi) {
       applyUiPatch(currentRange, {
@@ -986,6 +999,7 @@ export function createTranscriptWidget(
     if (currentModelDropdownOpen === true) {
       positionFloatingMenu(modelDropdown);
     }
+    syncRootClass();
     if (patchUi) {
       applyUiPatch(currentRange, {
         modelDropdownOpen: currentModelDropdownOpen,
@@ -1008,6 +1022,7 @@ export function createTranscriptWidget(
     } else if (currentDropdownSource === "system") {
       positionFloatingMenu(systemDropdown);
     }
+    syncRootClass();
     micDropdown.requestHint.hidden = currentRequestSource !== "mic";
     systemDropdown.requestHint.hidden = currentRequestSource !== "system";
     micDropdown.requestHint.textContent = "Refreshing microphone devices...";
@@ -1411,7 +1426,7 @@ export function createTranscriptWidget(
   }
 
   function refresh(): void {
-    root.className = `cm-transcript-container cm-transcript-status-${currentStatus.toLowerCase()}${currentMinimized === true ? " cm-transcript-container--minimized" : ""}`;
+    syncRootClass();
     currentMicPeak = updatePeak(currentMicPeak, normalizeLevel(currentMicLevel));
     currentSystemPeak = updatePeak(currentSystemPeak, normalizeLevel(currentSystemLevel));
     const micEnabled = currentMic.value !== "off";
