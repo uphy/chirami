@@ -36,9 +36,14 @@ html, body {
   border-left-color: var(--chirami-text) !important;
 }
 
-.cm-selectionBackground,
-.cm-editor ::selection {
+body ::selection {
+  background-color: var(--chirami-selection);
+  color: inherit;
+}
+
+.cm-selectionBackground {
   background-color: var(--chirami-selection) !important;
+  border-radius: 2px;
 }
 
 .cm-editor.chirami-ime-composing .cm-selectionBackground,

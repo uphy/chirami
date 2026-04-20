@@ -35,7 +35,7 @@
   --chirami-surface-strong: color-mix(in srgb, var(--chirami-bg) 91%, var(--chirami-text) 9%);
   --chirami-surface-raised: color-mix(in srgb, var(--chirami-bg) 98%, white 2%);
   --chirami-code-bg: color-mix(in srgb, var(--chirami-text) 8%, transparent);
-  --chirami-selection: color-mix(in srgb, var(--chirami-text) 18%, transparent);
+  --chirami-selection: color-mix(in srgb, var(--chirami-accent) 28%, white 12%);
   --chirami-danger: color-mix(in srgb, #d92d20 78%, var(--chirami-text) 22%);
   --chirami-warning: color-mix(in srgb, #d28b00 84%, var(--chirami-text) 16%);
   --chirami-overlay: rgba(0, 0, 0, 0.28);
@@ -55,7 +55,7 @@
     --chirami-surface-strong: color-mix(in srgb, var(--chirami-bg) 72%, var(--chirami-text) 28%);
     --chirami-surface-raised: color-mix(in srgb, var(--chirami-bg) 64%, var(--chirami-text) 36%);
     --chirami-code-bg: color-mix(in srgb, var(--chirami-text) 12%, transparent);
-    --chirami-selection: color-mix(in srgb, var(--chirami-text) 30%, transparent);
+    --chirami-selection: color-mix(in srgb, var(--chirami-accent) 42%, black 12%);
     --chirami-danger: color-mix(in srgb, #ff6b5e 72%, var(--chirami-text) 28%);
     --chirami-warning: color-mix(in srgb, #ffd85c 84%, var(--chirami-text) 16%);
     --chirami-overlay: rgba(0, 0, 0, 0.4);
