@@ -127,6 +127,7 @@ struct TranscriptConfig: Codable, Equatable {
     var language: String
     var devices: TranscriptDeviceConfig
     var labels: TranscriptLabelConfig
+    var dictionaryFile: String?
     var legacyModel: String?
 
     enum CodingKeys: String, CodingKey {
@@ -135,6 +136,7 @@ struct TranscriptConfig: Codable, Equatable {
         case language
         case devices
         case labels
+        case dictionaryFile = "dictionary_file"
     }
 
     init(
@@ -142,12 +144,14 @@ struct TranscriptConfig: Codable, Equatable {
         language: String = "auto",
         devices: TranscriptDeviceConfig = TranscriptDeviceConfig(),
         labels: TranscriptLabelConfig = TranscriptLabelConfig(),
+        dictionaryFile: String? = nil,
         legacyModel: String? = nil
     ) {
         self.engine = engine
         self.language = language
         self.devices = devices
         self.labels = labels
+        self.dictionaryFile = dictionaryFile
         self.legacyModel = legacyModel
     }
 
@@ -157,6 +161,7 @@ struct TranscriptConfig: Codable, Equatable {
         language = try container.decodeIfPresent(String.self, forKey: .language) ?? "auto"
         devices = try container.decodeIfPresent(TranscriptDeviceConfig.self, forKey: .devices) ?? TranscriptDeviceConfig()
         labels = try container.decodeIfPresent(TranscriptLabelConfig.self, forKey: .labels) ?? TranscriptLabelConfig()
+        dictionaryFile = try container.decodeIfPresent(String.self, forKey: .dictionaryFile)
         legacyModel = try container.decodeIfPresent(String.self, forKey: .model)
     }
 
@@ -166,9 +171,26 @@ struct TranscriptConfig: Codable, Equatable {
         try container.encode(language, forKey: .language)
         try container.encode(devices, forKey: .devices)
         try container.encode(labels, forKey: .labels)
+        try container.encodeIfPresent(dictionaryFile, forKey: .dictionaryFile)
         if let legacyModel {
             try container.encode(legacyModel, forKey: .model)
         }
+    }
+
+    func resolvedDictionaryFile(configDirectory: URL) -> URL? {
+        guard let dictionaryFile else {
+            return nil
+        }
+        let trimmed = dictionaryFile.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            return nil
+        }
+
+        let expanded = (trimmed as NSString).expandingTildeInPath
+        if expanded.hasPrefix("/") {
+            return URL(fileURLWithPath: expanded).standardizedFileURL
+        }
+        return configDirectory.appendingPathComponent(expanded).standardizedFileURL
     }
 }
 

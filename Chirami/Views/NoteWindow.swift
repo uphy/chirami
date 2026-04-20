@@ -956,10 +956,12 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
         }
 
         let modelFolder = modelStore.resolvedModelURL(for: model.identifier)
+        let lexicon = configuredTranscriptLexicon()
         return SherpaOnnxEngine(
             modelFolder: modelFolder,
             modelKind: model.kind,
-            language: model.language
+            language: model.language,
+            hotwords: lexicon?.lexicon.hotwordsPayload
         )
     }
 
@@ -971,6 +973,8 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
         guard !SherpaOnnxModelStore.shared.modelExists(for: model.identifier) else {
             return nil
         }
+
+        let hotwords = configuredTranscriptLexicon()?.lexicon.hotwordsPayload
 
         return { [logger] progress in
             logger.info("transcript sherpa model download start: \(model.identifier, privacy: .public)")
@@ -986,8 +990,25 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
             return SherpaOnnxEngine(
                 modelFolder: modelFolder,
                 modelKind: model.kind,
-                language: model.language
+                language: model.language,
+                hotwords: hotwords
             )
+        }
+    }
+
+    private func configuredTranscriptLexicon() -> LoadedTranscriptLexicon? {
+        do {
+            let loaded = try loadTranscriptLexicon(
+                from: AppConfig.shared.transcriptConfig,
+                configDirectory: AppConfig.shared.configDirectoryURL
+            )
+            if let loaded, !loaded.lexicon.sttHotwords.isEmpty {
+                logger.info("transcript lexicon loaded entries=\(loaded.lexicon.sttHotwords.count) path=\(loaded.url.path, privacy: .public)")
+            }
+            return loaded
+        } catch {
+            logger.warning("transcript lexicon load failed: \(error.localizedDescription, privacy: .public)")
+            return nil
         }
     }
 

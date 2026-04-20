@@ -11,6 +11,7 @@ struct TranscriptConfigTests {
         transcript:
           engine: sherpa-onnx
           model: sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17
+          dictionary_file: ./transcript-lexicon.yaml
           devices:
             mic: AirPods Pro
           labels:
@@ -22,6 +23,7 @@ struct TranscriptConfigTests {
         #expect(transcript.engine == "sherpa-onnx")
         #expect(transcript.legacyModel == "sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17")
         #expect(transcript.language == "auto")
+        #expect(transcript.dictionaryFile == "./transcript-lexicon.yaml")
         #expect(transcript.devices.mic == "AirPods Pro")
         #expect(transcript.devices.system == "all")
         #expect(transcript.labels.mic == "You")
@@ -38,10 +40,18 @@ struct TranscriptConfigTests {
         #expect(config.resolvedTranscript.engine == "sherpa-onnx")
         #expect(config.resolvedTranscript.legacyModel == nil)
         #expect(config.resolvedTranscript.language == "auto")
+        #expect(config.resolvedTranscript.dictionaryFile == nil)
         #expect(config.resolvedTranscript.devices.mic == "default")
         #expect(config.resolvedTranscript.devices.system == "all")
         #expect(config.resolvedTranscript.labels.mic == "You")
         #expect(config.resolvedTranscript.labels.system == "Others")
+    }
+
+    @Test("resolves transcript dictionary file relative to config directory")
+    func resolvesTranscriptDictionaryFileRelativeToConfigDirectory() {
+        let transcript = TranscriptConfig(dictionaryFile: "./transcript-lexicon.yaml")
+        let resolved = transcript.resolvedDictionaryFile(configDirectory: URL(fileURLWithPath: "/tmp/chirami-config", isDirectory: true))
+        #expect(resolved?.path == "/tmp/chirami-config/transcript-lexicon.yaml")
     }
 }
 

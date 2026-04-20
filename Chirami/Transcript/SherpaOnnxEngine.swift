@@ -9,7 +9,7 @@ protocol SherpaOnnxTranscribing: AnyObject {
 final class SherpaOnnxSenseVoiceTranscriber: SherpaOnnxTranscribing {
     private let recognizer: SherpaOnnxOfflineRecognizerWrapper
 
-    init(modelFolder: URL, language: String?) throws {
+    init(modelFolder: URL, language: String?, hotwords: String?) throws {
         let modelPath = modelFolder.appendingPathComponent("model.int8.onnx").path
         let tokensPath = modelFolder.appendingPathComponent("tokens.txt").path
         let senseVoiceConfig = sherpaOnnxOfflineSenseVoiceModelConfig(
@@ -24,7 +24,10 @@ final class SherpaOnnxSenseVoiceTranscriber: SherpaOnnxTranscribing {
             featConfig: featureConfig,
             modelConfig: modelConfig
         )
-        recognizer = try SherpaOnnxOfflineRecognizerWrapper(config: &recognizerConfig)
+        recognizer = try SherpaOnnxOfflineRecognizerWrapper(
+            config: &recognizerConfig,
+            hotwords: hotwords
+        )
     }
 
     func transcribe(samples: [Float]) throws -> SherpaOnnxOfflineRecognitionResult {
@@ -35,7 +38,7 @@ final class SherpaOnnxSenseVoiceTranscriber: SherpaOnnxTranscribing {
 final class SherpaOnnxNemoCTCTranscriber: SherpaOnnxTranscribing {
     private let recognizer: SherpaOnnxOfflineRecognizerWrapper
 
-    init(modelFolder: URL) throws {
+    init(modelFolder: URL, hotwords: String?) throws {
         let modelPath = modelFolder.appendingPathComponent("model.int8.onnx").path
         let tokensPath = modelFolder.appendingPathComponent("tokens.txt").path
         let nemoConfig = sherpaOnnxOfflineNemoEncDecCtcModelConfig(model: modelPath)
@@ -46,7 +49,10 @@ final class SherpaOnnxNemoCTCTranscriber: SherpaOnnxTranscribing {
             featConfig: featureConfig,
             modelConfig: modelConfig
         )
-        recognizer = try SherpaOnnxOfflineRecognizerWrapper(config: &recognizerConfig)
+        recognizer = try SherpaOnnxOfflineRecognizerWrapper(
+            config: &recognizerConfig,
+            hotwords: hotwords
+        )
     }
 
     func transcribe(samples: [Float]) throws -> SherpaOnnxOfflineRecognitionResult {
@@ -67,7 +73,7 @@ actor SherpaOnnxTranscriberWorker {
 }
 
 actor SherpaOnnxEngine: TranscriptionEngine {
-    typealias TranscriberFactory = (_ modelFolder: URL, _ language: String?) throws -> any SherpaOnnxTranscribing
+    typealias TranscriberFactory = (_ modelFolder: URL, _ language: String?, _ hotwords: String?) throws -> any SherpaOnnxTranscribing
 
     private struct QueuedUtterance {
         var samples: [Float]
@@ -102,6 +108,7 @@ actor SherpaOnnxEngine: TranscriptionEngine {
 
     private let modelFolder: URL
     private let language: String?
+    private let hotwords: String?
     private let transcriberFactory: TranscriberFactory
     private let minimumUtteranceSamples: Int
     private let chunkStream: AsyncStream<TranscriptChunk>
@@ -120,12 +127,15 @@ actor SherpaOnnxEngine: TranscriptionEngine {
         modelFolder: URL,
         modelKind: SherpaOnnxModelKind = .senseVoice,
         language: String?,
+        hotwords: String? = nil,
         minimumBufferSamples: Int? = nil,
         transcriberFactory: TranscriberFactory? = nil
     ) {
         let normalizedLanguage = modelKind == .senseVoice ? Self.normalizedLanguage(language) : nil
         self.modelFolder = modelFolder
         self.language = normalizedLanguage
+        let normalizedHotwords = hotwords?.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.hotwords = normalizedHotwords?.isEmpty == false ? normalizedHotwords : nil
         self.minimumUtteranceSamples = minimumBufferSamples ?? {
             if modelKind == .senseVoice, normalizedLanguage == nil {
                 Self.logger.info("transcript sherpa auto language enabled; using extended minimum utterance duration")
@@ -133,12 +143,19 @@ actor SherpaOnnxEngine: TranscriptionEngine {
             }
             return Self.explicitLanguageMinimumUtteranceSamples
         }()
-        self.transcriberFactory = transcriberFactory ?? { modelFolder, language in
+        self.transcriberFactory = transcriberFactory ?? { modelFolder, language, hotwords in
             switch modelKind {
             case .senseVoice:
-                return try SherpaOnnxSenseVoiceTranscriber(modelFolder: modelFolder, language: language)
+                return try SherpaOnnxSenseVoiceTranscriber(
+                    modelFolder: modelFolder,
+                    language: language,
+                    hotwords: hotwords
+                )
             case .nemoCTC:
-                return try SherpaOnnxNemoCTCTranscriber(modelFolder: modelFolder)
+                return try SherpaOnnxNemoCTCTranscriber(
+                    modelFolder: modelFolder,
+                    hotwords: hotwords
+                )
             }
         }
         var chunkContinuation: AsyncStream<TranscriptChunk>.Continuation?
@@ -172,7 +189,7 @@ actor SherpaOnnxEngine: TranscriptionEngine {
             throw SherpaOnnxEngineError.unsupportedAudioFormat
         }
 
-        let transcriber = try transcriberFactory(modelFolder, language)
+        let transcriber = try transcriberFactory(modelFolder, language, hotwords)
         transcriberWorker = SherpaOnnxTranscriberWorker(transcriber: transcriber)
         sourceStates[.mic] = SourceState()
         sourceStates[.system] = SourceState()

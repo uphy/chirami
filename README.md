@@ -45,6 +45,18 @@ notes:
   - path: ~/Notes/todo.md
 transcript:
   language: ja
+  dictionary_file: ~/.config/chirami/transcript-lexicon.yaml
+```
+
+Example transcript lexicon:
+
+```yaml
+version: 1
+terms:
+  - text: uphy
+    readings: [ユーピー, ユーピーさん]
+  - text: Chirami
+    readings: チラミ
 ```
 
 The first time you record a transcript, Chirami downloads the sherpa-onnx model to `~/.local/state/chirami/models/sherpa-onnx/`.
@@ -82,6 +94,7 @@ notes:
 
 transcript:
   language: ja
+  dictionary_file: ~/.config/chirami/transcript-lexicon.yaml
   devices:
     mic: default
     system: all

@@ -152,6 +152,46 @@ Libraries from [libraries.excalidraw.com](https://libraries.excalidraw.com/) can
 | `karabiner.on_unfocus` | int or string | — | Value to set when a Chirami window loses focus. |
 | `karabiner.cli_path` | string | auto-detected | Path to `karabiner_cli` binary. |
 
+## Transcript
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `transcript.engine` | string | `sherpa-onnx` | Speech-to-text engine identifier. |
+| `transcript.language` | string | `auto` | Preferred recognition language. |
+| `transcript.dictionary_file` | string | — | Optional transcript lexicon file. Chirami loads the listed terms, passes their `readings` (or `text` when `readings` is empty) to STT hotwords, and returns the resolved absolute path plus loaded terms in `chirami context --transcript*`. Relative paths are resolved from `~/.config/chirami/`. `readings` accepts either a single string or a string array. |
+| `transcript.devices.mic` | string | `default` | Preferred microphone input. |
+| `transcript.devices.system` | string | `all` | Preferred system-audio capture source. |
+| `transcript.labels.mic` | string | `You` | Speaker label for microphone transcript lines. |
+| `transcript.labels.system` | string | `Others` | Speaker label for system-audio transcript lines. |
+
+Example:
+
+```yaml
+transcript:
+  language: ja
+  dictionary_file: ./transcript-lexicon.yaml
+  devices:
+    mic: default
+    system: all
+  labels:
+    mic: You
+    system: Others
+```
+
+Lexicon file format:
+
+```yaml
+version: 1
+terms:
+  - text: uphy
+    readings: [ユーピー, ユーピーさん]
+  - text: Chirami
+    readings: チラミ
+  - text: OpenSpec
+```
+
+Use `readings` for the way a term is actually spoken. `readings` can be either a single string or an array. Chirami passes every normalized entry in `readings` into STT hotwords when present and falls back to `text` otherwise. The selected sherpa-onnx model may still limit how much effect hotwords have. `text` stays available for downstream LLM-based normalization via `chirami context --transcript*`.
+
 ## state.yaml
 
 `~/.local/state/chirami/state.yaml` stores runtime state (window positions, sizes, visibility). Chirami manages this file automatically — there is no need to edit it by hand.

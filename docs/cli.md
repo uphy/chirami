@@ -61,7 +61,7 @@ chirami context
 
 # Include the resolved transcript block text
 chirami context --transcript
-# {"file":"/path/to/note.md","selection":{"text":"","from":{"line":42,"column":0},"to":{"line":42,"column":0}},"cursor":{"line":42,"column":0},"transcript":{"text":"[2026-04-16 14:03:10] Others: ...","truncated":false}}
+# {"file":"/path/to/note.md","selection":{"text":"","from":{"line":42,"column":0},"to":{"line":42,"column":0}},"cursor":{"line":42,"column":0},"transcript":{"text":"[2026-04-16 14:03:10] Others: ...","truncated":false,"dictionary_file":"/Users/me/.config/chirami/transcript-lexicon.yaml","lexicon_terms":[{"text":"uphy","readings":["ユーピー","ユーピーさん"]},{"text":"Chirami","readings":["チラミ"]}]}}
 ```
 
 **Output fields**
@@ -73,7 +73,7 @@ chirami context --transcript
 | `selection.from` | Start position of the selection `{ line, column }` |
 | `selection.to` | End position of the selection `{ line, column }` |
 | `cursor` | Cursor position `{ line, column }` |
-| `transcript` | Transcript excerpt when one of the transcript flags is used. `null` if no transcript block is available. |
+| `transcript` | Transcript excerpt when one of the transcript flags is used. Includes `dictionary_file` and loaded `lexicon_terms` when `transcript.dictionary_file` is configured. `null` if no transcript block is available. |
 
 `line` is 1-indexed; `column` is 0-indexed. When nothing is selected, `selection.from` and `selection.to` equal `cursor`.
 
@@ -102,6 +102,9 @@ chirami context | jq -r '.selection.text' | claude "Summarize:"
 
 # Feed only the latest transcript turns to an LLM
 chirami context --transcript-last 8 | jq -r '.transcript.text' | claude "Clarify the latest question:"
+
+# Pass transcript text plus lexicon hints to an LLM
+chirami context --transcript | jq '{text: .transcript.text, lexicon: .transcript.lexicon_terms}'
 ```
 
 For more advanced integrations (Raycast script command, Claude Code skill), see [AI Integrations](/ai-integrations).

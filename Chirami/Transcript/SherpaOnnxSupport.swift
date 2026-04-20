@@ -176,12 +176,17 @@ enum SherpaOnnxOfflineRecognizerError: LocalizedError, Equatable {
 
 final class SherpaOnnxOfflineRecognizerWrapper: @unchecked Sendable {
     private let recognizer: OpaquePointer
+    private let hotwords: String?
 
-    init(config: inout SherpaOnnxOfflineRecognizerConfig) throws {
+    init(
+        config: inout SherpaOnnxOfflineRecognizerConfig,
+        hotwords: String? = nil
+    ) throws {
         guard let recognizer = SherpaOnnxCreateOfflineRecognizer(&config) else {
             throw SherpaOnnxOfflineRecognizerError.failedToCreateRecognizer
         }
         self.recognizer = recognizer
+        self.hotwords = hotwords
     }
 
     deinit {
@@ -189,7 +194,12 @@ final class SherpaOnnxOfflineRecognizerWrapper: @unchecked Sendable {
     }
 
     func decode(samples: [Float], sampleRate: Int = 16_000) throws -> SherpaOnnxOfflineRecognitionResult {
-        guard let stream = SherpaOnnxCreateOfflineStream(recognizer) else {
+        let stream = if let hotwords {
+            hotwords.withCString { SherpaOnnxCreateOfflineStreamWithHotwords(recognizer, $0) }
+        } else {
+            SherpaOnnxCreateOfflineStream(recognizer)
+        }
+        guard let stream else {
             throw SherpaOnnxOfflineRecognizerError.failedToCreateStream
         }
         defer {

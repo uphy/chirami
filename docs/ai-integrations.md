@@ -7,6 +7,14 @@ title: AI Integrations
 `chirami context` outputs the focused note's file path, selection, and cursor position as JSON.
 Combined with AI tools, you can edit notes without ever leaving your flow.
 
+When you use `chirami context --transcript*`, the JSON can also include `transcript.dictionary_file` and `transcript.lexicon_terms`. This is useful for company-specific handles and project names such as `uphy` / `ユーピーさん`: Chirami can bias STT with the spoken `readings`, while your LLM prompt can normalize the transcript back to the canonical `text`. `readings` can be a single string or an array in the YAML file, but Chirami always exposes it as an array in JSON.
+
+Example:
+
+```bash
+chirami context --transcript-last 12 | jq '{text: .transcript.text, lexicon: .transcript.lexicon_terms}'
+```
+
 ## [Raycast Script Command](https://github.com/raycast/script-commands)
 
 Enter a prompt in Raycast and Claude edits the focused note directly — no window switching required.

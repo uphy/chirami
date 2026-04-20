@@ -1,4 +1,5 @@
 import AppKit
+import Foundation
 import os
 
 enum TranscriptContextMode: String, Codable {
@@ -14,6 +15,65 @@ struct ContextTranscriptOptions: Codable {
 
 struct ContextRequestOptions: Codable {
     let transcript: ContextTranscriptOptions?
+}
+
+struct EditorContextPosition: Codable {
+    let line: Int
+    let column: Int
+}
+
+struct EditorContextSelection: Codable {
+    let text: String
+    let from: EditorContextPosition
+    let to: EditorContextPosition
+}
+
+struct EditorTranscriptContext: Codable {
+    let text: String
+    let truncated: Bool
+    var dictionaryFile: String?
+    var lexiconTerms: [TranscriptLexiconTerm]?
+
+    enum CodingKeys: String, CodingKey {
+        case text
+        case truncated
+        case dictionaryFile = "dictionary_file"
+        case lexiconTerms = "lexicon_terms"
+    }
+}
+
+struct EditorContextPayload: Codable {
+    let file: String
+    let selection: EditorContextSelection
+    let cursor: EditorContextPosition
+    var transcript: EditorTranscriptContext?
+}
+
+func enrichEditorContextJSON(
+    _ json: String,
+    options: ContextRequestOptions?,
+    transcriptConfig: TranscriptConfig,
+    configDirectory: URL
+) throws -> String {
+    guard options?.transcript != nil else {
+        return json
+    }
+
+    let data = Data(json.utf8)
+    var payload = try JSONDecoder().decode(EditorContextPayload.self, from: data)
+    guard payload.transcript != nil else {
+        return json
+    }
+
+    if let dictionaryURL = transcriptConfig.resolvedDictionaryFile(configDirectory: configDirectory) {
+        payload.transcript?.dictionaryFile = dictionaryURL.path
+        if let loaded = try? TranscriptLexicon.load(from: dictionaryURL) {
+            payload.transcript?.lexiconTerms = loaded.terms
+        }
+    }
+
+    let encoded = try JSONEncoder().encode(payload)
+    return String(decoding: encoded, as: UTF8.self)
 }
 
 /// Handles chirami://context URI requests.
@@ -44,7 +104,21 @@ final class ContextHandler {
         controller.getEditorContext(options: options) { [weak self] result in
             switch result {
             case .success(let json):
-                self?.writeToPipe(pipePath, message: "CONTEXT:\(json)\n")
+                guard let self else {
+                    return
+                }
+                do {
+                    let enrichedJSON = try enrichEditorContextJSON(
+                        json,
+                        options: options,
+                        transcriptConfig: AppConfig.shared.transcriptConfig,
+                        configDirectory: AppConfig.shared.configDirectoryURL
+                    )
+                    self.writeToPipe(pipePath, message: "CONTEXT:\(enrichedJSON)\n")
+                } catch {
+                    self.logger.error("failed to enrich context JSON: \(error.localizedDescription, privacy: .public)")
+                    self.writeToPipe(pipePath, message: "CONTEXT:\(json)\n")
+                }
             case .failure(let error):
                 self?.logger.error("getEditorContext failed: \(error.localizedDescription, privacy: .public)")
                 self?.writeToPipe(pipePath, message: "NO_FOCUS\n")

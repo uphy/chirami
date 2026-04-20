@@ -3,15 +3,17 @@ import os
 
 class AppConfig: YAMLStore<ChiramiConfig> {
     static let shared = AppConfig()
+    static let defaultConfigDirectory = FileManager.realHomeDirectory
+        .appendingPathComponent(".config/chirami", isDirectory: true)
 
     private let logger = Logger(subsystem: "io.github.uphy.Chirami", category: "AppConfig")
     var config: ChiramiConfig { data }
     var transcriptConfig: TranscriptConfig { config.resolvedTranscript }
     var legacyTranscriptModel: String? { config.transcript?.legacyModel }
+    var configDirectoryURL: URL { Self.defaultConfigDirectory }
 
     private init() {
-        let configDir = FileManager.realHomeDirectory
-            .appendingPathComponent(".config/chirami")
+        let configDir = Self.defaultConfigDirectory
         Self.initializeIfNeeded(configDir: configDir)
         super.init(directory: configDir, fileName: "config.yaml", label: "Config", defaultValue: ChiramiConfig(), watchForChanges: true)
     }
