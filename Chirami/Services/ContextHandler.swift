@@ -2,6 +2,12 @@ import AppKit
 import Foundation
 import os
 
+/// A window controller that can provide the current editor context.
+@MainActor
+protocol EditorContextProvider: AnyObject {
+    func getEditorContext(options: ContextRequestOptions?, completion: @escaping (Result<String, Error>) -> Void)
+}
+
 enum TranscriptContextMode: String, Codable {
     case full
     case last
@@ -94,7 +100,7 @@ final class ContextHandler {
             return
         }
 
-        guard let controller = WindowManager.shared.lastFocusedController else {
+        guard let controller = WindowManager.shared.lastFocusedEditorProvider else {
             writeToPipe(pipePath, message: "NO_FOCUS\n")
             return
         }

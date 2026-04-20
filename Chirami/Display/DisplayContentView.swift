@@ -45,6 +45,14 @@ private struct DisplayWebViewRepresentable: NSViewRepresentable {
         view.onOpenLink = { url in
             NSWorkspace.shared.open(url)
         }
+        model.getEditorContext = { [weak view] options, completion in
+            guard let view else {
+                completion(.failure(NSError(domain: "DisplayWebView", code: -3,
+                    userInfo: [NSLocalizedDescriptionKey: "webView deallocated"])))
+                return
+            }
+            view.getEditorContext(options: options, completion: completion)
+        }
         view.setInitialState(
             cursor: model.savedCursorLocation,
             scroll: model.savedScrollOffset.y

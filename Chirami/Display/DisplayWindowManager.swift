@@ -1,11 +1,12 @@
 import AppKit
 import SwiftUI
+import os
 
 // MARK: - DisplayWindowController
 
 /// Manages a single Ad-hoc Note window opened via chirami://display URI.
 @MainActor
-class DisplayWindowController: NSObject, NSWindowDelegate {
+class DisplayWindowController: NSObject, NSWindowDelegate, EditorContextProvider {
 
     let panel: DisplayPanel
     let profileName: String?
@@ -110,7 +111,22 @@ class DisplayWindowController: NSObject, NSWindowDelegate {
         panel.updatePinState(isPinned: isPinned)
     }
 
+    // MARK: - EditorContextProvider
+
+    func getEditorContext(options: ContextRequestOptions? = nil, completion: @escaping (Result<String, Error>) -> Void) {
+        guard let getter = contentModel.getEditorContext else {
+            completion(.failure(NSError(domain: "ContextHandler", code: -1,
+                userInfo: [NSLocalizedDescriptionKey: "editor not ready"])))
+            return
+        }
+        getter(options, completion)
+    }
+
     // MARK: - NSWindowDelegate
+
+    func windowDidBecomeKey(_ notification: Notification) {
+        WindowManager.shared.editorWindowDidBecomeKey(self)
+    }
 
     func windowDidResignKey(_ notification: Notification) {
         guard !isPinned, panel.isVisible else { return }

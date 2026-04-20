@@ -7,7 +7,7 @@ import os
 
 /// Manages a single note window: position/size persistence, transparency, always-on-top.
 @MainActor
-class NoteWindowController: NSWindowController, NSWindowDelegate {
+class NoteWindowController: NSWindowController, NSWindowDelegate, EditorContextProvider {
     private(set) var note: Note
     private let noteStore = NoteStore.shared
     private let logger = Logger(subsystem: "io.github.uphy.Chirami", category: "NoteWindowController")

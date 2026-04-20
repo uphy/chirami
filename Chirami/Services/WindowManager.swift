@@ -10,11 +10,17 @@ class WindowManager: ObservableObject {
     private let noteStore = NoteStore.shared
     private var rolloverTimer: Timer?
     private(set) weak var lastFocusedController: NoteWindowController?
+    private(set) weak var lastFocusedEditorProvider: (any EditorContextProvider)?
 
     private init() {}
 
     func noteWindowDidBecomeKey(_ controller: NoteWindowController) {
         lastFocusedController = controller
+        lastFocusedEditorProvider = controller
+    }
+
+    func editorWindowDidBecomeKey(_ provider: any EditorContextProvider) {
+        lastFocusedEditorProvider = provider
     }
 
     func openAllWindows() {
