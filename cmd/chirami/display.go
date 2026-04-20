@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 
 	"github.com/uphy/chirami/cmd/chirami/internal"
 
@@ -119,12 +120,16 @@ func getContent(args []string, fileFlag string) (content, fileURL string, isRead
 
 	// Second priority: --file flag
 	if fileFlag != "" {
-		// Task 6.3.1: validate file existence
-		if _, statErr := os.Stat(fileFlag); statErr != nil {
+		absPath, absErr := filepath.Abs(fileFlag)
+		if absErr != nil {
+			err = fmt.Errorf("failed to resolve path: %w", absErr)
+			return
+		}
+		if _, statErr := os.Stat(absPath); statErr != nil {
 			err = fmt.Errorf("file not found: %s", fileFlag)
 			return
 		}
-		fileURL = fileFlag
+		fileURL = absPath
 		isReadOnly = false
 		return
 	}
