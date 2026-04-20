@@ -23,7 +23,7 @@ struct Note: Identifiable, Equatable {
     var theme: String?
     var transparency: Double = 0.9
     var alwaysOnTop: Bool = true
-    var hotkey: String?
+    var hotkeys: [HotkeyBinding] = []
     var position: NotePosition = .fixed
     var periodicInfo: PeriodicNoteInfo?
     var attachmentsDir: URL?
@@ -31,7 +31,7 @@ struct Note: Identifiable, Equatable {
     static func == (lhs: Note, rhs: Note) -> Bool {
         lhs.id == rhs.id && lhs.theme == rhs.theme && lhs.transparency == rhs.transparency
             && lhs.title == rhs.title && lhs.path == rhs.path && lhs.alwaysOnTop == rhs.alwaysOnTop
-            && lhs.hotkey == rhs.hotkey
+            && lhs.hotkeys == rhs.hotkeys
             && lhs.position == rhs.position
             && lhs.periodicInfo == rhs.periodicInfo
             && lhs.attachmentsDir == rhs.attachmentsDir

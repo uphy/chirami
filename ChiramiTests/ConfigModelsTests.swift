@@ -38,6 +38,62 @@ struct ChiramiConfigDragModifierTests {
     }
 }
 
+// MARK: - HotkeyBinding
+
+@Suite("Hotkey binding config")
+struct HotkeyBindingConfigTests {
+
+    @Test("decodes top-level hotkeys")
+    func decodeGlobalHotkeys() throws {
+        let yaml = """
+        hotkeys:
+          - key: cmd+shift+n
+            action: toggle
+        notes: []
+        """
+        let config = try YAMLDecoder().decode(ChiramiConfig.self, from: yaml)
+        #expect(config.hotkeys == [HotkeyBinding(key: "cmd+shift+n", action: .toggle)])
+    }
+
+    @Test("hotkey binding action defaults to toggle")
+    func hotkeyBindingDefaultAction() throws {
+        let yaml = """
+        path: ~/notes/todo.md
+        hotkeys:
+          - key: cmd+shift+t
+        """
+        let config = try YAMLDecoder().decode(NoteConfig.self, from: yaml)
+        #expect(config.hotkeys == [HotkeyBinding(key: "cmd+shift+t", action: .toggle)])
+    }
+
+    @Test("adhoc profile decodes multiple hotkeys")
+    func decodeAdhocProfileHotkeys() throws {
+        let yaml = """
+        title: Meeting
+        hotkeys:
+          - key: cmd+shift+m
+            action: toggle
+          - key: cmd+shift+option+m
+            action: toggle
+        """
+        let profile = try YAMLDecoder().decode(AdhocProfile.self, from: yaml)
+        #expect(profile.hotkeys == [
+            HotkeyBinding(key: "cmd+shift+m", action: .toggle),
+            HotkeyBinding(key: "cmd+shift+option+m", action: .toggle),
+        ])
+    }
+
+    @Test("legacy hotkey field is ignored")
+    func legacyHotkeyIgnored() throws {
+        let yaml = """
+        path: ~/notes/todo.md
+        hotkey: cmd+shift+t
+        """
+        let config = try YAMLDecoder().decode(NoteConfig.self, from: yaml)
+        #expect(config.hotkeys.isEmpty)
+    }
+}
+
 // MARK: - NoteConfig periodic note
 
 @Suite("NoteConfig periodic note support")

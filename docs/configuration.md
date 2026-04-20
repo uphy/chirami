@@ -21,7 +21,9 @@ appearance:
 
 launch_at_login: true
 
-hotkey: cmd+shift+n
+hotkeys:
+  - key: option+n
+    action: toggle
 
 drag_modifier: command
 warp_modifier: ctrl+option
@@ -41,19 +43,27 @@ notes:
     title: TODO
     theme: blue
     transparency: 0.95
-    hotkey: cmd+shift+t
+    hotkeys:
+      - key: option+t
+        action: toggle
     position: fixed
 
   - path: ~/Notes/daily/{yyyy-MM-dd}.md
     title: Daily
     theme: green
-    hotkey: cmd+shift+d
+    hotkeys:
+      - key: option+d
+        action: toggle
+      - key: option+shift+d
+        action: create
     rollover_delay: 2h
     template: ~/Notes/templates/daily.md
 
   - path: ~/Desktop/scratch.md
     theme: yellow
-    hotkey: cmd+shift+s
+    hotkeys:
+      - key: option+s
+        action: toggle
     position: cursor
 ```
 
@@ -64,7 +74,7 @@ notes:
 | `appearance` | string or object | `auto` | Appearance configuration. Accepts the legacy string form (`auto` / `light` / `dark`) or an object with `mode`, `css_file`, and `variables`. See [Appearance](#appearance). |
 | `launch_at_login` | bool | `false` | Launch Chirami automatically on macOS login. |
 | `show_menu_bar_icon` | bool | `true` | Show the Chirami icon in the macOS menu bar. Set to `false` to hide it (use global hotkey to access notes). |
-| `hotkey` | string | — | Global hotkey to toggle all note windows. Format: modifier keys + key (e.g. `cmd+shift+n`). |
+| `hotkeys` | array | — | Global hotkey bindings. Top-level supports `toggle` only. |
 | `drag_modifier` | string | `command` | Modifier key for window dragging. Allowed: `command`, `option`, `shift`, `control`. |
 | `warp_modifier` | string | `ctrl+option` | Modifier key combination for Window Warp (HJKL grid movement). Specify modifiers joined with `+` (e.g. `ctrl+option`, `command+shift`). Allowed tokens: `ctrl`/`control`, `option`/`opt`, `command`/`cmd`, `shift`. |
 | `smart_paste` | object | — | Smart Paste configuration. See [Smart Paste](advanced.md#smart-paste). |
@@ -81,7 +91,7 @@ Each entry in `notes` configures one Registered Note — a sticky note window ma
 | `title` | string | filename | no | Window title shown in the title bar. |
 | `theme` | string | — | no | Theme name, applied to the note via the `data-chirami-theme` attribute. Built-in: `yellow`, `blue`, `green`, `pink`, `purple`, `gray`. Custom themes defined in `appearance.css_file` are also accepted. See [CSS Theming](css-theming.md). |
 | `transparency` | number | `0.9` | no | Window opacity (0.0–1.0). |
-| `hotkey` | string | — | no | Global hotkey to toggle this note (e.g. `cmd+shift+m`). |
+| `hotkeys` | array | `[]` | no | Hotkey bindings for this note. Registered Notes support `toggle` and `create`. |
 | `position` | string | `fixed` | no | `fixed` (remembers last position) or `cursor` (appears at mouse cursor). |
 | `always_on_top` | boolean | `true` | no | Whether the note window floats above all other windows. |
 | `rollover_delay` | string | — | no | Delay before date rollover for periodic notes (e.g. `2h`, `30m`). |
@@ -90,10 +100,29 @@ Each entry in `notes` configures one Registered Note — a sticky note window ma
 
 ### Hotkey Format
 
-Hotkeys are specified as modifier keys joined with `+`, followed by the key:
+Hotkeys are configured as an array of bindings:
+
+```yaml
+hotkeys:
+  - key: option+m
+    action: toggle
+```
+
+`key` uses modifier keys joined with `+`, followed by the key:
 
 - Modifiers: `cmd`, `shift`, `option`/`alt`, `control`/`ctrl`
-- Examples: `cmd+shift+m`, `cmd+option+n`
+- Examples: `option+m`, `option+shift+m`, `option+n`
+
+`action` values:
+
+- `toggle` — show/hide the target note or note group
+- `create` — Registered Note only. Ensures the file exists and opens the current resolved note
+
+Recommended pattern:
+
+- Base shortcut for `toggle`
+- Same shortcut + `shift` for `create`
+- Example: `option+m` = `toggle`, `option+shift+m` = `create`
 
 ## Appearance
 

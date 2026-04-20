@@ -30,10 +30,12 @@ Create `~/.config/chirami/config.yaml`:
 ```yaml
 notes:
   - path: ~/Notes/todo.md
-    hotkey: cmd+shift+t
+    hotkeys:
+      - key: option+t
+        action: toggle
 ```
 
-That's it. Press `Cmd+Shift+T` to toggle the note from any application.
+That's it. Press `Option+T` to toggle the note from any application.
 
 ## Basic Usage
 

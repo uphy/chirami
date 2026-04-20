@@ -196,7 +196,7 @@ struct TranscriptConfig: Codable, Equatable {
 
 struct ChiramiConfig: Codable {
     var appearance: AppearanceConfig?
-    var hotkey: String?
+    var hotkeys: [HotkeyBinding]?
     var launchAtLogin: Bool?
     var showMenuBarIcon: Bool?
     var notes: [NoteConfig] = []
@@ -209,7 +209,7 @@ struct ChiramiConfig: Codable {
     var transcript: TranscriptConfig?
 
     enum CodingKeys: String, CodingKey {
-        case appearance, hotkey, notes, adhoc, karabiner, excalidraw, transcript
+        case appearance, hotkeys, notes, adhoc, karabiner, excalidraw, transcript
         case launchAtLogin = "launch_at_login"
         case showMenuBarIcon = "show_menu_bar_icon"
         case smartPaste = "smart_paste"
@@ -257,6 +257,31 @@ extension ChiramiConfig {
 
 struct SmartPasteConfig: Codable {
     var enabled: Bool = true
+}
+
+enum HotkeyAction: String, Codable, Equatable {
+    case toggle
+    case create
+}
+
+struct HotkeyBinding: Codable, Equatable {
+    var key: String
+    var action: HotkeyAction
+
+    init(key: String, action: HotkeyAction = .toggle) {
+        self.key = key
+        self.action = action
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case key, action
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        key = try container.decode(String.self, forKey: .key)
+        action = try container.decodeIfPresent(HotkeyAction.self, forKey: .action) ?? .toggle
+    }
 }
 
 struct KarabinerConfig: Codable {
@@ -309,7 +334,7 @@ struct NoteConfig: Codable, NoteAppearanceResolvable {
     var title: String?
     var theme: String?
     var transparency: Double?
-    var hotkey: String?
+    var hotkeys: [HotkeyBinding] = []
     var position: String?
     var alwaysOnTop: Bool?
     var rolloverDelay: String?
@@ -334,7 +359,7 @@ struct NoteConfig: Codable, NoteAppearanceResolvable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case path, title, theme, transparency, hotkey, position, template, attachment
+        case path, title, theme, transparency, hotkeys, position, template, attachment
         case alwaysOnTop = "always_on_top"
         case rolloverDelay = "rollover_delay"
     }
@@ -385,10 +410,10 @@ struct AdhocProfile: Codable, NoteAppearanceResolvable {
     var transparency: Double?
     var position: String?       // "cursor" | nil
     var alwaysOnTop: Bool?
-    var hotkey: String?
+    var hotkeys: [HotkeyBinding] = []
 
     enum CodingKeys: String, CodingKey {
-        case title, theme, transparency, position, hotkey
+        case title, theme, transparency, position, hotkeys
         case alwaysOnTop = "always_on_top"
     }
 

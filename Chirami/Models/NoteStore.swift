@@ -32,38 +32,7 @@ class NoteStore: ObservableObject {
 
         let config = appConfig.config
 
-        notes = config.notes.compactMap { noteConfig in
-            if noteConfig.isPeriodicNote {
-                let rolloverDelay = DurationParser.parse(noteConfig.rolloverDelay)
-                let date = logicalDate(rolloverDelay: rolloverDelay)
-                return resolvePeriodicNote(from: noteConfig, for: date)
-            }
-
-            // Static Note: fixed file path
-            guard let fallbackURL = resolvePath(noteConfig.path) else { return nil }
-
-            let id = noteConfig.noteId
-            let url = resolveBookmark(for: id) ?? fallbackURL
-            let title = noteConfig.title
-                ?? URL(fileURLWithPath: noteConfig.resolvedPath)
-                    .deletingPathExtension().lastPathComponent
-            let transparency = noteConfig.resolveTransparency()
-            let alwaysOnTop = noteConfig.resolveAlwaysOnTop()
-            let notePosition = noteConfig.resolvePosition()
-
-            let attachmentsDir = noteConfig.resolveAttachmentsDir(
-                noteURL: url,
-                isPeriodicNote: false, pathTemplate: nil
-            )
-
-            return Note(
-                id: id, path: url, title: title, theme: noteConfig.theme,
-                transparency: transparency,
-                alwaysOnTop: alwaysOnTop, hotkey: noteConfig.hotkey,
-                position: notePosition,
-                attachmentsDir: attachmentsDir
-            )
-        }
+        notes = config.notes.compactMap { resolveNote(from: $0) }
     }
 
     // MARK: - Periodic Note
@@ -130,9 +99,64 @@ class NoteStore: ObservableObject {
         return Note(
             id: id, path: url, title: title, theme: config.theme,
             transparency: transparency,
-            alwaysOnTop: alwaysOnTop, hotkey: config.hotkey,
+            alwaysOnTop: alwaysOnTop, hotkeys: config.hotkeys,
             position: notePosition,
             periodicInfo: periodicInfo,
+            attachmentsDir: attachmentsDir
+        )
+    }
+
+    func refreshNote(for noteId: String, ensureStaticFileExists: Bool = false) -> Note? {
+        guard let config = appConfig.config.notes.first(where: { $0.noteId == noteId }),
+              let note = resolveNote(from: config, ensureStaticFileExists: ensureStaticFileExists) else {
+            return nil
+        }
+
+        if let idx = notes.firstIndex(where: { $0.id == noteId }) {
+            if notes[idx] != note { notes[idx] = note }
+        } else {
+            notes.append(note)
+        }
+
+        return note
+    }
+
+    private func resolveNote(from config: NoteConfig, ensureStaticFileExists: Bool = false) -> Note? {
+        if config.isPeriodicNote {
+            let rolloverDelay = DurationParser.parse(config.rolloverDelay)
+            let date = logicalDate(rolloverDelay: rolloverDelay)
+            return resolvePeriodicNote(from: config, for: date)
+        }
+
+        return resolveStaticNote(from: config, ensureFileExists: ensureStaticFileExists)
+    }
+
+    private func resolveStaticNote(from config: NoteConfig, ensureFileExists: Bool = false) -> Note? {
+        guard let fallbackURL = resolvePath(config.path) else { return nil }
+
+        let id = config.noteId
+        let url = resolveBookmark(for: id) ?? fallbackURL
+        if ensureFileExists {
+            ensureFileExistsIfNeeded(at: url)
+        }
+
+        let title = config.title
+            ?? URL(fileURLWithPath: config.resolvedPath)
+                .deletingPathExtension().lastPathComponent
+        let transparency = config.resolveTransparency()
+        let alwaysOnTop = config.resolveAlwaysOnTop()
+        let notePosition = config.resolvePosition()
+
+        let attachmentsDir = config.resolveAttachmentsDir(
+            noteURL: url,
+            isPeriodicNote: false, pathTemplate: nil
+        )
+
+        return Note(
+            id: id, path: url, title: title, theme: config.theme,
+            transparency: transparency,
+            alwaysOnTop: alwaysOnTop, hotkeys: config.hotkeys,
+            position: notePosition,
             attachmentsDir: attachmentsDir
         )
     }
@@ -144,6 +168,13 @@ class NoteStore: ObservableObject {
             return expanded
         }
         return URL(fileURLWithPath: path)
+    }
+
+    private func ensureFileExistsIfNeeded(at url: URL) {
+        let dir = url.deletingLastPathComponent()
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        guard !FileManager.default.fileExists(atPath: url.path) else { return }
+        try? "".write(to: url, atomically: true, encoding: .utf8)
     }
 
     func readContent(of note: Note) -> String {

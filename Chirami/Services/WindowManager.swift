@@ -75,12 +75,26 @@ class WindowManager: ObservableObject {
 
     func toggleWindow(for noteId: String) {
         guard let controller = controllers[noteId] else {
-            if let note = noteStore.notes.first(where: { $0.id == noteId }) {
+            if let note = noteStore.refreshNote(for: noteId) {
                 openWindow(for: note)
             }
             return
         }
         controller.toggle()
+    }
+
+    func createWindow(for noteId: String) {
+        guard let note = noteStore.refreshNote(for: noteId, ensureStaticFileExists: true) else {
+            return
+        }
+
+        if let controller = controllers[noteId] {
+            controller.show()
+            return
+        }
+
+        openWindow(for: note)
+        controllers[noteId]?.show()
     }
 
     func isVisible(noteId: String) -> Bool {

@@ -126,7 +126,9 @@ Use `position: cursor` to create a note that appears at the mouse cursor. Cursor
 notes:
   - path: ~/Notes/scratch.md
     title: Scratch
-    hotkey: cmd+shift+s
+    hotkeys:
+      - key: option+s
+        action: toggle
     position: cursor
 ```
 

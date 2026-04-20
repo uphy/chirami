@@ -59,11 +59,18 @@ class AppConfig: YAMLStore<ChiramiConfig> {
       - path: ~/.config/chirami/sample-notes/quick-memo.md
         title: Quick Memo
         position: cursor
-        hotkey: cmd+shift+m
+        hotkeys:
+          - key: option+m
+            action: toggle
 
       - path: ~/.config/chirami/sample-notes/daily/{yyyy-MM-dd}.md
         title: Daily Note
         template: ~/.config/chirami/sample-notes/daily/template.md
+        hotkeys:
+          - key: option+d
+            action: toggle
+          - key: option+shift+d
+            action: create
 
     transcript:
       engine: sherpa-onnx
@@ -91,8 +98,8 @@ class AppConfig: YAMLStore<ChiramiConfig> {
 
     Click a note in the **menu bar popup** to toggle its visibility.
 
-    You can also assign a keyboard shortcut to each note via the `hotkey` field in `config.yaml`.
-    In this demo, **Quick Memo** is set to `Cmd+Shift+M` — try pressing it!
+    You can also assign keyboard shortcuts to each note via the `hotkeys` field in `config.yaml`.
+    In this demo, **Quick Memo** is set to `Option+M` — try pressing it!
 
     ## Editor
 
@@ -116,7 +123,7 @@ class AppConfig: YAMLStore<ChiramiConfig> {
     ---
     This note is configured with (`config.yaml`):
 
-    - **`hotkey: cmd+shift+m`** — summon/dismiss with a keyboard shortcut
+    - **`hotkeys: [{ key: option+m, action: toggle }]`** — summon/dismiss with a keyboard shortcut
     - **`position: cursor`** — appears at the mouse cursor position when summoned
 
     Cursor notes start unpinned by default — they hide when focus is lost.

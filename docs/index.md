@@ -57,10 +57,12 @@ Create `~/.config/chirami/config.yaml`:
 ```yaml
 notes:
   - path: ~/Notes/todo.md
-    hotkey: cmd+shift+t
+    hotkeys:
+      - key: option+t
+        action: toggle
 ```
 
-Launch Chirami from the menu bar. Press `Cmd+Shift+T` to toggle your note.
+Launch Chirami from the menu bar. Press `Option+T` to toggle your note.
 
 ## Why Chirami?
 

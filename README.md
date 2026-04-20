@@ -80,16 +80,24 @@ notes:
   - path: ~/Notes/todo.md
     title: TODO
     theme: blue
-    hotkey: cmd+shift+t
+    hotkeys:
+      - key: option+t
+        action: toggle
 
   - path: ~/Notes/daily/{yyyy-MM-dd}.md
     title: Daily
     theme: green
-    hotkey: cmd+shift+d
+    hotkeys:
+      - key: option+d
+        action: toggle
+      - key: option+shift+d
+        action: create
     rollover_delay: 2h
 
   - path: ~/Desktop/scratch.md
-    hotkey: cmd+shift+s
+    hotkeys:
+      - key: option+s
+        action: toggle
     position: cursor
 
 transcript:

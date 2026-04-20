@@ -30,4 +30,4 @@ title: Keyboard Shortcuts
 | Ctrl+Option+K / Ctrl+Option+↑ | Warp window up |
 | Ctrl+Option+J / Ctrl+Option+↓ | Warp window down |
 
-Per-note and global hotkeys (configured in `config.yaml`) toggle note visibility from any application.
+Per-note and global hotkeys (configured in `config.yaml` via `hotkeys`) can toggle note visibility from any application.
