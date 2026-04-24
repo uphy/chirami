@@ -2,9 +2,18 @@ import { syntaxTree, indentUnit } from "@codemirror/language";
 import { EditorSelection } from "@codemirror/state";
 import { EditorView, KeyBinding } from "@codemirror/view";
 import { insertNewlineContinueMarkup } from "@codemirror/lang-markdown";
+import { postToSwift } from "../bridge";
 
 const LIST_ITEM_RE = /^([ \t]*)([-*+])([ \t]+)/;
 const TASK_ITEM_RE = /^\[(?: |x|X)\][ \t]*/;
+const IME_COMPOSING_CLASS = "chirami-ime-composing";
+
+function isImeAcceptEnter(event: KeyboardEvent): boolean {
+  if (event.key !== "Enter") return false;
+  // WebKit on macOS can dispatch the Enter keydown that confirms IME input
+  // after compositionend, making event.isComposing/view.composing unreliable.
+  return event.isComposing || event.keyCode === 229;
+}
 
 function listContentStartOffset(lineText: string): number | null {
   const match = LIST_ITEM_RE.exec(lineText);
@@ -35,6 +44,10 @@ function normalizeCursorToListContent(view: EditorView): void {
 // This handler checks if the list was already loose before the keypress; if not
 // and a blank line was inserted, it removes the extra newline.
 function tightListEnter(view: EditorView): boolean {
+  if (view.composing || view.dom.classList.contains(IME_COMPOSING_CLASS)) {
+    return false;
+  }
+
   const state = view.state;
   const head = state.selection.main.head;
   const headLine = state.doc.lineAt(head);
@@ -92,14 +105,49 @@ function wrapSelection(
 }
 
 function toggleTaskAtCursor(view: EditorView): boolean {
-  const line = view.state.doc.lineAt(view.state.selection.main.head);
-  const match = line.text.match(/^(\s*[-*+]\s+)\[( |x)\]/i);
-  if (!match) return false;
-  const bracketStart = line.from + match[1].length + 1;
-  const currentChar = match[2];
-  const nextChar = currentChar === " " ? "x" : " ";
+  const sel = view.state.selection.main;
+  const line = view.state.doc.lineAt(sel.head);
+  const checkedTaskMatch = line.text.match(/^(\s*)([-*+])\s\[(x|X)\]\s(.*)$/);
+  if (checkedTaskMatch) {
+    const bracketStart = line.from + checkedTaskMatch[1].length + checkedTaskMatch[2].length + 2;
+    view.dispatch({
+      changes: { from: bracketStart, to: bracketStart + 1, insert: " " },
+    });
+    return true;
+  }
+
+  const uncheckedTaskMatch = line.text.match(/^(\s*)([-*+])\s\[ \]\s(.*)$/);
+  if (uncheckedTaskMatch) {
+    const bracketStart = line.from + uncheckedTaskMatch[1].length + uncheckedTaskMatch[2].length + 2;
+    view.dispatch({
+      changes: { from: bracketStart, to: bracketStart + 1, insert: "x" },
+    });
+    return true;
+  }
+
+  let replacement: string | null = null;
+  const listItemMatch = line.text.match(/^(\s*)([-*+])\s(.*)$/);
+  if (listItemMatch) {
+    const [, indent, marker, content] = listItemMatch;
+    replacement = `${indent}${marker} [ ] ${content}`;
+  } else {
+    const plainLineMatch = line.text.match(/^(\s*)(.+)$/);
+    if (plainLineMatch) {
+      const [, indent, content] = plainLineMatch;
+      replacement = `${indent}- [ ] ${content}`;
+    } else {
+      const emptyLineMatch = line.text.match(/^(\s*)$/);
+      if (!emptyLineMatch) return false;
+      replacement = `${emptyLineMatch[1]}- [ ] `;
+    }
+  }
+
+  const prefixDelta = replacement.length - line.text.length;
+  const newCursor = Math.max(line.from, Math.min(sel.head + prefixDelta, line.from + replacement.length));
   view.dispatch({
-    changes: { from: bracketStart, to: bracketStart + 1, insert: nextChar },
+    changes: { from: line.from, to: line.to, insert: replacement },
+    selection: EditorSelection.cursor(newCursor),
+    scrollIntoView: true,
   });
   return true;
 }
@@ -238,11 +286,15 @@ function linkUrlAtPosition(view: EditorView, pos: number): string | null {
   return null;
 }
 
-export function openLinkAtPosition(view: EditorView, pos: number): boolean {
-  const url = linkUrlAtPosition(view, pos);
+export function openLink(url: string | null | undefined): boolean {
   if (!url) return false;
   postToSwift({ type: "openLink", url });
   return true;
+}
+
+export function openLinkAtPosition(view: EditorView, pos: number, fallbackUrl?: string | null): boolean {
+  const url = linkUrlAtPosition(view, pos) ?? fallbackUrl;
+  return openLink(url);
 }
 
 function openLinkAtCursor(view: EditorView): boolean {
@@ -250,6 +302,7 @@ function openLinkAtCursor(view: EditorView): boolean {
 }
 
 export const tightListEnterKeymap: KeyBinding[] = [
+  { any: (_view, event) => isImeAcceptEnter(event) },
   { key: "Enter", run: tightListEnter },
 ];
 

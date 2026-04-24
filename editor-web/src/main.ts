@@ -75,6 +75,7 @@ function scheduleDeferredTranscriptFlush(attempt = 0): void {
       }
       return;
     }
+    syncCompositionClass();
     flushDeferredTranscriptMutations();
   }, 0);
 }
@@ -100,6 +101,7 @@ function scheduleDeferredDecorationFlush(attempt = 0): void {
       }
       return;
     }
+    syncCompositionClass();
     flushDeferredDecorations();
   }, 0);
 }

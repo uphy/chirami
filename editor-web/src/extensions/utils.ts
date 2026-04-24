@@ -1,4 +1,4 @@
-import { syntaxTree } from "@codemirror/language";
+import { foldEffect, syntaxTree, unfoldEffect } from "@codemirror/language";
 import { EditorState, StateField } from "@codemirror/state";
 import { DecorationSet, EditorView, ViewUpdate } from "@codemirror/view";
 
@@ -23,6 +23,10 @@ export function cursorInSpan(cursorPos: number, from: number, to: number): boole
 }
 
 export function shouldRebuild(update: ViewUpdate): boolean {
+  const foldChanged = update.transactions.some((tr) =>
+    tr.effects.some((effect) => effect.is(foldEffect) || effect.is(unfoldEffect))
+  );
+  if (foldChanged) return true;
   if (update.docChanged || update.viewportChanged || update.focusChanged) return true;
   if (!update.selectionSet) return false;
   // Skip when only the anchor moved (e.g. shift+click with same head position).

@@ -7,7 +7,7 @@ import { EditorState, Prec, Transaction } from "@codemirror/state";
 import { EditorView, ViewUpdate, keymap, drawSelection } from "@codemirror/view";
 import { GFM } from "@lezer/markdown";
 import { classHighlighter, tags } from "@lezer/highlight";
-import { chiramiKeymap, openLinkAtPosition, tightListEnterKeymap, surroundSelectionHandler } from "./extensions/keymap";
+import { chiramiKeymap, openLink, openLinkAtPosition, tightListEnterKeymap, surroundSelectionHandler } from "./extensions/keymap";
 import { livePreview } from "./extensions/livePreview";
 import { tableExtension } from "./extensions/table";
 import { mermaidExtension } from "./extensions/mermaid";
@@ -178,18 +178,19 @@ export function createEditor(parent: HTMLElement, callbacks: EditorCallbacks): E
       if (event.button !== 0) return false;
       if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return false;
       const target = event.target;
-      if (!(target instanceof Element) || !target.closest(".cm-clickable-link")) {
+      if (!(target instanceof Element)) {
         return false;
       }
+      const clickedLink = target.closest(".cm-clickable-link");
+      if (!(clickedLink instanceof Element)) return false;
 
       const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
-      if (pos === null) return false;
-
-      const clickedLine = view.state.doc.lineAt(pos).number;
-      const cursorLine = view.state.doc.lineAt(view.state.selection.main.head).number;
-      if (clickedLine === cursorLine) return false;
-
-      const opened = openLinkAtPosition(view, pos);
+      const fallbackUrl = clickedLink instanceof HTMLAnchorElement
+        ? clickedLink.getAttribute("href")
+        : null;
+      const opened = pos === null
+        ? openLink(fallbackUrl)
+        : openLinkAtPosition(view, pos, fallbackUrl);
       if (!opened) return false;
 
       event.preventDefault();

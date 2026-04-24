@@ -5,6 +5,7 @@ import {
   DecorationSet,
   WidgetType,
 } from "@codemirror/view";
+import { renderInlineMarkdown } from "./inlineMarkdown";
 import { cursorLineFromState, makeDecorationField } from "./utils";
 
 class TableWidget extends WidgetType {
@@ -43,7 +44,7 @@ function buildTable(md: string): HTMLTableElement {
   const headerRow = thead.insertRow();
   for (const h of headers) {
     const th = document.createElement("th");
-    th.textContent = h;
+    th.appendChild(renderInlineMarkdown(h));
     headerRow.appendChild(th);
   }
 
@@ -52,7 +53,7 @@ function buildTable(md: string): HTMLTableElement {
     const tr = tbody.insertRow();
     for (const cell of row) {
       const td = tr.insertCell();
-      td.textContent = cell;
+      td.appendChild(renderInlineMarkdown(cell));
     }
   }
 

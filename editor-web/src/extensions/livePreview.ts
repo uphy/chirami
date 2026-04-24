@@ -1,4 +1,4 @@
-import { syntaxTree } from "@codemirror/language";
+import { foldedRanges, syntaxTree } from "@codemirror/language";
 import { Range } from "@codemirror/state";
 import {
   Decoration,
@@ -8,6 +8,7 @@ import {
   ViewUpdate,
   WidgetType,
 } from "@codemirror/view";
+import { INLINE_FORMAT_MARK_NODES, INLINE_LINK_MARK_NODES, isStandaloneURLNode } from "./inlineMarkdown";
 import { cursorInSpan, cursorLineNumber, nodeContainsCursorLine, parseCodeBlockInfo, shouldRebuild } from "./utils";
 
 // Markdown syntax marks to hide on non-cursor lines.
@@ -16,16 +17,11 @@ import { cursorInSpan, cursorLineNumber, nodeContainsCursorLine, parseCodeBlockI
 // Marks that go raw whenever cursor is anywhere inside the enclosing construct.
 // EmphasisMark/CodeMark/StrikethroughMark: opening+closing fence go raw together.
 // CodeInfo: language tag is shown whenever cursor is inside the fenced code block.
-const PARENT_SPAN_MARKS = new Set([
-  "EmphasisMark",
-  "CodeMark",
-  "CodeInfo",
-  "StrikethroughMark",
-]);
+const PARENT_SPAN_MARKS = new Set([...INLINE_FORMAT_MARK_NODES, "CodeInfo"]);
 
 // Link/Image marks are handled as a group using the parent node span,
 // so all marks within a link go raw together when cursor touches any part of it.
-const LINK_MARK_NODES = new Set(["LinkMark", "URL"]);
+const LINK_MARK_NODES = INLINE_LINK_MARK_NODES;
 
 const HIDDEN_DECORATION = Decoration.replace({ inclusive: false });
 const CLICKABLE_LINK = Decoration.mark({ class: "cm-clickable-link" });
@@ -116,6 +112,16 @@ const CODE_BLOCK_LINE_FIRST = Decoration.line({ class: "cm-code-block-line cm-co
 const CODE_BLOCK_LINE_LAST  = Decoration.line({ class: "cm-code-block-line cm-code-block-last" });
 const CODE_BLOCK_LINE_ONLY  = Decoration.line({ class: "cm-code-block-line cm-code-block-first cm-code-block-last" });
 const QUOTE_LINE            = Decoration.line({ class: "cm-quote" });
+
+type FoldRange = { from: number; to: number };
+
+function isInFoldedContent(pos: number, ranges: readonly FoldRange[]): boolean {
+  for (const range of ranges) {
+    if (pos <= range.from) return false;
+    if (pos <= range.to) return true;
+  }
+  return false;
+}
 
 // Obsidian callout: map type → color category
 const CALLOUT_CATEGORY: Record<string, string> = {
@@ -216,6 +222,10 @@ class LivePreviewPlugin {
     const cursorPos  = view.state.selection.main.head;
     const decorations: Range<Decoration>[] = [];
     const tree = syntaxTree(view.state);
+    const hiddenRanges: FoldRange[] = [];
+    foldedRanges(view.state).between(0, view.state.doc.length, (from, to) => {
+      hiddenRanges.push({ from, to });
+    });
     const processedCodeLines = new Set<number>();
     const calloutReplacedLineStarts = new Set<number>();
 
@@ -224,6 +234,10 @@ class LivePreviewPlugin {
         from,
         to,
         enter: (node) => {
+          if (isInFoldedContent(node.from, hiddenRanges)) {
+            return false;
+          }
+
           if (node.name === "Blockquote") {
             const firstLine    = view.state.doc.lineAt(node.from);
             const startLineNum = view.state.doc.lineAt(Math.max(node.from, from)).number;
@@ -242,6 +256,7 @@ class LivePreviewPlugin {
               const fullEndLineNum = view.state.doc.lineAt(node.to).number;
               for (let lineNum = startLineNum; lineNum <= endLineNum; lineNum++) {
                 const line = view.state.doc.line(lineNum);
+                if (isInFoldedContent(line.from, hiddenRanges)) continue;
                 const isHeader = lineNum === firstLine.number;
                 const isLast   = lineNum === fullEndLineNum;
                 const extra    = isHeader && isLast ? " cm-callout-header cm-callout-last"
@@ -265,6 +280,7 @@ class LivePreviewPlugin {
             } else {
               for (let lineNum = startLineNum; lineNum <= endLineNum; lineNum++) {
                 const line = view.state.doc.line(lineNum);
+                if (isInFoldedContent(line.from, hiddenRanges)) continue;
                 decorations.push(QUOTE_LINE.range(line.from));
               }
             }
@@ -287,6 +303,7 @@ class LivePreviewPlugin {
             const visEnd    = view.state.doc.lineAt(Math.min(node.to, to)).number;
             for (let lineNum = visStart; lineNum <= visEnd; lineNum++) {
               const line = view.state.doc.line(lineNum);
+              if (isInFoldedContent(line.from, hiddenRanges)) continue;
               if (!processedCodeLines.has(line.from)) {
                 processedCodeLines.add(line.from);
                 const isFirst = lineNum === fullStart;
@@ -381,10 +398,9 @@ class LivePreviewPlugin {
                   decorations.push(Decoration.line({ class: "cm-task-checked" }).range(itemLine.from));
                 }
                 const innerPos = node.from + 3; // skip '-', ' ', '[' to reach checkbox char
-                decorations.push(HIDDEN_DECORATION.range(node.from, prefixTo));
                 decorations.push(
-                  Decoration.widget({ widget: new CheckboxWidget(checked, innerPos), side: -1 })
-                    .range(prefixTo)
+                  Decoration.replace({ widget: new CheckboxWidget(checked, innerPos) })
+                    .range(node.from, prefixTo)
                 );
               } else {
                 decorations.push(
@@ -397,6 +413,12 @@ class LivePreviewPlugin {
           }
 
           if (LINK_MARK_NODES.has(node.name)) {
+            if (isStandaloneURLNode(node.node)) {
+              if (view.state.doc.lineAt(node.from).number === cursorLine) return;
+              decorations.push(CLICKABLE_LINK.range(node.from, node.to));
+              return;
+            }
+
             const parent = node.node.parent;
             const spanFrom = parent?.from ?? node.from;
             const spanTo   = parent?.to   ?? node.to;
