@@ -227,6 +227,7 @@ class LivePreviewPlugin {
       hiddenRanges.push({ from, to });
     });
     const processedCodeLines = new Set<number>();
+    const processedListLineStarts = new Set<number>();
     const calloutReplacedLineStarts = new Set<number>();
 
     for (const { from, to } of view.visibleRanges) {
@@ -337,6 +338,10 @@ class LivePreviewPlugin {
 
           if (node.name === "ListItem") {
             const itemLine = view.state.doc.lineAt(node.from);
+            const firstVisitForLine = !processedListLineStarts.has(itemLine.from);
+            if (firstVisitForLine) {
+              processedListLineStarts.add(itemLine.from);
+            }
             // node.from points to the list marker character ('-', '*', '+').
             // Any leading indent spaces come before node.from on the same line.
             const nodeOffset = node.from - itemLine.from;
@@ -376,14 +381,16 @@ class LivePreviewPlugin {
             // (predictable tab stops). Other positions: effectiveGutterEm so rendered text aligns normally.
             const cursorInPrefix = onCursorLine && cursorPos >= itemLine.from && cursorPos < prefixTo;
             const cssGutter = cursorInPrefix ? totalEm : effectiveGutterEm;
-            decorations.push(
-              Decoration.line({
-                class: "cm-list-item",
-                attributes: { style: `--list-indent: ${totalEm}em; --list-gutter: ${cssGutter}em` },
-              }).range(itemLine.from)
-            );
+            if (firstVisitForLine) {
+              decorations.push(
+                Decoration.line({
+                  class: "cm-list-item",
+                  attributes: { style: `--list-indent: ${totalEm}em; --list-gutter: ${cssGutter}em` },
+                }).range(itemLine.from)
+              );
+            }
 
-            if (!cursorInPrefix) {
+            if (firstVisitForLine && !cursorInPrefix) {
               // Hide indent spaces before the marker (after any blockquote prefix).
               // This keeps the bullet/checkbox widget visually at the correct indent
               // while padding-left controls the wrap-line alignment.
@@ -398,9 +405,13 @@ class LivePreviewPlugin {
                   decorations.push(Decoration.line({ class: "cm-task-checked" }).range(itemLine.from));
                 }
                 const innerPos = node.from + 3; // skip '-', ' ', '[' to reach checkbox char
+                // Keep the task prefix boundary at contentStart so Enter -> Tab on
+                // empty task items leaves the caret after "- [ ] " rather than
+                // snapping before the rendered checkbox widget.
+                decorations.push(HIDDEN_DECORATION.range(node.from, prefixTo));
                 decorations.push(
-                  Decoration.replace({ widget: new CheckboxWidget(checked, innerPos) })
-                    .range(node.from, prefixTo)
+                  Decoration.widget({ widget: new CheckboxWidget(checked, innerPos), side: -1 })
+                    .range(prefixTo)
                 );
               } else {
                 decorations.push(
