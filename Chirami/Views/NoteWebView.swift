@@ -213,6 +213,10 @@ final class NoteWebView: NSView {
         enqueueOrEval("window.chirami.focus();")
     }
 
+    func setWindowActive(_ active: Bool) {
+        enqueueOrEval("window.chirami.setWindowActive(\(active ? "true" : "false"));")
+    }
+
     override func viewDidChangeEffectiveAppearance() {
         super.viewDidChangeEffectiveAppearance()
         (window as? NotePanel)?.applyConfiguredAppearance()
@@ -391,6 +395,7 @@ final class NoteWebView: NSView {
             webView.evaluateJavaScript("window.chirami.applyFolding([\(linesJSON)]);", completionHandler: nil)
         }
         applyInitialState()
+        setWindowActive(window?.isKeyWindow == true)
         fetchAndApplyPanelBackground()
     }
 
@@ -733,6 +738,9 @@ struct NoteWebViewRepresentable: NSViewRepresentable {
         }
         model.focusWebView = { [weak view] in
             view?.focus()
+        }
+        model.setWindowActive = { [weak view] active in
+            view?.setWindowActive(active)
         }
         model.getEditorContext = { [weak view] options, completion in
             guard let view else {

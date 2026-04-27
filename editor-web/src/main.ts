@@ -1,6 +1,6 @@
 import { createEditor, setEditorContent, getEditorContext } from "./editor";
 import { postToSwift, exposeApi } from "./bridge";
-import { debounce } from "./extensions/utils";
+import { debounce, setWindowActiveEffect } from "./extensions/utils";
 import { applyFoldingFromLines } from "./extensions/foldMarkdown";
 import { Transaction } from "@codemirror/state";
 import {
@@ -17,6 +17,7 @@ import {
 
 const container = document.getElementById("editor")!;
 let suppressChangeNotification = false;
+let windowActive = false;
 
 function logJsError(context: string, error: unknown): void {
   const message =
@@ -147,6 +148,13 @@ exposeApi({
     }
   },
   focus: () => { view.focus(); },
+  setWindowActive: (active) => {
+    if (windowActive === active) return;
+    windowActive = active;
+    view.dispatch({
+      effects: setWindowActiveEffect.of(active),
+    });
+  },
   setCursorPosition: (offset) => {
     const docLength = view.state.doc.length;
     const clampedOffset = Math.min(offset, docLength);
@@ -246,5 +254,7 @@ exposeApi({
     }
   },
 });
+
+(window as Window & { __chiramiWindowActive?: () => boolean }).__chiramiWindowActive = () => windowActive;
 
 postToSwift({ type: "ready" });

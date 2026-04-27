@@ -385,6 +385,7 @@ class NoteWindowController: NSWindowController, NSWindowDelegate, EditorContextP
     // MARK: - NSWindowDelegate
 
     func windowDidBecomeKey(_ notification: Notification) {
+        contentModel.setWindowActive?(true)
         contentModel.focusWebView?()
         WindowManager.shared.noteWindowDidBecomeKey(self)
     }
@@ -399,6 +400,7 @@ class NoteWindowController: NSWindowController, NSWindowDelegate, EditorContextP
     }
 
     func windowDidResignKey(_ notification: Notification) {
+        contentModel.setWindowActive?(false)
         guard !isPinned, isVisible else { return }
         contentModel.save()
         hide()
@@ -1144,6 +1146,7 @@ class NoteContentModel: ObservableObject {
     nonisolated(unsafe) var savedCursorLocation: Int = 0
     nonisolated(unsafe) var savedScrollOffset: CGPoint = .zero
     var focusWebView: (() -> Void)?
+    var setWindowActive: ((Bool) -> Void)?
     var getEditorContext: ((ContextRequestOptions?, @escaping (Result<String, Error>) -> Void) -> Void)?
     /// Fires once after the WebView is ready and its panel background matches the theme.
     /// The window controller uses this to defer the initial fade-in and avoid a yellow flash.

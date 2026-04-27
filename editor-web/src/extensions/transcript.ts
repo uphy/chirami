@@ -18,7 +18,7 @@ import {
   TranscriptChunkPayload,
   TranscriptPreviewPayload,
 } from "../bridge";
-import { cursorLineFromState, parseCodeBlockInfo } from "./utils";
+import { cursorLineFromState, parseCodeBlockInfo, transactionHasWindowActiveEffect } from "./utils";
 import {
   createTranscriptWidget,
   TranscriptWidgetUiPatch,
@@ -468,6 +468,7 @@ const transcriptDecorations = StateField.define<DecorationSet>({
     }
 
     const needsRebuild =
+      transactionHasWindowActiveEffect(tr) ||
       tr.docChanged ||
       tr.startState.selection.main.head !== tr.state.selection.main.head;
     if (needsRebuild) {

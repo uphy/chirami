@@ -103,6 +103,7 @@ type SwiftToJsApi = {
   setTheme: (cssVars: string) => void;
   setFont: (family: string, size: number) => void;
   focus: () => void;
+  setWindowActive: (active: boolean) => void;
   setCursorPosition: (offset: number) => void;
   setScrollPosition: (offset: number) => void;
   insertText: (text: string) => void;
@@ -158,6 +159,7 @@ declare global {
     chirami: SwiftToJsApi;
     __chiramiNotePath?: string;
     __chiramiPluginReady?: (pluginId: string, stateJson: string | null) => void;
+    __chiramiWindowActive?: () => boolean;
   }
 }
 

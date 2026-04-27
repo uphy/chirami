@@ -219,7 +219,9 @@ class LivePreviewPlugin {
 
   private build(view: EditorView): DecorationSet {
     const cursorLine = cursorLineNumber(view);
-    const cursorPos  = view.state.selection.main.head;
+    // Treat the cursor as absent while the window is inactive so every construct
+    // falls back to rendered preview, not just line-based cases.
+    const cursorPos  = cursorLine === -1 ? -1 : view.state.selection.main.head;
     const decorations: Range<Decoration>[] = [];
     const tree = syntaxTree(view.state);
     const hiddenRanges: FoldRange[] = [];
