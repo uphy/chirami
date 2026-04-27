@@ -38,6 +38,37 @@ function normalizeCursorToListContent(view: EditorView): void {
   });
 }
 
+function isInListItemContext(view: EditorView, pos: number, lineFrom: number): boolean {
+  for (let node = syntaxTree(view.state).resolveInner(pos, -1); node; node = node.parent) {
+    if (node.name !== "ListItem") continue;
+    return view.state.doc.lineAt(node.from).from === lineFrom;
+  }
+  return false;
+}
+
+function splitListItemAtContentStart(view: EditorView): boolean {
+  const state = view.state;
+  const head = state.selection.main.head;
+  const line = state.doc.lineAt(head);
+  const contentOffset = listContentStartOffset(line.text);
+  if (contentOffset === null) return false;
+
+  const contentStart = line.from + contentOffset;
+  const contentText = line.text.slice(contentOffset);
+  if (contentText.length === 0 || head > contentStart) return false;
+  if (!isInListItemContext(view, contentStart, line.from)) return false;
+
+  const prefix = line.text.slice(0, contentOffset);
+  const insert = state.lineBreak + prefix;
+  view.dispatch({
+    changes: { from: contentStart, to: contentStart, insert },
+    selection: EditorSelection.cursor(contentStart + insert.length),
+    scrollIntoView: true,
+    userEvent: "input",
+  });
+  return true;
+}
+
 // Wraps insertNewlineContinueMarkup to prevent spurious blank lines in tight lists.
 // CodeMirror's nonTightList heuristic sometimes misclassifies long (visually
 // wrapped) lines as loose, inserting "\n\n- " instead of "\n- ".
@@ -46,6 +77,14 @@ function normalizeCursorToListContent(view: EditorView): void {
 function tightListEnter(view: EditorView): boolean {
   if (view.composing || view.dom.classList.contains(IME_COMPOSING_CLASS)) {
     return false;
+  }
+
+  // CodeMirror's list continuation command still produces invalid "-"/"- [ ]"
+  // lines when Enter is pressed exactly at the content boundary of a non-empty
+  // list item. Split that case manually so the current item becomes an empty
+  // list item and the existing content moves to the next line.
+  if (splitListItemAtContentStart(view)) {
+    return true;
   }
 
   const state = view.state;
