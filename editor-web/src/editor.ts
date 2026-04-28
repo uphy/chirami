@@ -186,6 +186,14 @@ export function createEditor(parent: HTMLElement, callbacks: EditorCallbacks): E
       if (!(clickedLink instanceof Element)) return false;
 
       const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
+      if (pos !== null && view.hasFocus) {
+        const cursorLine = view.state.doc.lineAt(view.state.selection.main.head).number;
+        const clickedLine = view.state.doc.lineAt(pos).number;
+        if (clickedLine === cursorLine) {
+          return false;
+        }
+      }
+
       const fallbackUrl = clickedLink instanceof HTMLAnchorElement
         ? clickedLink.getAttribute("href")
         : null;

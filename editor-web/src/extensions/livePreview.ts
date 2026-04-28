@@ -427,7 +427,7 @@ class LivePreviewPlugin {
 
           if (LINK_MARK_NODES.has(node.name)) {
             if (isStandaloneURLNode(node.node)) {
-              if (view.state.doc.lineAt(node.from).number === cursorLine) return;
+              if (cursorInSpan(cursorPos, node.from, node.to)) return;
               decorations.push(CLICKABLE_LINK.range(node.from, node.to));
               return;
             }
@@ -435,9 +435,7 @@ class LivePreviewPlugin {
             const parent = node.node.parent;
             const spanFrom = parent?.from ?? node.from;
             const spanTo   = parent?.to   ?? node.to;
-            // Also show raw when cursor is on the same line (e.g. "[!NOTE]" in callout headers).
             if (cursorInSpan(cursorPos, spanFrom, spanTo)) return;
-            if (view.state.doc.lineAt(node.from).number === cursorLine) return;
             if (node.name === "URL") {
               decorations.push(CLICKABLE_LINK.range(spanFrom, spanTo));
             }
