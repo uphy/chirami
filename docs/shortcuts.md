@@ -12,6 +12,8 @@ title: Keyboard Shortcuts
 | Cmd+F | Open find bar |
 | Cmd+= / Cmd++ | Increase font size |
 | Cmd+- | Decrease font size |
+| Ctrl+Option+= / Ctrl+Option++ | Scale window up |
+| Ctrl+Option+- | Scale window down |
 | Cmd+V | Smart Paste |
 | Cmd+Shift+V | Plain text paste |
 | Tab (on list item) | Indent list item |
@@ -29,5 +31,7 @@ title: Keyboard Shortcuts
 | Ctrl+Option+L / Ctrl+Option+→ | Warp window right |
 | Ctrl+Option+K / Ctrl+Option+↑ | Warp window up |
 | Ctrl+Option+J / Ctrl+Option+↓ | Warp window down |
+
+The default window-warp modifier shown above is configurable via `warp_modifier` in `config.yaml`; the same modifier also applies to window scaling with `=` / `-`.
 
 Per-note and global hotkeys (configured in `config.yaml` via `hotkeys`) can toggle note visibility from any application.

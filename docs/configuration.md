@@ -76,7 +76,7 @@ notes:
 | `show_menu_bar_icon` | bool | `true` | Show the Chirami icon in the macOS menu bar. Set to `false` to hide it (use global hotkey to access notes). |
 | `hotkeys` | array | — | Global hotkey bindings. Top-level supports `toggle` only. |
 | `drag_modifier` | string | `command` | Modifier key for window dragging. Allowed: `command`, `option`, `shift`, `control`. |
-| `warp_modifier` | string | `ctrl+option` | Modifier key combination for Window Warp (HJKL grid movement). Specify modifiers joined with `+` (e.g. `ctrl+option`, `command+shift`). Allowed tokens: `ctrl`/`control`, `option`/`opt`, `command`/`cmd`, `shift`. |
+| `warp_modifier` | string | `ctrl+option` | Modifier key combination for window manipulation shortcuts. It applies to Window Warp (`H`/`J`/`K`/`L` or arrow keys) and window scaling (`=` / `-`). Specify modifiers joined with `+` (e.g. `ctrl+option`, `command+shift`). Allowed tokens: `ctrl`/`control`, `option`/`opt`, `command`/`cmd`, `shift`. If this conflicts with built-in `Cmd+=` / `Cmd+-`, the font shortcuts win. |
 | `smart_paste` | object | — | Smart Paste configuration. See [Smart Paste](advanced.md#smart-paste). |
 | `karabiner` | object | — | Karabiner-Elements integration. See [Karabiner](advanced.md#karabiner-elements-integration). |
 | `notes` | array | `[]` | List of Registered Note configurations. |

@@ -27,7 +27,7 @@ class NoteWindowController: NSWindowController, NSWindowDelegate, EditorContextP
     private var fadeInTimeoutTask: Task<Void, Never>?
     private var transcriptLevelMonitors: [Int: TranscriptLevelMonitor] = [:]
     nonisolated(unsafe) private var warpEventMonitor: Any?
-    nonisolated(unsafe) private var fontSizeEventMonitor: Any?
+    nonisolated(unsafe) private var shortcutEventMonitor: Any?
 
     var isVisible: Bool { window?.isVisible ?? false }
 
@@ -126,9 +126,9 @@ class NoteWindowController: NSWindowController, NSWindowDelegate, EditorContextP
             return event
         }
 
-        // Intercept Cmd+=/Cmd++ (font up) and Cmd+- (font down) at the NSEvent level
-        // to prevent WKWebView from generating a system beep for these key combinations.
-        fontSizeEventMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+        // Intercept window-level shortcuts at the NSEvent level to prevent WKWebView
+        // from generating a system beep for these key combinations.
+        shortcutEventMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let self, self.window?.isKeyWindow == true else { return event }
             let flags = event.modifierFlags
                 .intersection(.deviceIndependentFlagsMask)
@@ -144,6 +144,17 @@ class NoteWindowController: NSWindowController, NSWindowDelegate, EditorContextP
                 self.handleFontSizeChange(delta: -1)
                 return nil
             }
+            let warpFlags = AppConfig.shared.data.warpModifierFlags
+            if flags == warpFlags {
+                if chars == "=" {
+                    self.handleWindowScaleChange(scale: Self.windowScaleStep)
+                    return nil
+                }
+                if chars == "-" {
+                    self.handleWindowScaleChange(scale: 1 / Self.windowScaleStep)
+                    return nil
+                }
+            }
             return event
         }
     }
@@ -152,7 +163,7 @@ class NoteWindowController: NSWindowController, NSWindowDelegate, EditorContextP
         if let monitor = warpEventMonitor {
             NSEvent.removeMonitor(monitor)
         }
-        if let monitor = fontSizeEventMonitor {
+        if let monitor = shortcutEventMonitor {
             NSEvent.removeMonitor(monitor)
         }
         fadeInTimeoutTask?.cancel()
@@ -455,6 +466,62 @@ class NoteWindowController: NSWindowController, NSWindowDelegate, EditorContextP
         contentModel.fontSize = CGFloat(newSize)
     }
 
+    // MARK: - Window Scaling
+
+    private static let windowScaleStep: CGFloat = 1.1
+    private static let windowResizeMargin: CGFloat = 8
+    private static let minWindowSize = CGSize(width: 220, height: 180)
+
+    private func handleWindowScaleChange(scale: CGFloat) {
+        guard let window = window else { return }
+        let screen = screenForWindow() ?? NSScreen.main
+        guard let visibleFrame = screen?.visibleFrame else { return }
+
+        let currentSize = window.frame.size
+        guard currentSize.width > 0, currentSize.height > 0 else { return }
+
+        let availableWidth = max(Self.minWindowSize.width, visibleFrame.width - Self.windowResizeMargin * 2)
+        let availableHeight = max(Self.minWindowSize.height, visibleFrame.height - Self.windowResizeMargin * 2)
+        let minScale = max(
+            Self.minWindowSize.width / currentSize.width,
+            Self.minWindowSize.height / currentSize.height
+        )
+        let maxScale = min(
+            availableWidth / currentSize.width,
+            availableHeight / currentSize.height
+        )
+        let appliedScale: CGFloat
+        if scale >= 1 {
+            appliedScale = min(scale, maxScale)
+            guard appliedScale > 1 else { return }
+        } else {
+            appliedScale = max(scale, minScale)
+            guard appliedScale < 1 else { return }
+        }
+
+        let newSize = CGSize(
+            width: round(currentSize.width * appliedScale),
+            height: round(currentSize.height * appliedScale)
+        )
+        guard abs(newSize.width - currentSize.width) >= 1 || abs(newSize.height - currentSize.height) >= 1 else {
+            return
+        }
+
+        let center = CGPoint(x: window.frame.midX, y: window.frame.midY)
+        let origin = CGPoint(
+            x: center.x - newSize.width / 2,
+            y: center.y - newSize.height / 2
+        )
+        let clampedOrigin = clampToScreen(
+            origin: origin,
+            windowSize: newSize,
+            visibleFrame: visibleFrame,
+            margin: Self.windowResizeMargin
+        )
+        let newFrame = CGRect(origin: clampedOrigin, size: newSize)
+        window.setFrame(newFrame, display: true, animate: true)
+    }
+
     // MARK: - Keyboard Warp
 
     private static let warpArrowMap: [UInt16: Character] = [123: "h", 124: "l", 125: "j", 126: "k"]
@@ -484,6 +551,30 @@ class NoteWindowController: NSWindowController, NSWindowDelegate, EditorContextP
             return screen
         }
         return NSScreen.main
+    }
+
+    private func clampToScreen(origin: CGPoint, windowSize: CGSize, visibleFrame: CGRect, margin: CGFloat) -> CGPoint {
+        var x = origin.x
+        var y = origin.y
+
+        let minX = visibleFrame.minX + margin
+        let maxX = visibleFrame.maxX - windowSize.width - margin
+        let minY = visibleFrame.minY + margin
+        let maxY = visibleFrame.maxY - windowSize.height - margin
+
+        if windowSize.width + margin * 2 >= visibleFrame.width {
+            x = visibleFrame.midX - windowSize.width / 2
+        } else {
+            x = min(max(x, minX), maxX)
+        }
+
+        if windowSize.height + margin * 2 >= visibleFrame.height {
+            y = visibleFrame.midY - windowSize.height / 2
+        } else {
+            y = min(max(y, minY), maxY)
+        }
+
+        return CGPoint(x: x, y: y)
     }
 
     /// Maps the window center to the nearest 3x3 grid cell using band detection.
