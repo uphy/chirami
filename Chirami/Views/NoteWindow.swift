@@ -276,9 +276,10 @@ class NoteWindowController: NSWindowController, NSWindowDelegate, EditorContextP
 
         let screen = screenForCursor() ?? NSScreen.main
         let visibleFrame = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1920, height: 1080)
+        let margins = currentWarpMargin()
 
         let origin = CGPoint(x: cursorLocation.x - windowSize.width / 2, y: cursorLocation.y - windowSize.height / 2)
-        let clamped = clampToScreen(origin: origin, windowSize: windowSize, visibleFrame: visibleFrame)
+        let clamped = clampToScreen(origin: origin, windowSize: windowSize, visibleFrame: visibleFrame, margins: margins)
 
         window.setFrameOrigin(clamped)
         showWindow(nil)
@@ -291,26 +292,6 @@ class NoteWindowController: NSWindowController, NSWindowDelegate, EditorContextP
             return screen
         }
         return NSScreen.main
-    }
-
-    private func clampToScreen(origin: CGPoint, windowSize: CGSize, visibleFrame: CGRect) -> CGPoint {
-        var x = origin.x
-        var y = origin.y
-
-        if x + windowSize.width > visibleFrame.maxX {
-            x = visibleFrame.maxX - windowSize.width
-        }
-        if x < visibleFrame.minX {
-            x = visibleFrame.minX
-        }
-        if y < visibleFrame.minY {
-            y = visibleFrame.minY
-        }
-        if y + windowSize.height > visibleFrame.maxY {
-            y = visibleFrame.maxY - windowSize.height
-        }
-
-        return CGPoint(x: x, y: y)
     }
 
     func hide() {
@@ -469,19 +450,19 @@ class NoteWindowController: NSWindowController, NSWindowDelegate, EditorContextP
     // MARK: - Window Scaling
 
     private static let windowScaleStep: CGFloat = 1.1
-    private static let windowResizeMargin: CGFloat = 8
     private static let minWindowSize = CGSize(width: 220, height: 180)
 
     private func handleWindowScaleChange(scale: CGFloat) {
         guard let window = window else { return }
         let screen = screenForWindow() ?? NSScreen.main
         guard let visibleFrame = screen?.visibleFrame else { return }
+        let margins = currentWarpMargin()
 
         let currentSize = window.frame.size
         guard currentSize.width > 0, currentSize.height > 0 else { return }
 
-        let availableWidth = max(Self.minWindowSize.width, visibleFrame.width - Self.windowResizeMargin * 2)
-        let availableHeight = max(Self.minWindowSize.height, visibleFrame.height - Self.windowResizeMargin * 2)
+        let availableWidth = max(Self.minWindowSize.width, visibleFrame.width - margins.left - margins.right)
+        let availableHeight = max(Self.minWindowSize.height, visibleFrame.height - margins.top - margins.bottom)
         let minScale = max(
             Self.minWindowSize.width / currentSize.width,
             Self.minWindowSize.height / currentSize.height
@@ -516,7 +497,7 @@ class NoteWindowController: NSWindowController, NSWindowDelegate, EditorContextP
             origin: origin,
             windowSize: newSize,
             visibleFrame: visibleFrame,
-            margin: Self.windowResizeMargin
+            margins: margins
         )
         let newFrame = CGRect(origin: clampedOrigin, size: newSize)
         window.setFrame(newFrame, display: true, animate: true)
@@ -531,15 +512,28 @@ class NoteWindowController: NSWindowController, NSWindowDelegate, EditorContextP
         guard let window = window else { return }
         let screen = screenForWindow() ?? NSScreen.main
         guard let visibleFrame = screen?.visibleFrame else { return }
+        let margins = currentWarpMargin()
 
         let center = CGPoint(
             x: window.frame.midX,
             y: window.frame.midY
         )
-        let (col, row) = inferGridPosition(center: center, visibleFrame: visibleFrame)
+        let (col, row) = inferGridPosition(center: center, visibleFrame: visibleFrame, margins: margins)
         let (newCol, newRow) = applyMove(key: key, col: col, row: row)
-        let origin = gridOrigin(col: newCol, row: newRow, windowSize: window.frame.size, visibleFrame: visibleFrame)
-        let newFrame = CGRect(origin: origin, size: window.frame.size)
+        let origin = gridOrigin(
+            col: newCol,
+            row: newRow,
+            windowSize: window.frame.size,
+            visibleFrame: visibleFrame,
+            margins: margins
+        )
+        let clampedOrigin = clampToScreen(
+            origin: origin,
+            windowSize: window.frame.size,
+            visibleFrame: visibleFrame,
+            margins: margins
+        )
+        let newFrame = CGRect(origin: clampedOrigin, size: window.frame.size)
         window.setFrame(newFrame, display: true, animate: true)
     }
 
@@ -553,22 +547,26 @@ class NoteWindowController: NSWindowController, NSWindowDelegate, EditorContextP
         return NSScreen.main
     }
 
-    private func clampToScreen(origin: CGPoint, windowSize: CGSize, visibleFrame: CGRect, margin: CGFloat) -> CGPoint {
+    private func currentWarpMargin() -> ResolvedWarpMargin {
+        AppConfig.shared.data.resolvedWarpMargin
+    }
+
+    private func clampToScreen(origin: CGPoint, windowSize: CGSize, visibleFrame: CGRect, margins: ResolvedWarpMargin) -> CGPoint {
         var x = origin.x
         var y = origin.y
 
-        let minX = visibleFrame.minX + margin
-        let maxX = visibleFrame.maxX - windowSize.width - margin
-        let minY = visibleFrame.minY + margin
-        let maxY = visibleFrame.maxY - windowSize.height - margin
+        let minX = visibleFrame.minX + margins.left
+        let maxX = visibleFrame.maxX - windowSize.width - margins.right
+        let minY = visibleFrame.minY + margins.bottom
+        let maxY = visibleFrame.maxY - windowSize.height - margins.top
 
-        if windowSize.width + margin * 2 >= visibleFrame.width {
+        if windowSize.width + margins.left + margins.right >= visibleFrame.width {
             x = visibleFrame.midX - windowSize.width / 2
         } else {
             x = min(max(x, minX), maxX)
         }
 
-        if windowSize.height + margin * 2 >= visibleFrame.height {
+        if windowSize.height + margins.top + margins.bottom >= visibleFrame.height {
             y = visibleFrame.midY - windowSize.height / 2
         } else {
             y = min(max(y, minY), maxY)
@@ -579,9 +577,31 @@ class NoteWindowController: NSWindowController, NSWindowDelegate, EditorContextP
 
     /// Maps the window center to the nearest 3x3 grid cell using band detection.
     /// col: 0=left, 1=center, 2=right / row: 0=bottom, 1=center, 2=top (NSWindow bottom-left origin)
-    private func inferGridPosition(center: CGPoint, visibleFrame: CGRect) -> (col: Int, row: Int) {
-        let col = Int(min(2, max(0, (center.x - visibleFrame.minX) / (visibleFrame.width / 3))))
-        let row = Int(min(2, max(0, (center.y - visibleFrame.minY) / (visibleFrame.height / 3))))
+    private func inferGridPosition(
+        center: CGPoint,
+        visibleFrame: CGRect,
+        margins: ResolvedWarpMargin
+    ) -> (col: Int, row: Int) {
+        let warpBounds = CGRect(
+            x: visibleFrame.minX + margins.left,
+            y: visibleFrame.minY + margins.bottom,
+            width: max(0, visibleFrame.width - margins.left - margins.right),
+            height: max(0, visibleFrame.height - margins.top - margins.bottom)
+        )
+
+        let col: Int
+        if warpBounds.width <= 0 {
+            col = 1
+        } else {
+            col = Int(min(2, max(0, (center.x - warpBounds.minX) / (warpBounds.width / 3))))
+        }
+
+        let row: Int
+        if warpBounds.height <= 0 {
+            row = 1
+        } else {
+            row = Int(min(2, max(0, (center.y - warpBounds.minY) / (warpBounds.height / 3))))
+        }
         return (col, row)
     }
 
@@ -596,19 +616,24 @@ class NoteWindowController: NSWindowController, NSWindowDelegate, EditorContextP
         }
     }
 
-    /// Calculates the window origin for a grid cell, with an 8pt margin from screen edges.
-    private func gridOrigin(col: Int, row: Int, windowSize: CGSize, visibleFrame: CGRect) -> CGPoint {
-        let margin: CGFloat = 8
+    /// Calculates the window origin for a grid cell using display-edge gaps.
+    private func gridOrigin(
+        col: Int,
+        row: Int,
+        windowSize: CGSize,
+        visibleFrame: CGRect,
+        margins: ResolvedWarpMargin
+    ) -> CGPoint {
         let x: CGFloat
         switch col {
-        case 0:  x = visibleFrame.minX + margin
-        case 2:  x = visibleFrame.maxX - windowSize.width - margin
+        case 0:  x = visibleFrame.minX + margins.left
+        case 2:  x = visibleFrame.maxX - windowSize.width - margins.right
         default: x = visibleFrame.midX - windowSize.width / 2
         }
         let y: CGFloat
         switch row {
-        case 0:  y = visibleFrame.minY + margin
-        case 2:  y = visibleFrame.maxY - windowSize.height - margin
+        case 0:  y = visibleFrame.minY + margins.bottom
+        case 2:  y = visibleFrame.maxY - windowSize.height - margins.top
         default: y = visibleFrame.midY - windowSize.height / 2
         }
         return CGPoint(x: x, y: y)

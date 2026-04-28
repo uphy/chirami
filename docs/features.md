@@ -42,7 +42,7 @@ Chirami renders Markdown in an Obsidian-style Live Preview: the block containing
 
 **Pin** — All notes show a pin button (📌) at the right end of the title bar. While pinned, the note stays visible even when focus moves to another window. Unpinned notes hide automatically when they lose focus. Pin state is persisted in state.yaml across restarts. Default: `cursor` notes start unpinned, `fixed` notes start pinned. Shortcut: **Cmd+Option+P**.
 
-**Window Warp** — While a note window is focused, press the warp modifier key (default: Ctrl+Option) + H/J/K/L or the arrow keys to instantly move the window to one of 9 positions in a 3×3 grid. The grid covers the screen with an 8pt margin at each edge. Movement wraps around at the edges — pressing H (or ←) at the left column jumps to the right column of the same row. The current grid position is inferred from the window's actual position, so warp works naturally after manual dragging. In multi-monitor setups, the window warps within the screen it currently occupies. Warp position is persisted across restarts. The same modifier also scales the window with `=` / `-`. The modifier key is configurable via `warp_modifier` in `config.yaml`.
+**Window Warp** — While a note window is focused, press the warp modifier key (default: Ctrl+Option) + H/J/K/L or the arrow keys to instantly move the window to one of 9 positions in a 3×3 grid. The grid uses configurable display-edge gaps (`warp_margin`), which default to 8pt on all four sides. Movement wraps around at the edges — pressing H (or ←) at the left column jumps to the right column of the same row. The current grid position is inferred from the window's actual position, so warp works naturally after manual dragging. In multi-monitor setups, the window warps within the screen it currently occupies. Warp position is persisted across restarts. The same modifier also scales the window with `=` / `-`. The modifier key is configurable via `warp_modifier` in `config.yaml`.
 
 ## Editor Features
 
@@ -100,7 +100,7 @@ excalidraw:
 
 **Font size** — Cmd+= / Cmd+- to increase or decrease the font size (range: 8–32).
 
-**Window size** — Press the warp modifier (default: Ctrl+Option) with `=` or `-` to scale the note window up or down while preserving its current aspect ratio. If the configured warp modifier conflicts with the built-in `Cmd+=` / `Cmd+-` font shortcuts, the font shortcuts take precedence.
+**Window size** — Press the warp modifier (default: Ctrl+Option) with `=` or `-` to scale the note window up or down while preserving its current aspect ratio. The resized frame is clamped within the same `warp_margin` display-edge gaps used by Window Warp and cursor-positioned notes. If the configured warp modifier conflicts with the built-in `Cmd+=` / `Cmd+-` font shortcuts, the font shortcuts take precedence.
 
 **Link click** — Click a rendered link to open it in the default browser.
 

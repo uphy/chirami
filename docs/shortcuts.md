@@ -32,6 +32,6 @@ title: Keyboard Shortcuts
 | Ctrl+Option+K / Ctrl+Option+↑ | Warp window up |
 | Ctrl+Option+J / Ctrl+Option+↓ | Warp window down |
 
-The default window-warp modifier shown above is configurable via `warp_modifier` in `config.yaml`; the same modifier also applies to window scaling with `=` / `-`.
+The default window-warp modifier shown above is configurable via `warp_modifier` in `config.yaml`; the same modifier also applies to window scaling with `=` / `-`. Display-edge gaps are configurable via `warp_margin`.
 
 Per-note and global hotkeys (configured in `config.yaml` via `hotkeys`) can toggle note visibility from any application.

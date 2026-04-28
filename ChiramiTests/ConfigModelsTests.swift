@@ -38,6 +38,53 @@ struct ChiramiConfigDragModifierTests {
     }
 }
 
+// MARK: - ChiramiConfig warpMargin
+
+@Suite("ChiramiConfig warp_margin field")
+struct ChiramiConfigWarpMarginTests {
+
+    @Test("warp_margin defaults to 8 on all edges when omitted")
+    func warpMarginDefaults() throws {
+        let yaml = """
+        notes: []
+        """
+        let config = try YAMLDecoder().decode(ChiramiConfig.self, from: yaml)
+        #expect(config.warpMargin == nil)
+        #expect(config.resolvedWarpMargin == ResolvedWarpMargin(config: nil))
+    }
+
+    @Test("warp_margin decodes partial values and falls back per edge")
+    func decodePartialWarpMargin() throws {
+        let yaml = """
+        warp_margin:
+          top: 24
+          right: 48
+        notes: []
+        """
+        let config = try YAMLDecoder().decode(ChiramiConfig.self, from: yaml)
+        #expect(config.warpMargin == WarpMarginConfig(top: 24, right: 48, bottom: nil, left: nil))
+        #expect(config.resolvedWarpMargin == ResolvedWarpMargin(
+            config: WarpMarginConfig(top: 24, right: 48, bottom: nil, left: nil)
+        ))
+    }
+
+    @Test("warp_margin negative values fall back to defaults")
+    func negativeWarpMarginFallsBack() throws {
+        let yaml = """
+        warp_margin:
+          top: -1
+          right: 12
+          bottom: -3
+          left: 0
+        notes: []
+        """
+        let config = try YAMLDecoder().decode(ChiramiConfig.self, from: yaml)
+        #expect(config.resolvedWarpMargin == ResolvedWarpMargin(
+            config: WarpMarginConfig(top: nil, right: 12, bottom: nil, left: 0)
+        ))
+    }
+}
+
 // MARK: - HotkeyBinding
 
 @Suite("Hotkey binding config")

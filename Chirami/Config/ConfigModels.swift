@@ -205,6 +205,7 @@ struct ChiramiConfig: Codable {
     var smartPaste: SmartPasteConfig?
     var dragModifier: String?
     var warpModifier: String?
+    var warpMargin: WarpMarginConfig?
     var excalidraw: ExcalidrawConfig?
     var transcript: TranscriptConfig?
 
@@ -215,11 +216,40 @@ struct ChiramiConfig: Codable {
         case smartPaste = "smart_paste"
         case dragModifier = "drag_modifier"
         case warpModifier = "warp_modifier"
+        case warpMargin = "warp_margin"
     }
+}
+
+struct WarpMarginConfig: Codable, Equatable {
+    var top: Double?
+    var right: Double?
+    var bottom: Double?
+    var left: Double?
 }
 
 #if canImport(AppKit)
 import AppKit
+
+struct ResolvedWarpMargin: Equatable {
+    static let defaultValue: CGFloat = 8
+
+    let top: CGFloat
+    let right: CGFloat
+    let bottom: CGFloat
+    let left: CGFloat
+
+    init(config: WarpMarginConfig?) {
+        top = Self.resolve(config?.top)
+        right = Self.resolve(config?.right)
+        bottom = Self.resolve(config?.bottom)
+        left = Self.resolve(config?.left)
+    }
+
+    private static func resolve(_ value: Double?) -> CGFloat {
+        guard let value, value >= 0 else { return defaultValue }
+        return CGFloat(value)
+    }
+}
 
 extension ChiramiConfig {
     var dragModifierFlags: NSEvent.ModifierFlags {
@@ -245,6 +275,10 @@ extension ChiramiConfig {
         }
         // Fall back to ctrl+option if no valid modifiers were parsed
         return flags.isEmpty ? [.control, .option] : flags
+    }
+
+    var resolvedWarpMargin: ResolvedWarpMargin {
+        ResolvedWarpMargin(config: warpMargin)
     }
 }
 
