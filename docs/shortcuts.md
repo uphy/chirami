@@ -22,6 +22,10 @@ title: Keyboard Shortcuts
 | Shift+Tab (with selection) | Dedent all selected lines |
 | Enter (on list item) | Continue list with next marker |
 | Enter (on empty list item) | End list |
+| Cmd+[ | Fold block at cursor |
+| Cmd+] | Unfold block at cursor |
+| Cmd+Shift+[ | Fold all blocks |
+| Cmd+Shift+] | Unfold all blocks |
 | Cmd+Enter (on link) | Open link or bare URL at caret |
 | Option+Enter (on link) | Open link or bare URL at caret |
 | Ctrl+A | Move cursor to content start (press again for line start) |

@@ -1,4 +1,4 @@
-import { syntaxTree, indentUnit } from "@codemirror/language";
+import { syntaxTree, indentUnit, foldCode, unfoldCode, foldAll, unfoldAll } from "@codemirror/language";
 import { EditorSelection } from "@codemirror/state";
 import { EditorView, KeyBinding } from "@codemirror/view";
 import { insertNewlineContinueMarkup } from "@codemirror/lang-markdown";
@@ -353,6 +353,10 @@ export const chiramiKeymap: KeyBinding[] = [
   { key: "Mod-i", run: (view) => wrapSelection(view, "*") },
   { key: "Mod-l", run: toggleTaskAtCursor },
   { key: "Mod-Enter", run: openLinkAtCursor },
+  { key: "Mod-[", run: foldCode },
+  { key: "Mod-]", run: unfoldCode },
+  { key: "Mod-Shift-[", run: foldAll },
+  { key: "Mod-Shift-]", run: unfoldAll },
 ];
 
 const SURROUND_PAIRS: Record<string, string> = {
