@@ -3,6 +3,14 @@ paths:
   - "editor-web/**"
 ---
 
+# Parsing Policy
+
+Minimize regex-based parsing. Regex fixes tend to be ad-hoc and brittle.
+
+- Prefer CodeMirror's syntax tree (`syntaxTree(state)`) for parsing Markdown structure
+- Use string operations only for simple, well-defined patterns
+- Never use regex as a substitute for proper AST traversal
+
 # CodeMirror Usage Policy
 
 Prefer standard HTML tags for rendering output. Minimize HTML/CSS hacks.
