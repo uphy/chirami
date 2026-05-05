@@ -107,6 +107,13 @@ function scheduleDeferredDecorationFlush(attempt = 0): void {
   }, 0);
 }
 
+function resetCompositionState(): void {
+  compositionDepth = 0;
+  syncCompositionClass();
+  scheduleDeferredDecorationFlush();
+  scheduleDeferredTranscriptFlush();
+}
+
 function dispatchTranscriptMutation(mutation: () => void): void {
   const epoch = transcriptMutationEpoch;
   if (isCompositionActive()) {
@@ -123,18 +130,24 @@ view.contentDOM.addEventListener("compositionstart", () => {
 });
 
 view.contentDOM.addEventListener("compositionend", () => {
-  compositionDepth = Math.max(0, compositionDepth - 1);
-  syncCompositionClass();
-  scheduleDeferredDecorationFlush();
-  scheduleDeferredTranscriptFlush();
+  resetCompositionState();
 });
 
 view.contentDOM.addEventListener("blur", () => {
-  compositionDepth = 0;
-  syncCompositionClass();
-  scheduleDeferredDecorationFlush();
-  scheduleDeferredTranscriptFlush();
+  resetCompositionState();
 });
+
+// Recovery guard: on macOS, compositionend can be dropped when the IME is toggled
+// via external tools like Karabiner Elements. If CodeMirror reports no active
+// composition but our depth counter is still elevated, reset it so the
+// chirami-ime-composing class (which hides selection) is cleared.
+view.contentDOM.addEventListener("keydown", () => {
+  if (compositionDepth > 0 && !view.composing) {
+    compositionDepth = 0;
+    syncCompositionClass();
+    flushDeferredDecorations();
+  }
+}, true);
 
 exposeApi({
   setContent: (text) => {
