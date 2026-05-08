@@ -1,8 +1,11 @@
 import { syntaxTree, indentUnit, foldCode, unfoldCode, foldAll, unfoldAll } from "@codemirror/language";
 import { EditorSelection } from "@codemirror/state";
 import { EditorView, KeyBinding } from "@codemirror/view";
-import { insertNewlineContinueMarkup } from "@codemirror/lang-markdown";
+import { insertNewlineContinueMarkupCommand } from "@codemirror/lang-markdown";
 import { postToSwift } from "../bridge";
+
+// Always dedent on empty list items instead of converting to a loose list.
+const continueMarkup = insertNewlineContinueMarkupCommand({ nonTightLists: false });
 
 const LIST_ITEM_RE = /^([ \t]*)([-*+])([ \t]+)/;
 const TASK_ITEM_RE = /^\[(?: |x|X)\][ \t]*/;
@@ -97,7 +100,7 @@ function tightListEnter(view: EditorView): boolean {
     nextLineNum <= state.doc.lines &&
     state.doc.line(nextLineNum).text.trim() === "";
 
-  const result = insertNewlineContinueMarkup(view);
+  const result = continueMarkup(view);
   if (!result) return false;
 
   // If the list was tight and a blank line was unexpectedly inserted, remove it.
