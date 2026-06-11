@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
     "build": "npm run typecheck && esbuild src/main.ts --bundle --minify --sourcemap --loader:.tsx=tsx --jsx=automatic --outfile=../Chirami/Resources/editor/bundle.js && esbuild src/style.css --bundle --minify --loader:.woff=file --loader:.woff2=file --outfile=../Chirami/Resources/editor/bundle.css && node scripts/copy-html.js",
     "dev": "esbuild src/main.ts --bundle --watch --loader:.tsx=tsx --jsx=automatic --outfile=../Chirami/Resources/editor/bundle.js"
   },
@@ -15,10 +16,10 @@
     "@codemirror/search": "^6",
     "@codemirror/state": "^6",
     "@codemirror/view": "^6",
+    "@excalidraw/excalidraw": "^0.18.0",
     "@lezer/highlight": "^1",
     "@lezer/markdown": "^1",
     "mermaid": "^11.14.0",
-    "@excalidraw/excalidraw": "^0.18.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "turndown": "^7",
@@ -29,6 +30,7 @@
     "@types/react-dom": "^19.2.3",
     "@types/turndown": "^5",
     "esbuild": "^0.21",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.8"
   }
 }

@@ -125,7 +125,7 @@ function currentSessionLines(text: string): string[] {
   return lines.slice(sessionStart).filter((line) => line.trim() !== "---");
 }
 
-type TranscriptPreviewRow = {
+export type TranscriptPreviewRow = {
   time: string;
   speaker: string;
   text: string;
@@ -309,7 +309,7 @@ function buildFallbackPreview(
   return previewLines.join("\n");
 }
 
-function buildTranscriptPreviewRows(
+export function buildTranscriptPreviewRows(
   text: string,
   status: TranscriptStatus,
   previewText?: string,

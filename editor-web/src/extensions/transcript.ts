@@ -332,7 +332,7 @@ export function parseTranscriptLineTimestampSeconds(line: string): number | null
   return new Date(year, month - 1, day, hour, minute, second).getTime() / 1000;
 }
 
-function insertTranscriptLineInOrder(rawText: string, payload: TranscriptChunkPayload): string {
+export function insertTranscriptLineInOrder(rawText: string, payload: TranscriptChunkPayload): string {
   const trimmedLine = payload.text.trimEnd();
   if (rawText.length === 0) {
     return `${trimmedLine}\n`;
