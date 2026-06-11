@@ -1,9 +1,8 @@
 import { syntaxTree } from "@codemirror/language";
-import { Prec, Range, StateField } from "@codemirror/state";
+import { EditorState, Prec, Range, StateField } from "@codemirror/state";
 import {
   Decoration,
   DecorationSet,
-  EditorState,
   EditorView,
   WidgetType,
   keymap,

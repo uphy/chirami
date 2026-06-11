@@ -100,8 +100,6 @@ export interface EditorContextOptions {
 
 type SwiftToJsApi = {
   setContent: (text: string) => void;
-  setTheme: (cssVars: string) => void;
-  setFont: (family: string, size: number) => void;
   focus: () => void;
   setWindowActive: (active: boolean) => void;
   setCursorPosition: (offset: number) => void;

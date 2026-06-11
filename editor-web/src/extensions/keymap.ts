@@ -42,7 +42,8 @@ function normalizeCursorToListContent(view: EditorView): void {
 }
 
 function isInListItemContext(view: EditorView, pos: number, lineFrom: number): boolean {
-  for (let node = syntaxTree(view.state).resolveInner(pos, -1); node; node = node.parent) {
+  const start = syntaxTree(view.state).resolveInner(pos, -1);
+  for (let node: typeof start | null = start; node; node = node.parent) {
     if (node.name !== "ListItem") continue;
     return view.state.doc.lineAt(node.from).from === lineFrom;
   }

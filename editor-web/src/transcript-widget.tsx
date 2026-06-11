@@ -36,8 +36,11 @@ export interface TranscriptWidgetSnapshot {
 }
 
 export interface TranscriptWidgetRuntimePatch {
+  status?: TranscriptStatus;
   micDevice?: TranscriptDeviceSnapshot;
   systemDevice?: TranscriptDeviceSnapshot;
+  downloadProgress?: TranscriptDownloadProgress;
+  errorMessage?: string;
 }
 
 export interface TranscriptWidgetUiPatch {

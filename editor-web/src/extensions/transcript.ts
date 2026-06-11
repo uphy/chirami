@@ -22,6 +22,7 @@ import { cursorLineFromState, parseCodeBlockInfo, transactionHasWindowActiveEffe
 import {
   createTranscriptWidget,
   TranscriptWidgetUiPatch,
+  TranscriptWidgetRoot,
   TranscriptWidgetRuntimePatch,
   TranscriptWidgetSnapshot,
 } from "../transcript-widget";
