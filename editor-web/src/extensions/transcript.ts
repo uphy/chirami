@@ -3,17 +3,11 @@ import { Annotation, EditorState, Range, StateEffect, StateField, Transaction } 
 import { Decoration, DecorationSet, EditorView, WidgetType } from "@codemirror/view";
 import {
   TranscriptBlockRange,
-  TranscriptDeviceOption,
-  TranscriptDeviceSnapshot,
   TranscriptDevicesListPayload,
-  TranscriptDownloadProgress,
   TranscriptErrorPayload,
   TranscriptLevelPayload,
-  TranscriptModelMetadata,
   TranscriptModelStatePayload,
   TranscriptStatePayload,
-  TranscriptStatus,
-  TranscriptSource,
   TranscriptModelDownloadProgressPayload,
   TranscriptChunkPayload,
   TranscriptPreviewPayload,
@@ -21,9 +15,9 @@ import {
 import { cursorLineFromState, parseCodeBlockInfo, transactionHasWindowActiveEffect } from "./utils";
 import {
   createTranscriptWidget,
-  TranscriptWidgetUiPatch,
+  sameTranscriptWidgetSnapshot,
   TranscriptWidgetRoot,
-  TranscriptWidgetRuntimePatch,
+  TranscriptWidgetRuntimeState,
   TranscriptWidgetSnapshot,
 } from "../transcript-widget";
 
@@ -36,31 +30,14 @@ export interface TranscriptBlockRef {
   lineCount: number;
 }
 
-interface TranscriptRuntimeState {
-  status: TranscriptStatus;
-  modelLabel: string;
-  modelValue: string;
-  modelMetadata?: TranscriptModelMetadata;
+/**
+ * Single source of truth for per-block transcript state, stored in
+ * transcriptRuntimeField keyed by blockFrom. `liveText` is the only field
+ * that is not handed to the widget verbatim (it is folded into the snapshot
+ * text in buildWidgetSnapshot).
+ */
+interface TranscriptRuntimeState extends TranscriptWidgetRuntimeState {
   liveText?: string;
-  previewText?: string;
-  micDevice: TranscriptDeviceSnapshot;
-  systemDevice: TranscriptDeviceSnapshot;
-  micLevel: number;
-  systemLevel: number;
-  downloadProgress?: TranscriptDownloadProgress;
-  errorMessage?: string;
-  models: TranscriptDeviceOption[];
-  micDevices: TranscriptDeviceOption[];
-  systemDevices: TranscriptDeviceOption[];
-  devicesRevision: number;
-}
-
-interface TranscriptUiState {
-  settingsPanelOpen?: boolean;
-  minimized?: boolean;
-  modelDropdownOpen?: boolean;
-  deviceDropdownSource?: TranscriptSource;
-  deviceRequestSource?: TranscriptSource;
 }
 
 export const transcriptImmediateSaveAnnotation = Annotation.define<boolean>();
@@ -70,10 +47,6 @@ interface TranscriptRuntimeUpdate {
   patch: Partial<TranscriptRuntimeState>;
 }
 
-function hasOwn<K extends PropertyKey>(value: object, key: K): boolean {
-  return Object.prototype.hasOwnProperty.call(value, key);
-}
-
 const transcriptRuntimeEffect = StateEffect.define<TranscriptRuntimeUpdate>();
 
 function defaultRuntimeState(block: TranscriptBlockRef): TranscriptRuntimeState {
@@ -81,8 +54,6 @@ function defaultRuntimeState(block: TranscriptBlockRef): TranscriptRuntimeState 
     status: block.text.trim().length > 0 ? "Completed" : "Idle",
     modelLabel: "Configured model",
     modelValue: "",
-    modelMetadata: undefined,
-    previewText: undefined,
     micDevice: { value: "default", label: "Default" },
     systemDevice: { value: "all", label: "All System Audio" },
     micLevel: 0,
@@ -92,59 +63,6 @@ function defaultRuntimeState(block: TranscriptBlockRef): TranscriptRuntimeState 
     models: [],
     devicesRevision: 0,
   };
-}
-
-function cloneRuntimeState(runtime: TranscriptRuntimeState): TranscriptRuntimeState {
-  return {
-    ...runtime,
-    modelMetadata: runtime.modelMetadata ? { ...runtime.modelMetadata } : undefined,
-    liveText: runtime.liveText,
-    micDevice: { ...runtime.micDevice },
-    systemDevice: { ...runtime.systemDevice },
-    micDevices: runtime.micDevices.map((device) => ({ ...device })),
-    systemDevices: runtime.systemDevices.map((device) => ({ ...device })),
-    downloadProgress: runtime.downloadProgress ? { ...runtime.downloadProgress } : undefined,
-    previewText: runtime.previewText,
-    models: runtime.models.map((model) => ({ ...model })),
-  };
-}
-
-const transcriptUiState = new Map<number, TranscriptUiState>();
-
-function readUiState(blockFrom: number): TranscriptUiState {
-  return transcriptUiState.get(blockFrom) ?? {
-    settingsPanelOpen: undefined,
-    minimized: undefined,
-    modelDropdownOpen: undefined,
-    deviceDropdownSource: undefined,
-    deviceRequestSource: undefined,
-  };
-}
-
-function writeUiState(blockFrom: number, patch: TranscriptWidgetUiPatch): void {
-  const current = readUiState(blockFrom);
-  transcriptUiState.set(blockFrom, {
-    settingsPanelOpen:
-      Object.prototype.hasOwnProperty.call(patch, "settingsPanelOpen")
-        ? patch.settingsPanelOpen
-        : current.settingsPanelOpen,
-    minimized:
-      Object.prototype.hasOwnProperty.call(patch, "minimized")
-        ? patch.minimized
-        : current.minimized,
-    modelDropdownOpen:
-      Object.prototype.hasOwnProperty.call(patch, "modelDropdownOpen")
-        ? patch.modelDropdownOpen
-        : current.modelDropdownOpen,
-    deviceDropdownSource:
-      Object.prototype.hasOwnProperty.call(patch, "deviceDropdownSource")
-        ? patch.deviceDropdownSource
-        : current.deviceDropdownSource,
-    deviceRequestSource:
-      Object.prototype.hasOwnProperty.call(patch, "deviceRequestSource")
-        ? patch.deviceRequestSource
-        : current.deviceRequestSource,
-  });
 }
 
 function findTranscriptBlock(state: EditorState, range: TranscriptBlockRange): TranscriptBlockRef | undefined {
@@ -174,80 +92,16 @@ function resolveTranscriptBlock(state: EditorState, range: TranscriptBlockRange)
 }
 
 
-function buildPreview(text: string): string {
-  const lines = text
-    .split(/\r?\n/)
-    .map((line) => line.trimEnd())
-    .filter((line) => line.trim().length > 0);
-  if (lines.length === 0) {
-    return "Press Start to begin a new transcript.";
-  }
-  const previewLines = lines.slice(0, 3);
-  if (lines.length > previewLines.length) {
-    previewLines.push("...");
-  }
-  return previewLines.join("\n");
-}
-
 function buildWidgetSnapshot(block: TranscriptBlockRef, runtime: TranscriptRuntimeState): TranscriptWidgetSnapshot {
-  const ui = readUiState(block.blockFrom);
-  const displayText = runtime.liveText ?? block.text;
+  const { liveText, ...shared } = runtime;
+  const displayText = liveText ?? block.text;
   const displayLineCount = displayText.trim().length === 0 ? 0 : displayText.split(/\r?\n/).length;
   return {
+    ...shared,
     range: { blockFrom: block.blockFrom, blockTo: block.blockTo },
     text: displayText,
     lineCount: displayLineCount,
-    status: runtime.status,
-    modelLabel: runtime.modelLabel,
-    currentModelValue: runtime.modelValue,
-    modelMetadata: runtime.modelMetadata,
-    models: runtime.models,
-    previewText: runtime.previewText,
-    micDevice: runtime.micDevice,
-    systemDevice: runtime.systemDevice,
-    micLevel: runtime.micLevel,
-    systemLevel: runtime.systemLevel,
-    downloadProgress: runtime.downloadProgress,
-    errorMessage: runtime.errorMessage,
-    micDevices: runtime.micDevices,
-    systemDevices: runtime.systemDevices,
-    devicesRevision: runtime.devicesRevision,
-    settingsPanelOpen: ui.settingsPanelOpen,
-    minimized: ui.minimized,
-    deviceDropdownSource: ui.deviceDropdownSource,
-    deviceRequestSource: ui.deviceRequestSource,
-    modelDropdownOpen: ui.modelDropdownOpen,
   };
-}
-
-function sameDeviceOptions(left: TranscriptDeviceOption[], right: TranscriptDeviceOption[]): boolean {
-  if (left.length !== right.length) return false;
-  return left.every((device, index) => {
-    const other = right[index];
-    return (
-      device.value === other.value &&
-      device.label === other.label &&
-      (device.detail ?? "") === (other.detail ?? "") &&
-      (device.active ?? false) === (other.active ?? false)
-    );
-  });
-}
-
-function sameModelOptions(left: TranscriptDeviceOption[], right: TranscriptDeviceOption[]): boolean {
-  return sameDeviceOptions(left, right);
-}
-
-function sameModelMetadata(left?: TranscriptModelMetadata, right?: TranscriptModelMetadata): boolean {
-  if (!left && !right) return true;
-  if (!left || !right) return false;
-  return (
-    (left.detail ?? "") === (right.detail ?? "") &&
-    (left.kindLabel ?? "") === (right.kindLabel ?? "") &&
-    (left.configuredLanguage ?? "") === (right.configuredLanguage ?? "") &&
-    (left.installed ?? false) === (right.installed ?? false) &&
-    (left.installedSizeBytes ?? 0) === (right.installedSizeBytes ?? 0) &&
-    JSON.stringify(left.supportedLanguages ?? []) === JSON.stringify(right.supportedLanguages ?? [])
-  );
 }
 
 class TranscriptBlockWidget extends WidgetType {
@@ -258,47 +112,17 @@ class TranscriptBlockWidget extends WidgetType {
   }
 
   eq(other: TranscriptBlockWidget): boolean {
-    return (
-      other.snapshot.text === this.snapshot.text &&
-      other.snapshot.lineCount === this.snapshot.lineCount &&
-      other.snapshot.range.blockFrom === this.snapshot.range.blockFrom &&
-      other.snapshot.range.blockTo === this.snapshot.range.blockTo &&
-      other.snapshot.status === this.snapshot.status &&
-      other.snapshot.modelLabel === this.snapshot.modelLabel &&
-      other.snapshot.currentModelValue === this.snapshot.currentModelValue &&
-      sameModelMetadata(other.snapshot.modelMetadata, this.snapshot.modelMetadata) &&
-      other.snapshot.micLevel === this.snapshot.micLevel &&
-      other.snapshot.systemLevel === this.snapshot.systemLevel &&
-      other.snapshot.errorMessage === this.snapshot.errorMessage &&
-      other.snapshot.downloadProgress?.fractionCompleted === this.snapshot.downloadProgress?.fractionCompleted &&
-      other.snapshot.downloadProgress?.receivedBytes === this.snapshot.downloadProgress?.receivedBytes &&
-      other.snapshot.downloadProgress?.totalBytes === this.snapshot.downloadProgress?.totalBytes &&
-      other.snapshot.downloadProgress?.stage === this.snapshot.downloadProgress?.stage &&
-      sameModelOptions(other.snapshot.models, this.snapshot.models) &&
-      sameDeviceOptions(other.snapshot.micDevices, this.snapshot.micDevices) &&
-      sameDeviceOptions(other.snapshot.systemDevices, this.snapshot.systemDevices) &&
-      other.snapshot.settingsPanelOpen === this.snapshot.settingsPanelOpen &&
-      other.snapshot.minimized === this.snapshot.minimized &&
-      other.snapshot.modelDropdownOpen === this.snapshot.modelDropdownOpen &&
-      other.snapshot.deviceDropdownSource === this.snapshot.deviceDropdownSource &&
-      other.snapshot.deviceRequestSource === this.snapshot.deviceRequestSource
-    );
+    return sameTranscriptWidgetSnapshot(this.snapshot, other.snapshot);
   }
 
-  toDOM(_view: EditorView): HTMLElement {
+  toDOM(view: EditorView): HTMLElement {
     return createTranscriptWidget(
       this.snapshot,
-      (range: TranscriptBlockRange, patch: TranscriptWidgetRuntimePatch) => {
-        dispatchRuntimeUpdate(_view, {
-          range,
-          patch,
-        });
-      },
-      (range: TranscriptBlockRange, patch: TranscriptWidgetUiPatch) => {
-        writeUiState(range.blockFrom, patch);
+      (range, patch) => {
+        dispatchRuntimeUpdate(view, { range, patch });
       },
       () => {
-        _view.requestMeasure();
+        view.requestMeasure();
       },
     );
   }
@@ -365,13 +189,7 @@ const transcriptRuntimeField = StateField.define<Map<number, TranscriptRuntimeSt
     if (tr.docChanged) {
       next = new Map<number, TranscriptRuntimeState>();
       for (const [key, value] of runtime.entries()) {
-        const mappedKey = tr.changes.mapPos(key, 1);
-        next.set(mappedKey, cloneRuntimeState(value));
-        const ui = transcriptUiState.get(key);
-        if (ui) {
-          transcriptUiState.delete(key);
-          transcriptUiState.set(mappedKey, ui);
-        }
+        next.set(tr.changes.mapPos(key, 1), value);
       }
       changed = true;
     }
@@ -382,38 +200,19 @@ const transcriptRuntimeField = StateField.define<Map<number, TranscriptRuntimeSt
         changed = true;
       }
       const key = effect.value.range.blockFrom;
-      const current = next.get(key);
-      const base = current ?? {
-        ...defaultRuntimeState({
-          text: "",
-          codeFrom: effect.value.range.blockFrom,
-          codeTo: effect.value.range.blockFrom,
-          blockFrom: effect.value.range.blockFrom,
-          blockTo: effect.value.range.blockTo,
-          lineCount: 0,
-        }),
-      };
-      const merged = {
-        ...base,
-        ...effect.value.patch,
-        micDevice: effect.value.patch.micDevice ? { ...effect.value.patch.micDevice } : base.micDevice,
-        systemDevice: effect.value.patch.systemDevice ? { ...effect.value.patch.systemDevice } : base.systemDevice,
-        models: effect.value.patch.models ? effect.value.patch.models.map((d) => ({ ...d })) : base.models,
-        micDevices: effect.value.patch.micDevices ? effect.value.patch.micDevices.map((d) => ({ ...d })) : base.micDevices,
-        systemDevices: effect.value.patch.systemDevices ? effect.value.patch.systemDevices.map((d) => ({ ...d })) : base.systemDevices,
-        previewText: hasOwn(effect.value.patch, "previewText")
-          ? effect.value.patch.previewText
-          : base.previewText,
-        downloadProgress: hasOwn(effect.value.patch, "downloadProgress")
-          ? (effect.value.patch.downloadProgress
-              ? { ...effect.value.patch.downloadProgress }
-              : undefined)
-          : base.downloadProgress,
-        errorMessage: hasOwn(effect.value.patch, "errorMessage")
-          ? effect.value.patch.errorMessage
-          : base.errorMessage,
-        devicesRevision: base.devicesRevision + 1,
-      } satisfies TranscriptRuntimeState;
+      const base = next.get(key) ?? defaultRuntimeState({
+        text: "",
+        codeFrom: effect.value.range.blockFrom,
+        codeTo: effect.value.range.blockFrom,
+        blockFrom: effect.value.range.blockFrom,
+        blockTo: effect.value.range.blockTo,
+        lineCount: 0,
+      });
+      // Mechanical merge: patch keys (including ones explicitly set to
+      // undefined) override the base by object spread, then the whole record
+      // is cloned so stored state never aliases payload objects.
+      const merged: TranscriptRuntimeState = structuredClone({ ...base, ...effect.value.patch });
+      merged.devicesRevision = base.devicesRevision + 1;
       next.set(key, merged);
     }
     return changed ? next : runtime;
@@ -422,27 +221,26 @@ const transcriptRuntimeField = StateField.define<Map<number, TranscriptRuntimeSt
 
 function buildDecorations(state: EditorState): DecorationSet {
   const cursorLine = cursorLineFromState(state);
-  const runtime = state.field(transcriptRuntimeField);
+  const runtimeMap = state.field(transcriptRuntimeField);
   const decorations: Range<Decoration>[] = [];
 
   for (const block of state.field(transcriptBlocksField)) {
     const startLine = state.doc.lineAt(block.blockFrom);
     const endLine = state.doc.lineAt(block.blockTo);
     const cursorInside = cursorLine >= startLine.number && cursorLine <= endLine.number;
-    const ui = readUiState(block.blockFrom);
+    const runtime = runtimeMap.get(block.blockFrom) ?? defaultRuntimeState(block);
     const keepRenderedWhileInteracting =
-      ui.settingsPanelOpen === true ||
-      ui.modelDropdownOpen === true ||
-      ui.deviceDropdownSource !== undefined ||
-      ui.deviceRequestSource !== undefined;
+      runtime.settingsPanelOpen === true ||
+      runtime.modelDropdownOpen === true ||
+      runtime.deviceDropdownSource !== undefined ||
+      runtime.deviceRequestSource !== undefined;
     if (cursorInside && !keepRenderedWhileInteracting) {
       continue;
     }
 
-    const snapshot = buildWidgetSnapshot(block, runtime.get(block.blockFrom) ?? defaultRuntimeState(block));
     decorations.push(
       Decoration.replace({
-        widget: new TranscriptBlockWidget(snapshot),
+        widget: new TranscriptBlockWidget(buildWidgetSnapshot(block, runtime)),
         block: true,
       }).range(startLine.from, endLine.to),
     );
@@ -451,33 +249,20 @@ function buildDecorations(state: EditorState): DecorationSet {
   return decorations.length > 0 ? Decoration.set(decorations) : Decoration.none;
 }
 
-function applySnapshotToRenderedBlock(view: EditorView, range: TranscriptBlockRange): void {
-  const updatedBlock = findTranscriptBlock(view.state, range);
-  if (!updatedBlock) return;
-  const runtime = view.state.field(transcriptRuntimeField).get(updatedBlock.blockFrom) ?? defaultRuntimeState(updatedBlock);
-  const snapshot = buildWidgetSnapshot(updatedBlock, runtime);
-  const selector = `.cm-transcript-container[data-block-from="${updatedBlock.blockFrom}"]`;
-  const root = document.querySelector(selector) as TranscriptWidgetRoot | null;
-  root?.__chiramiTranscriptApplySnapshot?.(snapshot);
-}
-
 const transcriptDecorations = StateField.define<DecorationSet>({
   create: buildDecorations,
   update: (decorations, tr) => {
-    if (tr.annotation(transcriptImmediateSaveAnnotation) === true) {
-      return decorations.map(tr.changes);
-    }
-
+    // Rebuild whenever the doc, the selection, or the runtime state changes.
+    // Rendered widgets are kept alive across rebuilds because eq() compares
+    // full snapshots and updateDOM() applies the new snapshot to the existing
+    // DOM instead of recreating it.
     const needsRebuild =
       transactionHasWindowActiveEffect(tr) ||
       tr.docChanged ||
-      tr.startState.selection.main.head !== tr.state.selection.main.head;
+      tr.startState.selection.main.head !== tr.state.selection.main.head ||
+      tr.effects.some((effect) => effect.is(transcriptRuntimeEffect));
     if (needsRebuild) {
       return buildDecorations(tr.state);
-    }
-
-    if (tr.effects.some((effect) => effect.is(transcriptRuntimeEffect))) {
-      return decorations;
     }
 
     return decorations.map(tr.changes);
@@ -599,7 +384,6 @@ export function appendTranscriptChunk(view: EditorView, payload: TranscriptChunk
       },
     }),
   });
-  applySnapshotToRenderedBlock(view, payload.range);
   return true;
 }
 
@@ -612,19 +396,12 @@ export function updateTranscriptPreview(view: EditorView, payload: TranscriptPre
       previewText: payload.text,
     },
   });
-  applySnapshotToRenderedBlock(view, payload.range);
   return true;
 }
 
 export function clearTranscriptBlock(view: EditorView, range: TranscriptBlockRange): boolean {
   const block = resolveTranscriptBlock(view.state, range);
   if (!block) return false;
-  transcriptUiState.set(block.blockFrom, {
-    settingsPanelOpen: undefined,
-    modelDropdownOpen: undefined,
-    deviceDropdownSource: undefined,
-    deviceRequestSource: undefined,
-  });
   dispatchTranscriptContentChange(view, {
     changes: { from: block.codeFrom, to: block.codeTo, insert: "" },
     annotations: [transcriptImmediateSaveAnnotation.of(true), Transaction.addToHistory.of(false)],
@@ -639,9 +416,13 @@ export function clearTranscriptBlock(view: EditorView, range: TranscriptBlockRan
       downloadProgress: undefined,
       micLevel: 0,
       systemLevel: 0,
+      settingsPanelOpen: undefined,
+      minimized: undefined,
+      modelDropdownOpen: undefined,
+      deviceDropdownSource: undefined,
+      deviceRequestSource: undefined,
     },
   });
-  applySnapshotToRenderedBlock(view, range);
   return true;
 }
 
@@ -674,14 +455,12 @@ export function updateTranscriptState(view: EditorView, payload: TranscriptState
       },
     }),
   });
-  applySnapshotToRenderedBlock(view, payload.range);
   return true;
 }
 
 export function updateTranscriptLevel(view: EditorView, payload: TranscriptLevelPayload): boolean {
   const block = resolveTranscriptBlock(view.state, payload.range);
   if (!block) return false;
-  const current = view.state.field(transcriptRuntimeField).get(block.blockFrom) ?? defaultRuntimeState(block);
   const patch =
     payload.source === "mic"
       ? { micLevel: payload.level }
@@ -690,14 +469,12 @@ export function updateTranscriptLevel(view: EditorView, payload: TranscriptLevel
     range: { blockFrom: block.blockFrom, blockTo: block.blockTo },
     patch,
   });
-  applySnapshotToRenderedBlock(view, payload.range);
   return true;
 }
 
 export function updateTranscriptDevices(view: EditorView, payload: TranscriptDevicesListPayload): boolean {
   const block = resolveTranscriptBlock(view.state, payload.range);
   if (!block) return false;
-  writeUiState(block.blockFrom, { deviceRequestSource: undefined });
   const current = view.state.field(transcriptRuntimeField).get(block.blockFrom) ?? defaultRuntimeState(block);
   const devices = payload.devices.map((device) => ({ ...device }));
   const selectedValue = payload.selectedValue ?? (payload.source === "mic" ? current.micDevice.value : current.systemDevice.value);
@@ -717,13 +494,14 @@ export function updateTranscriptDevices(view: EditorView, payload: TranscriptDev
         ? {
             micDevices: devices,
             micDevice: { value: selectedDevice.value, label: selectedDevice.label },
+            deviceRequestSource: undefined,
           }
         : {
             systemDevices: devices,
             systemDevice: { value: selectedDevice.value, label: selectedDevice.label },
+            deviceRequestSource: undefined,
           },
   });
-  applySnapshotToRenderedBlock(view, payload.range);
   view.requestMeasure();
   return true;
 }
@@ -741,7 +519,6 @@ export function updateTranscriptModelState(view: EditorView, payload: Transcript
       models,
     },
   });
-  applySnapshotToRenderedBlock(view, payload.range);
   view.requestMeasure();
   return true;
 }
@@ -760,7 +537,6 @@ export function updateTranscriptModelDownloadProgress(view: EditorView, payload:
       downloadProgress: isClearingProgress ? undefined : { ...payload.progress },
     },
   });
-  applySnapshotToRenderedBlock(view, payload.range);
   return true;
 }
 
@@ -776,7 +552,6 @@ export function updateTranscriptError(view: EditorView, payload: TranscriptError
       errorMessage: payload.message,
     },
   });
-  applySnapshotToRenderedBlock(view, payload.range);
   return true;
 }
 
