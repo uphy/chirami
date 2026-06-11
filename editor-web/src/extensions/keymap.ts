@@ -194,43 +194,6 @@ function toggleTaskAtCursor(view: EditorView): boolean {
   return true;
 }
 
-function hasListMarkOnLine(view: EditorView, from: number, to: number): boolean {
-  let found = false;
-  syntaxTree(view.state).iterate({
-    from,
-    to,
-    enter: (node) => {
-      if (node.name === "ListMark") {
-        found = true;
-        return false;
-      }
-    },
-  });
-  return found;
-}
-
-function moveVerticalOnListLine(view: EditorView, dir: 1 | -1): boolean {
-  const state = view.state;
-  const sel = state.selection.main;
-  if (!sel.empty) return false;
-
-  const curLine = state.doc.lineAt(sel.head);
-  if (!hasListMarkOnLine(view, curLine.from, curLine.to)) return false;
-
-  const targetLineNum = curLine.number + dir;
-  if (targetLineNum < 1 || targetLineNum > state.doc.lines) return false;
-
-  const targetLine = state.doc.line(targetLineNum);
-  const col = sel.head - curLine.from;
-  const targetPos = targetLine.from + Math.min(col, targetLine.length);
-
-  view.dispatch({
-    selection: EditorSelection.cursor(targetPos),
-    scrollIntoView: true,
-  });
-  return true;
-}
-
 // Shared setup for indent/dedent: resolves the list item context at the cursor.
 // Returns null if the cursor is not on a list item or the selection is non-empty.
 function resolveListItemContext(view: EditorView) {
@@ -350,8 +313,6 @@ export const tightListEnterKeymap: KeyBinding[] = [
 
 export const chiramiKeymap: KeyBinding[] = [
   { key: "Tab", run: indentListItem, shift: dedentListItem },
-  { key: "ArrowDown", run: (view) => moveVerticalOnListLine(view, 1) },
-  { key: "ArrowUp", run: (view) => moveVerticalOnListLine(view, -1) },
   { key: "Mod-b", run: (view) => wrapSelection(view, "**") },
   { key: "Mod-i", run: (view) => wrapSelection(view, "*") },
   { key: "Mod-l", run: toggleTaskAtCursor },
