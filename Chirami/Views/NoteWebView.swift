@@ -40,15 +40,12 @@ final class NoteWebView: NSView {
     var onOpenLink: ((URL) -> Void)?
     var onPasteImage: ((String) -> Void)?  // dataUrl
     var onFoldChanged: (([Int]) -> Void)?  // 1-based line numbers
-    var onTranscriptRecordStart: ((TranscriptRecordStartMessage) -> Void)?
-    var onTranscriptRecordStop: ((TranscriptBlockRange) -> Void)?
-    var onTranscriptRecordClear: ((TranscriptBlockRange) -> Void)?
-    var onTranscriptLevelMonitorStart: ((TranscriptLevelMonitorStartMessage) -> Void)?
-    var onTranscriptLevelMonitorStop: ((TranscriptBlockRange) -> Void)?
-    var onTranscriptDevicesRequest: ((TranscriptDevicesRequestMessage) -> Void)?
-    var onTranscriptDeviceSelect: ((TranscriptDeviceSelectionMessage) -> Void)?
-    var onTranscriptModelRequest: ((TranscriptModelRequestMessage) -> Void)?
-    var onTranscriptModelSelect: ((TranscriptModelSelectionMessage) -> Void)?
+    /// JS -> Swift transcript dispatch target, forwarded to the bridge.
+    /// The bridge holds it weakly; see `NoteWebViewBridge.transcriptEventHandler`.
+    var transcriptEventHandler: TranscriptEventHandler? {
+        get { bridge.transcriptEventHandler }
+        set { bridge.transcriptEventHandler = newValue }
+    }
     /// Fires once after the editor is ready and the NSPanel background has been synced
     /// to the theme's `--chirami-bg`. Lets the window controller defer fade-in until the
     /// final theme colour is in place, avoiding a default-yellow flash at startup.
@@ -151,15 +148,6 @@ final class NoteWebView: NSView {
         bridge.onPluginStateChanged = { pluginId, stateJson in
             PluginStateStore.shared.save(pluginId: pluginId, json: stateJson)
         }
-        bridge.onTranscriptRecordStart = { [weak self] message in self?.onTranscriptRecordStart?(message) }
-        bridge.onTranscriptRecordStop = { [weak self] range in self?.onTranscriptRecordStop?(range) }
-        bridge.onTranscriptRecordClear = { [weak self] range in self?.onTranscriptRecordClear?(range) }
-        bridge.onTranscriptLevelMonitorStart = { [weak self] message in self?.onTranscriptLevelMonitorStart?(message) }
-        bridge.onTranscriptLevelMonitorStop = { [weak self] range in self?.onTranscriptLevelMonitorStop?(range) }
-        bridge.onTranscriptDevicesRequest = { [weak self] request in self?.onTranscriptDevicesRequest?(request) }
-        bridge.onTranscriptDeviceSelect = { [weak self] selection in self?.onTranscriptDeviceSelect?(selection) }
-        bridge.onTranscriptModelRequest = { [weak self] request in self?.onTranscriptModelRequest?(request) }
-        bridge.onTranscriptModelSelect = { [weak self] selection in self?.onTranscriptModelSelect?(selection) }
 
         webView.translatesAutoresizingMaskIntoConstraints = false
         addSubview(webView)
@@ -633,6 +621,12 @@ final class NoteWebView: NSView {
     }
 }
 
+// MARK: - TranscriptMessageSink conformance
+
+/// Declaration-only: the transcript* sender methods are defined in the class
+/// body above so `evaluateTranscriptMethod`'s pre-ready queueing is unchanged.
+extension NoteWebView: TranscriptMessageSink {}
+
 // MARK: - FirstMouseWKWebView
 
 /// A WKWebView subclass that accepts the first mouse click even when the window is not key.
@@ -670,57 +664,11 @@ struct NoteWebViewRepresentable: NSViewRepresentable {
         view.onFoldChanged = { [model] lines in
             model.updateFoldingState(lines: lines)
         }
-        view.onTranscriptRecordStart = { [model] message in
-            model.onTranscriptRecordStart?(message)
-        }
-        view.onTranscriptRecordStop = { [model] range in
-            model.onTranscriptRecordStop?(range)
-        }
-        view.onTranscriptRecordClear = { [model] range in
-            model.onTranscriptRecordClear?(range)
-        }
-        view.onTranscriptLevelMonitorStart = { [model] message in
-            model.onTranscriptLevelMonitorStart?(message)
-        }
-        view.onTranscriptLevelMonitorStop = { [model] range in
-            model.onTranscriptLevelMonitorStop?(range)
-        }
-        view.onTranscriptDevicesRequest = { [model] request in
-            model.onTranscriptDevicesRequest?(request)
-        }
-        view.onTranscriptDeviceSelect = { [model] selection in
-            model.onTranscriptDeviceSelect?(selection)
-        }
-        view.onTranscriptModelRequest = { [model] request in
-            model.onTranscriptModelRequest?(request)
-        }
-        view.onTranscriptModelSelect = { [model] selection in
-            model.onTranscriptModelSelect?(selection)
-        }
-        model.transcriptSendChunk = { [weak view] chunk in
-            view?.transcriptChunk(chunk)
-        }
-        model.transcriptSendPreview = { [weak view] preview in
-            view?.transcriptPreviewUpdate(preview)
-        }
-        model.transcriptSendState = { [weak view] state in
-            view?.transcriptStateChanged(state)
-        }
-        model.transcriptSendLevel = { [weak view] update in
-            view?.transcriptLevelUpdate(update)
-        }
-        model.transcriptSendDevicesList = { [weak view] message in
-            view?.transcriptDevicesList(message)
-        }
-        model.transcriptSendModelState = { [weak view] message in
-            view?.transcriptModelState(message)
-        }
-        model.transcriptSendModelDownloadProgress = { [weak view] message in
-            view?.transcriptModelDownloadProgress(message)
-        }
-        model.transcriptSendError = { [weak view] message in
-            view?.transcriptError(message)
-        }
+        // Transcript wiring: JS -> Swift via the bridge's weak handler, and
+        // Swift -> JS via the coordinator's weak sink. Both directions are
+        // re-wired here whenever SwiftUI recreates the WebView.
+        view.transcriptEventHandler = model.transcriptCoordinator
+        model.transcriptCoordinator?.sink = view
         view.onReadyForDisplay = { [model] in
             model.onWebViewReady?()
         }

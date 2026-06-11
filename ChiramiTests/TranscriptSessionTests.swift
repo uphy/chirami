@@ -681,6 +681,95 @@ struct TranscriptSessionTests {
         #expect(recorder.errors.isEmpty)
     }
 
+    @Test("resolved mic device UID reaches the microphone capture")
+    func resolvedMicDeviceUIDReachesMicrophoneCapture() async {
+        let fixedDate = Date(timeIntervalSince1970: 1_776_340_800)
+        let recorder = TranscriptEventRecorder()
+        let callbacks = TranscriptSessionCallbacks()
+        callbacks.sendState = { recorder.states.append($0) }
+        callbacks.sendLevel = { recorder.levels.append($0) }
+        callbacks.sendError = { recorder.errors.append($0) }
+
+        let micCapture = MockMicrophoneCapture()
+        let transcriptionEngine = MockTranscriptionEngine()
+        let resolved = TranscriptDeviceResolver.resolveMicSelection(
+            blockSelection: TranscriptDeviceSnapshot(value: "mic-1", label: "USB Mic"),
+            configuredValue: "default",
+            availableDevices: [AudioDeviceDescriptor(uniqueID: "mic-1", name: "USB Mic")],
+            defaultDevice: nil
+        )
+        let session = TranscriptSession(
+            context: TranscriptSessionContext(
+                range: TranscriptBlockRange(blockFrom: 1, blockTo: 2),
+                modelLabel: "test-model",
+                micEnabled: resolved.value != "off",
+                micDeviceLabel: resolved.label,
+                micDeviceUniqueID: TranscriptDeviceResolver.micDeviceUniqueID(from: resolved),
+                systemDeviceLabel: "Off",
+                labels: TranscriptLabelConfig(mic: "You", system: "Others")
+            ),
+            callbacks: callbacks,
+            microphoneCapture: micCapture,
+            systemAudioCapture: nil,
+            transcriptionEngine: transcriptionEngine,
+            systemProcesses: [],
+            requestMicrophoneAccess: {},
+            dateProvider: { fixedDate },
+            timeZone: TimeZone(secondsFromGMT: 0)!
+        )
+
+        await session.start()
+
+        #expect(resolved.value == "mic-1")
+        #expect(micCapture.startedDeviceUIDs == ["mic-1"])
+        #expect(recorder.states.last?.status == .recording)
+        #expect(recorder.errors.isEmpty)
+    }
+
+    @Test("default mic selection starts capture with the system default device")
+    func defaultMicSelectionStartsCaptureWithSystemDefaultDevice() async {
+        let fixedDate = Date(timeIntervalSince1970: 1_776_340_800)
+        let recorder = TranscriptEventRecorder()
+        let callbacks = TranscriptSessionCallbacks()
+        callbacks.sendState = { recorder.states.append($0) }
+        callbacks.sendLevel = { recorder.levels.append($0) }
+        callbacks.sendError = { recorder.errors.append($0) }
+
+        let micCapture = MockMicrophoneCapture()
+        let transcriptionEngine = MockTranscriptionEngine()
+        let resolved = TranscriptDeviceResolver.resolveMicSelection(
+            blockSelection: TranscriptDeviceSnapshot(value: "default", label: "Default"),
+            configuredValue: "default",
+            availableDevices: [],
+            defaultDevice: AudioDeviceDescriptor(uniqueID: "builtin-mic", name: "Built-in Microphone")
+        )
+        let session = TranscriptSession(
+            context: TranscriptSessionContext(
+                range: TranscriptBlockRange(blockFrom: 1, blockTo: 2),
+                modelLabel: "test-model",
+                micEnabled: resolved.value != "off",
+                micDeviceLabel: resolved.label,
+                micDeviceUniqueID: TranscriptDeviceResolver.micDeviceUniqueID(from: resolved),
+                systemDeviceLabel: "Off",
+                labels: TranscriptLabelConfig(mic: "You", system: "Others")
+            ),
+            callbacks: callbacks,
+            microphoneCapture: micCapture,
+            systemAudioCapture: nil,
+            transcriptionEngine: transcriptionEngine,
+            systemProcesses: [],
+            requestMicrophoneAccess: {},
+            dateProvider: { fixedDate },
+            timeZone: TimeZone(secondsFromGMT: 0)!
+        )
+
+        await session.start()
+
+        #expect(resolved.value == "default")
+        #expect(micCapture.startedDeviceUIDs == [nil])
+        #expect(recorder.errors.isEmpty)
+    }
+
     /// Polls `condition` until it becomes true or `timeout` elapses.
     /// The test suite runs on the main actor, so a bare `Task.yield()` is not
     /// enough for pipelines that hop through other actors and back to the main
