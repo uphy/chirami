@@ -30,6 +30,7 @@
 		42ECA3879B5A9E7606B6998B /* LocalImageSchemeHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2936EB59B5B6BE24528D67AB /* LocalImageSchemeHandler.swift */; };
 		43A18C3712E30AEEE5864430 /* PluginStateStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4B5FE1CBE1B48C55CC3E9FE /* PluginStateStore.swift */; };
 		46E9459F111947C27E0EB91B /* PipeIO.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E848CB0C7EFD40A1B825C98 /* PipeIO.swift */; };
+		476397071184A0E9C9DD67E2 /* NoteWebViewHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3B4B05AB65EE0B239DC9AEC /* NoteWebViewHost.swift */; };
 		48BA0BCE57FFECC4ED62059A /* FileWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5FDF5DD4D54BF8F9A9E2B8D /* FileWatcher.swift */; };
 		491DBCBF90E26B8B4B80399C /* AudioDeviceEnumerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4C236037C98346881DE7D92 /* AudioDeviceEnumerator.swift */; };
 		4ABD5431F47E99F47CEE8D6B /* TranscriptModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = F439088627226E08C7200F4F /* TranscriptModels.swift */; };
@@ -155,6 +156,7 @@
 		BDECF2729D40306B630F8406 /* KarabinerService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KarabinerService.swift; sourceTree = "<group>"; };
 		C0C8E430BD3B7B9601E8B00B /* AudioProcessEnumerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioProcessEnumerator.swift; sourceTree = "<group>"; };
 		C2038F8605F6D25442692B1D /* Assistant-Bold-ZDZZ6JHA.woff2 */ = {isa = PBXFileReference; path = "Assistant-Bold-ZDZZ6JHA.woff2"; sourceTree = "<group>"; };
+		C3B4B05AB65EE0B239DC9AEC /* NoteWebViewHost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteWebViewHost.swift; sourceTree = "<group>"; };
 		C3B855C43CCE9764B4419E66 /* AttachmentsDirTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttachmentsDirTests.swift; sourceTree = "<group>"; };
 		C7783E9C1FC4CEDA705D9913 /* TranscriptConfigTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptConfigTests.swift; sourceTree = "<group>"; };
 		CB72F1E44E85FE910F38AFAA /* DisplayContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisplayContentView.swift; sourceTree = "<group>"; };
@@ -251,6 +253,7 @@
 				80AC5462545113CBC9452EF1 /* NoteListPopover.swift */,
 				63D578984796D93E1CFD8909 /* NotePanel.swift */,
 				719C8C6D2FA67CF5419DF100 /* NoteWebView.swift */,
+				C3B4B05AB65EE0B239DC9AEC /* NoteWebViewHost.swift */,
 				19D408CE9CF5E73181D332BF /* NoteWindow.swift */,
 			);
 			path = Views;
@@ -513,6 +516,7 @@
 				5D5F47963F31B04A70CF1151 /* NoteStore.swift in Sources */,
 				077239ED5C90C745DBCB2F80 /* NoteWebView.swift in Sources */,
 				F6B33B1AD1B75ADD0727E469 /* NoteWebViewBridge.swift in Sources */,
+				476397071184A0E9C9DD67E2 /* NoteWebViewHost.swift in Sources */,
 				C1F28E6A44CA5164EA471BF0 /* NoteWindow.swift in Sources */,
 				0F7E6FD8C20B6BA4B2EA28B6 /* PathTemplateResolver.swift in Sources */,
 				8ECD51B52BAEC000ECC4CFE2 /* PeriodicFileNavigator.swift in Sources */,

@@ -1,4 +1,5 @@
 import { postToSwift } from "./bridge";
+import { hasCapability } from "./capabilities";
 import type {
   TranscriptBlockRange,
   TranscriptDeviceOption,
@@ -840,6 +841,7 @@ export function createTranscriptWidget(
       setStatus("Processing");
       return;
     }
+    if (!hasCapability("transcript")) return;
     applyRuntimePatch(currentRange, {
       status: "Processing",
       errorMessage: undefined,
@@ -923,6 +925,7 @@ export function createTranscriptWidget(
     const micEnabled = currentMic.value !== "off";
     const systemEnabled = currentSystem.value !== "off";
     const shouldMonitor =
+      hasCapability("transcript") &&
       currentSettingsPanelOpen === true &&
       currentStatus !== "Recording" &&
       currentStatus !== "Paused" &&
@@ -1039,11 +1042,13 @@ export function createTranscriptWidget(
   }
 
   function requestDevices(source: TranscriptSource): void {
+    if (!hasCapability("transcript")) return;
     syncDropdownState(source, source);
     postToSwift({ type: "transcriptDevicesRequest", range: currentRange, source });
   }
 
   function requestModelState(): void {
+    if (!hasCapability("transcript")) return;
     postToSwift({ type: "transcriptModelRequest", range: currentRange });
   }
 
@@ -1438,7 +1443,8 @@ export function createTranscriptWidget(
     const isProcessing = currentStatus === "Processing";
     const isRecordingActive = currentStatus === "Recording" || currentStatus === "Paused";
     const canStart = currentStatus === "Idle" || currentStatus === "Completed" || currentStatus === "Error";
-    const canStartRecording = canStart && hasEnabledSource;
+    const transcriptAvailable = hasCapability("transcript");
+    const canStartRecording = canStart && hasEnabledSource && transcriptAvailable;
     status.className = `cm-transcript-status cm-transcript-status--${currentStatus.toLowerCase()}`;
     status.textContent = isRecordingActive ? "Transcribing" : canStart ? "Transcribe" : statusLabelForDisplay();
     status.title = isRecordingActive
@@ -1446,7 +1452,9 @@ export function createTranscriptWidget(
       : canStartRecording
         ? "Begin transcribing"
         : canStart
-          ? "Enable at least one audio source"
+          ? transcriptAvailable
+            ? "Enable at least one audio source"
+            : "Transcribing is not available in this window"
           : "Processing transcript...";
     status.disabled = isProcessing || (canStart && !canStartRecording);
     meta.textContent = `${currentLineCount} line${currentLineCount === 1 ? "" : "s"}`;

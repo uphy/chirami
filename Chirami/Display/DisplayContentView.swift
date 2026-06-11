@@ -34,36 +34,10 @@ private struct DisplayWebViewRepresentable: NSViewRepresentable {
         if isReadOnly {
             // Disable editing in CodeMirror itself; read-only windows have no
             // save path, so any input would otherwise be silently lost.
+            // (The model also ignores content changes as a backstop.)
             view.setReadOnly(true)
-        } else {
-            view.onContentChanged = { [model] text in
-                model.text = text
-            }
         }
-        view.onCursorChanged = { [model] offset, _ in
-            model.savedCursorLocation = offset
-        }
-        view.onScrollChanged = { [model] offset in
-            model.savedScrollOffset = CGPoint(x: 0, y: offset)
-        }
-        view.onOpenLink = { url in
-            NSWorkspace.shared.open(url)
-        }
-        model.setWindowActive = { [weak view] active in
-            view?.setWindowActive(active)
-        }
-        model.getEditorContext = { [weak view] options, completion in
-            guard let view else {
-                completion(.failure(NSError(domain: "DisplayWebView", code: -3,
-                    userInfo: [NSLocalizedDescriptionKey: "webView deallocated"])))
-                return
-            }
-            view.getEditorContext(options: options, completion: completion)
-        }
-        view.setInitialState(
-            cursor: model.savedCursorLocation,
-            scroll: model.savedScrollOffset.y
-        )
+        view.wireCommonCallbacks(host: model)
         if let fileURL = model.fileURL {
             view.setNotePath(fileURL.path)
         }

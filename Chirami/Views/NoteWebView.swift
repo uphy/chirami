@@ -130,14 +130,24 @@ final class NoteWebView: NSView {
             self?.onOpenLink?(url)
         }
         bridge.onPasteImage = { [weak self] dataUrl in
-            self?.onPasteImage?(dataUrl)
+            guard let self else { return }
+            if let onPasteImage = self.onPasteImage {
+                onPasteImage(dataUrl)
+            } else {
+                self.logger.warning("pasteImage received but no callback is wired")
+            }
         }
         bridge.onPlainPaste = { [weak self] in
             guard let text = NSPasteboard.general.string(forType: .string), !text.isEmpty else { return }
             self?.insertText(text)
         }
         bridge.onFoldChanged = { [weak self] lines in
-            self?.onFoldChanged?(lines)
+            guard let self else { return }
+            if let onFoldChanged = self.onFoldChanged {
+                onFoldChanged(lines)
+            } else {
+                self.logger.warning("foldChanged received but no callback is wired")
+            }
         }
         bridge.onOverlayVisibleChanged = { [weak self] visible in
             self?.overlayVisible = visible
@@ -201,6 +211,10 @@ final class NoteWebView: NSView {
     /// Queued until the editor is ready, like other window.chirami calls.
     func setReadOnly(_ readOnly: Bool) {
         enqueueOrEval("window.chirami.setReadOnly(\(readOnly ? "true" : "false"));")
+    }
+
+    func setCapabilities(_ capabilities: NoteWebViewCapabilities) {
+        enqueueOrEval("window.chirami.setCapabilities(\(capabilities.json));")
     }
 
     override func viewDidChangeEffectiveAppearance() {
@@ -621,6 +635,67 @@ final class NoteWebView: NSView {
     }
 }
 
+// MARK: - Host wiring
+
+extension NoteWebView {
+    /// Wires the host-independent editor callbacks, pushes the host's
+    /// capabilities to JS, and restores the host's saved editor state.
+    ///
+    /// Called from both Representables' `makeNSView` so a new editor feature
+    /// only needs to be wired here once. Capability-gated callbacks are left
+    /// unwired when the capability is off; if JS sends such a message anyway,
+    /// the bridge-side warning fires instead of failing silently.
+    func wireCommonCallbacks(host: NoteWebViewHost) {
+        let capabilities = host.webViewCapabilities
+        onContentChanged = { [weak host] text in
+            host?.webViewContentChanged(text)
+        }
+        onCursorChanged = { [weak host] offset, _ in
+            host?.savedCursorLocation = offset
+        }
+        onScrollChanged = { [weak host] offset in
+            host?.savedScrollOffset = CGPoint(x: 0, y: offset)
+        }
+        onOpenLink = { url in
+            NSWorkspace.shared.open(url)
+        }
+        if capabilities.pasteImage {
+            onPasteImage = { [weak host, weak self] dataUrl in
+                host?.webViewPastedImage(dataUrl: dataUrl) { [weak self] markdown in
+                    self?.insertText(markdown + "\n")
+                }
+            }
+        }
+        if capabilities.fold {
+            onFoldChanged = { [weak host] lines in
+                host?.webViewFoldChanged(lines: lines)
+            }
+        }
+        if capabilities.transcript {
+            // JS -> Swift via the bridge's weak handler, Swift -> JS via the
+            // coordinator's weak sink. Re-wired whenever the WebView is recreated.
+            transcriptEventHandler = host.transcriptCoordinator
+            host.transcriptCoordinator?.sink = self
+        }
+        host.setWindowActive = { [weak self] active in
+            self?.setWindowActive(active)
+        }
+        host.getEditorContext = { [weak self] options, completion in
+            guard let self else {
+                completion(.failure(NSError(domain: "NoteWebView", code: -3,
+                    userInfo: [NSLocalizedDescriptionKey: "webView deallocated"])))
+                return
+            }
+            self.getEditorContext(options: options, completion: completion)
+        }
+        setCapabilities(capabilities)
+        setInitialState(
+            cursor: host.savedCursorLocation,
+            scroll: host.savedScrollOffset.y
+        )
+    }
+}
+
 // MARK: - TranscriptMessageSink conformance
 
 /// Declaration-only: the transcript* sender methods are defined in the class
@@ -643,53 +718,13 @@ struct NoteWebViewRepresentable: NSViewRepresentable {
 
     func makeNSView(context: Context) -> NoteWebView {
         let view = NoteWebView(frame: .zero)
-        view.onContentChanged = { [model] text in
-            model.text = text
-        }
-        view.onCursorChanged = { [model] offset, _ in
-            model.savedCursorLocation = offset
-        }
-        view.onScrollChanged = { [model] offset in
-            model.savedScrollOffset = CGPoint(x: 0, y: offset)
-        }
-        view.onOpenLink = { url in
-            NSWorkspace.shared.open(url)
-        }
-        view.onPasteImage = { [model, weak view] dataUrl in
-            guard let view else { return }
-            model.handlePastedImage(dataUrl: dataUrl) { markdown in
-                view.insertText(markdown + "\n")
-            }
-        }
-        view.onFoldChanged = { [model] lines in
-            model.updateFoldingState(lines: lines)
-        }
-        // Transcript wiring: JS -> Swift via the bridge's weak handler, and
-        // Swift -> JS via the coordinator's weak sink. Both directions are
-        // re-wired here whenever SwiftUI recreates the WebView.
-        view.transcriptEventHandler = model.transcriptCoordinator
-        model.transcriptCoordinator?.sink = view
+        view.wireCommonCallbacks(host: model)
         view.onReadyForDisplay = { [model] in
             model.onWebViewReady?()
         }
         model.focusWebView = { [weak view] in
             view?.focus()
         }
-        model.setWindowActive = { [weak view] active in
-            view?.setWindowActive(active)
-        }
-        model.getEditorContext = { [weak view] options, completion in
-            guard let view else {
-                completion(.failure(NSError(domain: "NoteWebView", code: -3,
-                    userInfo: [NSLocalizedDescriptionKey: "webView deallocated"])))
-                return
-            }
-            view.getEditorContext(options: options, completion: completion)
-        }
-        view.setInitialState(
-            cursor: model.savedCursorLocation,
-            scroll: model.savedScrollOffset.y
-        )
         return view
     }
 

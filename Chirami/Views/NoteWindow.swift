@@ -936,6 +936,22 @@ class NoteContentModel: ObservableObject {
     }
 }
 
+extension NoteContentModel: NoteWebViewHost {
+    var webViewCapabilities: NoteWebViewCapabilities { .all }
+
+    func webViewContentChanged(_ text: String) {
+        self.text = text
+    }
+
+    func webViewPastedImage(dataUrl: String, insertMarkdown: @escaping (String) -> Void) {
+        handlePastedImage(dataUrl: dataUrl, completion: insertMarkdown)
+    }
+
+    func webViewFoldChanged(lines: [Int]) {
+        updateFoldingState(lines: lines)
+    }
+}
+
 // MARK: - NoteContentView
 
 struct NoteContentView: View {

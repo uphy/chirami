@@ -245,7 +245,7 @@ class DisplayWindowManager {
         let panel = DisplayPanel(callbackPipePath: validPipe, isReadOnly: readOnly, transparency: transparency, customTitle: customTitle, alwaysOnTop: alwaysOnTop)
         panel.centerTitle()
         panel.setupCloseButtonHover()
-        let contentModel = DisplayContentModel(content: displayContent, fileURL: fileURL)
+        let contentModel = DisplayContentModel(content: displayContent, fileURL: fileURL, isReadOnly: readOnly)
         let contentView = DisplayContentView(model: contentModel, isReadOnly: readOnly, theme: theme)
         let hostingView = NSHostingView(rootView: contentView)
         hostingView.wantsLayer = true

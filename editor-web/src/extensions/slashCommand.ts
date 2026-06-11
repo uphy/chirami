@@ -1,11 +1,14 @@
 import { EditorView, ViewPlugin, ViewUpdate, keymap } from "@codemirror/view";
 import { Prec } from "@codemirror/state";
 import { openExcalidrawOverlay } from "../excalidraw-overlay";
+import { EditorCapabilities, hasCapability } from "../capabilities";
 
 export interface SlashCommand {
   id: string;
   label: string;
   description: string;
+  /** When set, the command is offered only if the host enables this capability. */
+  capability?: keyof EditorCapabilities;
   execute(view: EditorView, lineFrom: number): void;
 }
 
@@ -34,6 +37,7 @@ const COMMANDS: SlashCommand[] = [
     id: "transcript",
     label: "/transcript",
     description: "Insert a transcript block",
+    capability: "transcript",
     execute(view, lineFrom) {
       const block = "```transcript\n\n```\n";
       const line = view.state.doc.lineAt(lineFrom);
@@ -199,9 +203,10 @@ class SlashCommandPicker {
   }
 
   private filterCommands(filter: string): SlashCommand[] {
-    if (!filter) return COMMANDS;
+    const available = COMMANDS.filter((c) => !c.capability || hasCapability(c.capability));
+    if (!filter) return available;
     const q = filter.toLowerCase();
-    return COMMANDS.filter((c) => c.id.startsWith(q) || c.label.toLowerCase().startsWith("/" + q));
+    return available.filter((c) => c.id.startsWith(q) || c.label.toLowerCase().startsWith("/" + q));
   }
 
   private refreshHighlight(): void {

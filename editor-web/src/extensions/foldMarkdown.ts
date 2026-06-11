@@ -2,6 +2,7 @@ import { foldEffect, foldedRanges, foldService, unfoldEffect } from "@codemirror
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { postToSwift } from "../bridge";
+import { hasCapability } from "../capabilities";
 
 function headingFoldRange(state: EditorState, lineStart: number): { from: number; to: number } | null {
   const line = state.doc.lineAt(lineStart);
@@ -64,6 +65,9 @@ export const foldChangeListener = EditorView.updateListener.of((update) => {
   if (key === lastFoldedKey) return;
   lastFoldedKey = key;
 
+  // Folding still works locally without the capability; only persistence
+  // (Swift-side state) is unavailable, so skip the message.
+  if (!hasCapability("fold")) return;
   postToSwift({ type: "foldChanged", foldedLines });
 });
 

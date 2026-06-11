@@ -103,6 +103,7 @@ type SwiftToJsApi = {
   focus: () => void;
   setWindowActive: (active: boolean) => void;
   setReadOnly: (readOnly: boolean) => void;
+  setCapabilities: (caps: Partial<import("./capabilities").EditorCapabilities>) => void;
   setCursorPosition: (offset: number) => void;
   setScrollPosition: (offset: number) => void;
   insertText: (text: string) => void;

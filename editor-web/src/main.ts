@@ -1,5 +1,6 @@
 import { createEditor, setEditorContent, setEditorReadOnly, getEditorContext } from "./editor";
 import { postToSwift, exposeApi } from "./bridge";
+import { applyCapabilities } from "./capabilities";
 import { debounce, setWindowActiveEffect } from "./extensions/utils";
 import { applyFoldingFromLines } from "./extensions/foldMarkdown";
 import { Transaction } from "@codemirror/state";
@@ -170,6 +171,9 @@ exposeApi({
   },
   setReadOnly: (readOnly) => {
     setEditorReadOnly(view, readOnly);
+  },
+  setCapabilities: (caps) => {
+    applyCapabilities(caps);
   },
   setCursorPosition: (offset) => {
     const docLength = view.state.doc.length;

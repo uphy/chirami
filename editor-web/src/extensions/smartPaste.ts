@@ -2,6 +2,7 @@ import { EditorView } from "@codemirror/view";
 import TurndownService from "turndown";
 import { gfm } from "turndown-plugin-gfm";
 import { postToSwift } from "../bridge";
+import { hasCapability } from "../capabilities";
 
 const turndown = new TurndownService({ headingStyle: "atx", codeBlockStyle: "fenced" });
 turndown.use(gfm);
@@ -21,8 +22,10 @@ export const smartPaste = EditorView.domEventHandlers({
     const data = event.clipboardData;
     if (!data) return false;
 
-    // 1. Image
-    const imageItem = Array.from(data.items).find((it) => it.type.startsWith("image/"));
+    // 1. Image (only when the host can persist pasted images)
+    const imageItem = hasCapability("pasteImage")
+      ? Array.from(data.items).find((it) => it.type.startsWith("image/"))
+      : undefined;
     if (imageItem) {
       const file = imageItem.getAsFile();
       if (file) {
