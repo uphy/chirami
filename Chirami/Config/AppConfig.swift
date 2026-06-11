@@ -10,12 +10,21 @@ class AppConfig: YAMLStore<ChiramiConfig> {
     var config: ChiramiConfig { data }
     var transcriptConfig: TranscriptConfig { config.resolvedTranscript }
     var legacyTranscriptModel: String? { config.transcript?.legacyModel }
-    var configDirectoryURL: URL { Self.defaultConfigDirectory }
+    let configDirectoryURL: URL
 
-    private init() {
-        let configDir = Self.defaultConfigDirectory
-        Self.initializeIfNeeded(configDir: configDir)
-        super.init(directory: configDir, fileName: "config.yaml", label: "Config", defaultValue: ChiramiConfig(), watchForChanges: true)
+    private convenience init() {
+        self.init(directory: Self.defaultConfigDirectory)
+    }
+
+    /// Designated initializer. Tests must pass a temporary directory so that
+    /// neither loading nor the sample-content side effect touches the real
+    /// `~/.config/chirami`.
+    init(directory: URL, createSampleConfigIfNeeded: Bool = true, watchForChanges: Bool = true) {
+        self.configDirectoryURL = directory
+        if createSampleConfigIfNeeded {
+            Self.initializeIfNeeded(configDir: directory)
+        }
+        super.init(directory: directory, fileName: "config.yaml", label: "Config", defaultValue: ChiramiConfig(), watchForChanges: watchForChanges)
     }
 
     private static func initializeIfNeeded(configDir: URL) {

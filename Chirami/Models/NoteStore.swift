@@ -11,12 +11,16 @@ class NoteStore: ObservableObject {
     @Published private(set) var notes: [Note] = []
 
     private let logger = Logger(subsystem: "io.github.uphy.Chirami", category: "NoteStore")
-    private let appConfig = AppConfig.shared
-    private let appState = AppState.shared
+    private let appConfig: AppConfig
+    private let appState: AppState
     private var cancellables = Set<AnyCancellable>()
     private var accessedURLs: [String: URL] = [:]
 
-    private init() {
+    /// Tests must pass tmpdir-based `AppConfig`/`AppState` instances so the
+    /// real config/state directories are never touched.
+    init(config: AppConfig = .shared, state: AppState = .shared) {
+        self.appConfig = config
+        self.appState = state
         loadFromConfig()
 
         // Reload when config changes externally
@@ -106,8 +110,13 @@ class NoteStore: ObservableObject {
         )
     }
 
+    /// Returns the original NoteConfig from config.yaml for the given noteId.
+    func noteConfig(for noteId: String) -> NoteConfig? {
+        appConfig.config.notes.first { $0.noteId == noteId }
+    }
+
     func refreshNote(for noteId: String, ensureStaticFileExists: Bool = false) -> Note? {
-        guard let config = appConfig.config.notes.first(where: { $0.noteId == noteId }),
+        guard let config = noteConfig(for: noteId),
               let note = resolveNote(from: config, ensureStaticFileExists: ensureStaticFileExists) else {
             return nil
         }

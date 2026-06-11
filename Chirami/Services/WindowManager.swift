@@ -162,11 +162,10 @@ class WindowManager: ObservableObject {
             guard let newURL = resolvePath(newPath) else { continue }
 
             if newURL.path != controller.note.path.path {
-                let config = NoteConfig(
-                    path: info.pathTemplate,
-                    title: info.titlePrefix,
-                    template: info.templateFile?.path
-                )
+                // Look up the original NoteConfig instead of re-synthesizing one
+                // from PeriodicNoteInfo, which would silently drop attributes
+                // (theme, transparency, hotkeys, position, ...).
+                guard let config = noteStore.noteConfig(for: controller.note.id) else { continue }
                 if let newNote = noteStore.resolvePeriodicNote(from: config, for: logicalDate) {
                     controller.handleRollover(newNote)
                 }
