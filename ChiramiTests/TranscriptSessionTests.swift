@@ -23,11 +23,13 @@ private final class MutableDateBox: @unchecked Sendable {
 
 private final class MockMicrophoneCapture: MicrophoneCapturing {
     var onStart: ((@escaping @Sendable (AVAudioPCMBuffer) -> Void) -> Void)?
+    var startedDeviceUIDs: [String?] = []
     var pauseCallCount = 0
     var resumeCallCount = 0
     var stopCallCount = 0
 
-    func start(bufferHandler: @escaping @Sendable (AVAudioPCMBuffer) -> Void) throws {
+    func start(deviceUID: String?, bufferHandler: @escaping @Sendable (AVAudioPCMBuffer) -> Void) throws {
+        startedDeviceUIDs.append(deviceUID)
         onStart?(bufferHandler)
     }
 
@@ -73,12 +75,35 @@ private final class MockTranscriptionEngine: TranscriptionEngine {
     private let previewStream: AsyncStream<TranscriptPreview>
     private let previewContinuation: AsyncStream<TranscriptPreview>.Continuation
 
-    private(set) var startCallCount = 0
-    private(set) var stopCallCount = 0
-    private(set) var stopModes: [TranscriptionEngineStopMode] = []
-    private(set) var fedSources: [TranscriptSource] = []
-    private(set) var audioFormats: [AVAudioFormat] = []
+    // `feed` can run concurrently for mic/system buffers (actor reentrancy
+    // in TranscriptSession), so guard mutable state with a lock.
+    private let lock = NSLock()
+    private var _startCallCount = 0
+    private var _stopCallCount = 0
+    private var _stopModes: [TranscriptionEngineStopMode] = []
+    private var _fedSources: [TranscriptSource] = []
+    private var _audioFormats: [AVAudioFormat] = []
     var onStop: (() -> Void)?
+
+    var startCallCount: Int {
+        lock.withLock { _startCallCount }
+    }
+
+    var stopCallCount: Int {
+        lock.withLock { _stopCallCount }
+    }
+
+    var stopModes: [TranscriptionEngineStopMode] {
+        lock.withLock { _stopModes }
+    }
+
+    var fedSources: [TranscriptSource] {
+        lock.withLock { _fedSources }
+    }
+
+    var audioFormats: [AVAudioFormat] {
+        lock.withLock { _audioFormats }
+    }
 
     init() {
         var streamContinuation: AsyncStream<TranscriptChunk>.Continuation?
@@ -102,18 +127,24 @@ private final class MockTranscriptionEngine: TranscriptionEngine {
     }
 
     func start(audioFormat: AVAudioFormat) async throws {
-        startCallCount += 1
-        audioFormats.append(audioFormat)
+        lock.withLock {
+            _startCallCount += 1
+            _audioFormats.append(audioFormat)
+        }
     }
 
     func feed(buffer: AVAudioPCMBuffer, source: TranscriptSource) async throws {
         _ = buffer
-        fedSources.append(source)
+        lock.withLock {
+            _fedSources.append(source)
+        }
     }
 
     func stop(mode: TranscriptionEngineStopMode) async {
-        stopCallCount += 1
-        stopModes.append(mode)
+        lock.withLock {
+            _stopCallCount += 1
+            _stopModes.append(mode)
+        }
         onStop?()
         continuation.finish()
         previewContinuation.finish()
@@ -145,12 +176,15 @@ private final class HangingStopTranscriptionEngine: TranscriptionEngine {
 
     func stop(mode: TranscriptionEngineStopMode) async {
         stopModes.append(mode)
-        await withCheckedContinuation { (_: CheckedContinuation<Void, Never>) in
-        }
+        // Hang until the caller's stop timeout cancels this task.
+        // Task.sleep is cancellation-aware, so the task exits cleanly
+        // instead of leaking a never-resumed continuation.
+        try? await Task.sleep(nanoseconds: 60_000_000_000)
     }
 }
 
 @Suite("Transcript session")
+@MainActor
 struct TranscriptSessionTests {
     @Test("start emits recording state and forwards mic/system levels")
     func startEmitsRecordingStateAndLevels() async {
@@ -169,6 +203,7 @@ struct TranscriptSessionTests {
         let context = TranscriptSessionContext(
             range: TranscriptBlockRange(blockFrom: 10, blockTo: 20),
             modelLabel: "test-model",
+            micEnabled: true,
             micDeviceLabel: "Default",
             systemDeviceLabel: "Zoom",
             labels: TranscriptLabelConfig(mic: "You", system: "Others")
@@ -217,14 +252,18 @@ struct TranscriptSessionTests {
             TranscriptChunk(source: .mic, timestamp: 1.25, text: "hello world")
         )
 
-        await Task.yield()
+        await waitUntil {
+            transcriptionEngine.fedSources.count == 2 && !recorder.chunks.isEmpty
+        }
 
         let micLevels = recorder.levels.filter { $0.source == .mic }.map(\.level)
         let systemLevels = recorder.levels.filter { $0.source == .system }.map(\.level)
         #expect(micLevels.contains(where: { $0 > 0 }))
         #expect(systemLevels.contains(where: { $0 > 0 }))
         #expect(transcriptionEngine.startCallCount == 1)
-        #expect(transcriptionEngine.fedSources == [.mic, .system])
+        // The mic/system buffer handlers run as independent tasks, so the
+        // feed order is not deterministic.
+        #expect(Set(transcriptionEngine.fedSources) == [.mic, .system])
         #expect(recorder.chunks.last?.text == "[2026-04-16 12:00:01] You: hello world")
         #expect(recorder.chunks.last?.timestamp == fixedDate.timeIntervalSince1970 + 1.25)
     }
@@ -246,6 +285,7 @@ struct TranscriptSessionTests {
         let context = TranscriptSessionContext(
             range: TranscriptBlockRange(blockFrom: 1, blockTo: 2),
             modelLabel: "test-model",
+            micEnabled: true,
             micDeviceLabel: "Default",
             systemDeviceLabel: "Off",
             labels: TranscriptLabelConfig(mic: "You", system: "Others")
@@ -299,6 +339,7 @@ struct TranscriptSessionTests {
             context: TranscriptSessionContext(
                 range: TranscriptBlockRange(blockFrom: 1, blockTo: 2),
                 modelLabel: "test-model",
+                micEnabled: true,
                 micDeviceLabel: "Default",
                 systemDeviceLabel: "Off",
                 labels: TranscriptLabelConfig(mic: "You", system: "Others")
@@ -321,7 +362,7 @@ struct TranscriptSessionTests {
         transcriptionEngine.yield(
             TranscriptChunk(source: .mic, timestamp: 6, text: "after resume")
         )
-        await Task.yield()
+        await waitUntil { !recorder.chunks.isEmpty }
 
         #expect(recorder.chunks.last?.timestamp == startDate.addingTimeInterval(16).timeIntervalSince1970)
         #expect(recorder.chunks.last?.text == "[2026-04-16 12:00:16] You: after resume")
@@ -350,6 +391,7 @@ struct TranscriptSessionTests {
             context: TranscriptSessionContext(
                 range: TranscriptBlockRange(blockFrom: 5, blockTo: 6),
                 modelLabel: "test-model",
+                micEnabled: true,
                 micDeviceLabel: "Default",
                 systemDeviceLabel: "Off",
                 labels: TranscriptLabelConfig(mic: "You", system: "Others")
@@ -388,6 +430,7 @@ struct TranscriptSessionTests {
             context: TranscriptSessionContext(
                 range: TranscriptBlockRange(blockFrom: 1, blockTo: 2),
                 modelLabel: "test-model",
+                micEnabled: true,
                 micDeviceLabel: "Default",
                 systemDeviceLabel: "Off",
                 labels: TranscriptLabelConfig(mic: "You", system: "Others")
@@ -429,6 +472,7 @@ struct TranscriptSessionTests {
             context: TranscriptSessionContext(
                 range: TranscriptBlockRange(blockFrom: 1, blockTo: 2),
                 modelLabel: "test-model",
+                micEnabled: true,
                 micDeviceLabel: "Default",
                 systemDeviceLabel: "Off",
                 labels: TranscriptLabelConfig(mic: "You", system: "Others")
@@ -447,7 +491,7 @@ struct TranscriptSessionTests {
         transcriptionEngine.yield(
             TranscriptChunk(source: .system, timestamp: 1, text: "了解しました。")
         )
-        await Task.yield()
+        await waitUntil { !recorder.chunks.isEmpty }
 
         #expect(recorder.chunks.count == 1)
         #expect(recorder.chunks.last?.text == "[2026-04-16 12:00:01] Others: 了解しました。")
@@ -476,6 +520,7 @@ struct TranscriptSessionTests {
             context: TranscriptSessionContext(
                 range: TranscriptBlockRange(blockFrom: 1, blockTo: 2),
                 modelLabel: "test-model",
+                micEnabled: true,
                 micDeviceLabel: "Default",
                 systemDeviceLabel: "Off",
                 labels: TranscriptLabelConfig(mic: "You", system: "Others")
@@ -511,6 +556,7 @@ struct TranscriptSessionTests {
             context: TranscriptSessionContext(
                 range: TranscriptBlockRange(blockFrom: 1, blockTo: 2),
                 modelLabel: "test-model",
+                micEnabled: true,
                 micDeviceLabel: "Default",
                 systemDeviceLabel: "Off",
                 labels: TranscriptLabelConfig(mic: "You", system: "Others")
@@ -550,6 +596,7 @@ struct TranscriptSessionTests {
             context: TranscriptSessionContext(
                 range: TranscriptBlockRange(blockFrom: 1, blockTo: 2),
                 modelLabel: "test-model",
+                micEnabled: true,
                 micDeviceLabel: "Default",
                 systemDeviceLabel: "Off",
                 labels: TranscriptLabelConfig(mic: "You", system: "Others")
@@ -596,6 +643,7 @@ struct TranscriptSessionTests {
             context: TranscriptSessionContext(
                 range: TranscriptBlockRange(blockFrom: 3, blockTo: 4),
                 modelLabel: "test-model",
+                micEnabled: true,
                 micDeviceLabel: "Default",
                 systemDeviceLabel: "Off",
                 labels: TranscriptLabelConfig(mic: "You", system: "Others")
@@ -631,6 +679,21 @@ struct TranscriptSessionTests {
         #expect(downloadedEngine.startCallCount == 1)
         #expect(micStartCount == 1)
         #expect(recorder.errors.isEmpty)
+    }
+
+    /// Polls `condition` until it becomes true or `timeout` elapses.
+    /// The test suite runs on the main actor, so a bare `Task.yield()` is not
+    /// enough for pipelines that hop through other actors and back to the main
+    /// actor (buffer handler Task -> session actor -> MainActor.run callback).
+    /// Sleeping releases the main actor and lets those hops complete.
+    private func waitUntil(
+        timeout: Duration = .seconds(2),
+        _ condition: () -> Bool
+    ) async {
+        let deadline = ContinuousClock.now.advanced(by: timeout)
+        while !condition(), ContinuousClock.now < deadline {
+            try? await Task.sleep(nanoseconds: 10_000_000)
+        }
     }
 
     private func makeBuffer(samples: [Float]) -> AVAudioPCMBuffer {

@@ -1,5 +1,7 @@
+import AudioToolbox
 import AVFoundation
 import Foundation
+import OSLog
 
 enum MicrophoneCaptureError: LocalizedError, Equatable {
     case alreadyRunning
@@ -27,6 +29,7 @@ enum MicrophoneCaptureError: LocalizedError, Equatable {
 final class MicrophoneCapture {
     typealias BufferHandler = @Sendable (AVAudioPCMBuffer) -> Void
 
+    private let logger = Logger(subsystem: "io.github.uphy.Chirami", category: "MicrophoneCapture")
     private let engine: AVAudioEngine
     private let tapBufferSize: AVAudioFrameCount
     private let targetFormat: AVAudioFormat
@@ -76,12 +79,13 @@ final class MicrophoneCapture {
         }
     }
 
-    func start(bufferHandler: @escaping BufferHandler) throws {
+    func start(deviceUID: String?, bufferHandler: @escaping BufferHandler) throws {
         guard !isRunning else {
             throw MicrophoneCaptureError.alreadyRunning
         }
 
         let inputNode = engine.inputNode
+        configureInputDevice(deviceUID: deviceUID, on: inputNode)
         let inputFormat = inputNode.inputFormat(forBus: 0)
         guard let converter = AVAudioConverter(from: inputFormat, to: targetFormat) else {
             throw MicrophoneCaptureError.unableToCreateConverter
@@ -127,6 +131,38 @@ final class MicrophoneCapture {
         engine.inputNode.removeTap(onBus: 0)
         engine.stop()
         cleanup()
+    }
+
+    /// Routes the input node to the device identified by `deviceUID`.
+    /// Falls back to the system default input device when `deviceUID` is nil
+    /// or the device cannot be resolved.
+    private func configureInputDevice(deviceUID: String?, on inputNode: AVAudioInputNode) {
+        guard let deviceUID else {
+            return
+        }
+
+        guard let deviceID = AudioDeviceEnumerator.audioDeviceID(forUID: deviceUID) else {
+            logger.warning("Audio input device not found for UID \(deviceUID, privacy: .public); falling back to the system default input")
+            return
+        }
+
+        guard let audioUnit = inputNode.audioUnit else {
+            logger.warning("Input node audio unit is unavailable; falling back to the system default input")
+            return
+        }
+
+        var currentDevice = deviceID
+        let status = AudioUnitSetProperty(
+            audioUnit,
+            kAudioOutputUnitProperty_CurrentDevice,
+            kAudioUnitScope_Global,
+            0,
+            &currentDevice,
+            UInt32(MemoryLayout<AudioDeviceID>.size)
+        )
+        if status != noErr {
+            logger.warning("Failed to set input device for UID \(deviceUID, privacy: .public) (status: \(status)); falling back to the system default input")
+        }
     }
 
     private func process(inputBuffer: AVAudioPCMBuffer) {

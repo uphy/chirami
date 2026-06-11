@@ -102,6 +102,7 @@ type SwiftToJsApi = {
   setContent: (text: string) => void;
   focus: () => void;
   setWindowActive: (active: boolean) => void;
+  setReadOnly: (readOnly: boolean) => void;
   setCursorPosition: (offset: number) => void;
   setScrollPosition: (offset: number) => void;
   insertText: (text: string) => void;
@@ -125,7 +126,6 @@ type JsToSwiftMessage =
   | { type: "cursorChanged"; offset: number; line: number }
   | { type: "scrollChanged"; offset: number }
   | { type: "openLink"; url: string }
-  | { type: "fontSizeChange"; delta: number }
   | { type: "pasteImage"; dataUrl: string }
   | { type: "plainPaste" }
   | { type: "foldChanged"; foldedLines: number[] }
@@ -134,8 +134,6 @@ type JsToSwiftMessage =
   | { type: "pluginStateRequest"; pluginId: string }
   | { type: "pluginStateChanged"; pluginId: string; stateJson: string }
   | { type: "transcriptRecordStart"; range: TranscriptBlockRange; micDevice: TranscriptDeviceSnapshot; systemDevice: TranscriptDeviceSnapshot }
-  | { type: "transcriptRecordPause"; range: TranscriptBlockRange }
-  | { type: "transcriptRecordResume"; range: TranscriptBlockRange }
   | { type: "transcriptRecordStop"; range: TranscriptBlockRange }
   | { type: "transcriptRecordClear"; range: TranscriptBlockRange }
   | { type: "transcriptLevelMonitorStart"; range: TranscriptBlockRange; micDevice: TranscriptDeviceSnapshot; systemDevice: TranscriptDeviceSnapshot }

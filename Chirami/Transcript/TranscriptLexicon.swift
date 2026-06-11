@@ -124,10 +124,15 @@ private struct RawTranscriptLexiconTerm: Decodable {
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         text = try container.decodeIfPresent(String.self, forKey: .text)
-        if let value = try container.decodeIfPresent(String.self, forKey: .readings) {
-            readings = [value]
-        } else {
-            readings = try container.decodeIfPresent([String].self, forKey: .readings) ?? []
+        // `readings` accepts either a list of strings or a single scalar string.
+        guard container.contains(.readings), try !container.decodeNil(forKey: .readings) else {
+            readings = []
+            return
+        }
+        do {
+            readings = try container.decode([String].self, forKey: .readings)
+        } catch DecodingError.typeMismatch {
+            readings = [try container.decode(String.self, forKey: .readings)]
         }
     }
 }

@@ -1,4 +1,4 @@
-import { createEditor, setEditorContent, getEditorContext } from "./editor";
+import { createEditor, setEditorContent, setEditorReadOnly, getEditorContext } from "./editor";
 import { postToSwift, exposeApi } from "./bridge";
 import { debounce, setWindowActiveEffect } from "./extensions/utils";
 import { applyFoldingFromLines } from "./extensions/foldMarkdown";
@@ -167,6 +167,9 @@ exposeApi({
     view.dispatch({
       effects: setWindowActiveEffect.of(active),
     });
+  },
+  setReadOnly: (readOnly) => {
+    setEditorReadOnly(view, readOnly);
   },
   setCursorPosition: (offset) => {
     const docLength = view.state.doc.length;

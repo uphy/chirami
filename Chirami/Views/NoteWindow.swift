@@ -827,18 +827,6 @@ class NoteWindowController: NSWindowController, NSWindowDelegate, EditorContextP
                 await TranscriptSessionRegistry.shared.start(session)
             }
         }
-        contentModel.onTranscriptRecordPause = { [weak self] range in
-            self?.logger.info("transcriptRecordPause blockFrom=\(range.blockFrom) blockTo=\(range.blockTo)")
-            Task {
-                await TranscriptSessionRegistry.shared.pause(range: range)
-            }
-        }
-        contentModel.onTranscriptRecordResume = { [weak self] range in
-            self?.logger.info("transcriptRecordResume blockFrom=\(range.blockFrom) blockTo=\(range.blockTo)")
-            Task {
-                await TranscriptSessionRegistry.shared.resume(range: range)
-            }
-        }
         contentModel.onTranscriptRecordStop = { [weak self] range in
             self?.logger.info("transcriptRecordStop blockFrom=\(range.blockFrom) blockTo=\(range.blockTo)")
             Task {
@@ -932,6 +920,7 @@ class NoteWindowController: NSWindowController, NSWindowDelegate, EditorContextP
             modelLabel: transcriptModelLabel(),
             micEnabled: resolvedMicDevice.value != "off",
             micDeviceLabel: resolvedMicDevice.label,
+            micDeviceUniqueID: TranscriptDeviceResolver.micDeviceUniqueID(from: resolvedMicDevice),
             systemDeviceLabel: resolvedSystem.selection.label,
             labels: transcriptConfig.labels
         )
@@ -970,6 +959,7 @@ class NoteWindowController: NSWindowController, NSWindowDelegate, EditorContextP
         let monitor = TranscriptLevelMonitor(
             range: message.range,
             micEnabled: resolvedMicDevice.value != "off",
+            micDeviceUniqueID: TranscriptDeviceResolver.micDeviceUniqueID(from: resolvedMicDevice),
             systemProcesses: resolvedSystem.processes
         ) { [weak self] update in
             self?.contentModel.transcriptSendLevel?(update)
@@ -1280,8 +1270,6 @@ class NoteContentModel: ObservableObject {
     var transcriptSendModelDownloadProgress: ((TranscriptModelDownloadProgressMessage) -> Void)?
     var transcriptSendError: ((TranscriptErrorMessage) -> Void)?
     var onTranscriptRecordStart: ((TranscriptRecordStartMessage) -> Void)?
-    var onTranscriptRecordPause: ((TranscriptBlockRange) -> Void)?
-    var onTranscriptRecordResume: ((TranscriptBlockRange) -> Void)?
     var onTranscriptRecordStop: ((TranscriptBlockRange) -> Void)?
     var onTranscriptRecordClear: ((TranscriptBlockRange) -> Void)?
     var onTranscriptLevelMonitorStart: ((TranscriptLevelMonitorStartMessage) -> Void)?
@@ -1293,8 +1281,9 @@ class NoteContentModel: ObservableObject {
     private var note: Note
     private let imagePasteService = ImagePasteService()
     private let logger = Logger(subsystem: "io.github.uphy.Chirami", category: "NoteContentModel")
-    private var isSaving = false
-    private var isReloading = false
+    /// The content most recently loaded from or written to disk.
+    /// Used to distinguish self-echo file events (from our own atomic writes)
+    /// from genuine external changes.
     private var lastSavedContent: String = ""
 
     init(note: Note) {
@@ -1319,19 +1308,28 @@ class NoteContentModel: ObservableObject {
     }
 
     func save() {
-        guard !isSaving, !isReloading, text != lastSavedContent else { return }
-        isSaving = true
-        lastSavedContent = text
+        guard text != lastSavedContent else { return }
         NoteStore.shared.writeContent(text, to: note)
-        isSaving = false
+        lastSavedContent = text
     }
 
     func reloadIfNeeded(_ newContent: String) {
-        guard !isSaving, newContent != text else { return }
-        isReloading = true
+        // Self-echo of our own save (atomic write fires the file watcher):
+        // the disk content matches what we last wrote, so skip deterministically.
+        guard newContent != lastSavedContent else { return }
+        guard newContent != text else {
+            // Disk already matches the local text; just mark it as saved.
+            lastSavedContent = newContent
+            return
+        }
+        // Genuine external change. If there are unsaved local edits, do not
+        // silently overwrite them; keep the local content and warn.
+        guard text == lastSavedContent else {
+            logger.warning("External change to \(self.note.path.path, privacy: .public) conflicts with unsaved local edits; keeping local content")
+            return
+        }
         lastSavedContent = newContent
         text = newContent
-        isReloading = false
     }
 
     func applyNoteMetadata(_ updated: Note) {

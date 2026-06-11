@@ -38,12 +38,9 @@ final class NoteWebView: NSView {
     var onCursorChanged: ((Int, Int) -> Void)?
     var onScrollChanged: ((Double) -> Void)?
     var onOpenLink: ((URL) -> Void)?
-    var onFontSizeChange: ((Int) -> Void)?
     var onPasteImage: ((String) -> Void)?  // dataUrl
     var onFoldChanged: (([Int]) -> Void)?  // 1-based line numbers
     var onTranscriptRecordStart: ((TranscriptRecordStartMessage) -> Void)?
-    var onTranscriptRecordPause: ((TranscriptBlockRange) -> Void)?
-    var onTranscriptRecordResume: ((TranscriptBlockRange) -> Void)?
     var onTranscriptRecordStop: ((TranscriptBlockRange) -> Void)?
     var onTranscriptRecordClear: ((TranscriptBlockRange) -> Void)?
     var onTranscriptLevelMonitorStart: ((TranscriptLevelMonitorStartMessage) -> Void)?
@@ -135,9 +132,6 @@ final class NoteWebView: NSView {
         bridge.onOpenLink = { [weak self] url in
             self?.onOpenLink?(url)
         }
-        bridge.onFontSizeChange = { [weak self] delta in
-            self?.onFontSizeChange?(delta)
-        }
         bridge.onPasteImage = { [weak self] dataUrl in
             self?.onPasteImage?(dataUrl)
         }
@@ -158,8 +152,6 @@ final class NoteWebView: NSView {
             PluginStateStore.shared.save(pluginId: pluginId, json: stateJson)
         }
         bridge.onTranscriptRecordStart = { [weak self] message in self?.onTranscriptRecordStart?(message) }
-        bridge.onTranscriptRecordPause = { [weak self] range in self?.onTranscriptRecordPause?(range) }
-        bridge.onTranscriptRecordResume = { [weak self] range in self?.onTranscriptRecordResume?(range) }
         bridge.onTranscriptRecordStop = { [weak self] range in self?.onTranscriptRecordStop?(range) }
         bridge.onTranscriptRecordClear = { [weak self] range in self?.onTranscriptRecordClear?(range) }
         bridge.onTranscriptLevelMonitorStart = { [weak self] message in self?.onTranscriptLevelMonitorStart?(message) }
@@ -215,6 +207,12 @@ final class NoteWebView: NSView {
 
     func setWindowActive(_ active: Bool) {
         enqueueOrEval("window.chirami.setWindowActive(\(active ? "true" : "false"));")
+    }
+
+    /// Toggles CodeMirror read-only mode (EditorState.readOnly + EditorView.editable).
+    /// Queued until the editor is ready, like other window.chirami calls.
+    func setReadOnly(_ readOnly: Bool) {
+        enqueueOrEval("window.chirami.setReadOnly(\(readOnly ? "true" : "false"));")
     }
 
     override func viewDidChangeEffectiveAppearance() {
@@ -663,10 +661,6 @@ struct NoteWebViewRepresentable: NSViewRepresentable {
         view.onOpenLink = { url in
             NSWorkspace.shared.open(url)
         }
-        view.onFontSizeChange = { [model] delta in
-            let newSize = max(8, min(72, Int(model.fontSize) + delta))
-            model.fontSize = CGFloat(newSize)
-        }
         view.onPasteImage = { [model, weak view] dataUrl in
             guard let view else { return }
             model.handlePastedImage(dataUrl: dataUrl) { markdown in
@@ -678,12 +672,6 @@ struct NoteWebViewRepresentable: NSViewRepresentable {
         }
         view.onTranscriptRecordStart = { [model] message in
             model.onTranscriptRecordStart?(message)
-        }
-        view.onTranscriptRecordPause = { [model] range in
-            model.onTranscriptRecordPause?(range)
-        }
-        view.onTranscriptRecordResume = { [model] range in
-            model.onTranscriptRecordResume?(range)
         }
         view.onTranscriptRecordStop = { [model] range in
             model.onTranscriptRecordStop?(range)

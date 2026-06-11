@@ -3,7 +3,7 @@ import { HighlightStyle, foldGutter, syntaxHighlighting, indentUnit } from "@cod
 import { markdown } from "@codemirror/lang-markdown";
 import { languages } from "@codemirror/language-data";
 import { search, searchKeymap } from "@codemirror/search";
-import { EditorState, Prec, Transaction } from "@codemirror/state";
+import { Compartment, EditorState, Prec, Transaction } from "@codemirror/state";
 import { EditorView, ViewUpdate, keymap, drawSelection } from "@codemirror/view";
 import { GFM } from "@lezer/markdown";
 import { classHighlighter, tags } from "@lezer/highlight";
@@ -45,6 +45,10 @@ const markdownStyle = HighlightStyle.define([
   { tag: tags.strikethrough, textDecoration: "line-through" },
   { tag: tags.monospace, class: "chirami-inline-code" },
 ]);
+
+// Compartment so Swift can toggle read-only mode at runtime (e.g. Ad-hoc Notes
+// opened with --readonly, which have no save path).
+const readOnlyCompartment = new Compartment();
 
 export type EditorCallbacks = {
   onContentChanged: (text: string, immediate: boolean) => void;
@@ -214,6 +218,7 @@ export function createEditor(parent: HTMLElement, callbacks: EditorCallbacks): E
       search(),
       indentUnit.of("\t"),
       EditorState.tabSize.of(3),
+      readOnlyCompartment.of([]),
       Prec.highest(keymap.of(tightListEnterKeymap)),
       Prec.high(surroundSelectionHandler),
       keymap.of([
@@ -311,6 +316,14 @@ export function setEditorContent(view: EditorView, text: string) {
   if (foldedLineNumbers.length > 0) {
     applyFoldingFromLines(view, foldedLineNumbers);
   }
+}
+
+export function setEditorReadOnly(view: EditorView, readOnly: boolean) {
+  view.dispatch({
+    effects: readOnlyCompartment.reconfigure(
+      readOnly ? [EditorState.readOnly.of(true), EditorView.editable.of(false)] : [],
+    ),
+  });
 }
 
 export function getEditorContext(view: EditorView, options?: EditorContextOptions): string {

@@ -3,7 +3,9 @@ import AVFoundation
 import OSLog
 
 protocol MicrophoneCapturing: AnyObject {
-    func start(bufferHandler: @escaping @Sendable (AVAudioPCMBuffer) -> Void) throws
+    /// Starts capturing from the input device identified by `deviceUID`.
+    /// Passing nil uses the system default input device.
+    func start(deviceUID: String?, bufferHandler: @escaping @Sendable (AVAudioPCMBuffer) -> Void) throws
     func pause()
     func resume() throws
     func stop()
@@ -21,6 +23,8 @@ struct TranscriptSessionContext: Sendable {
     var modelLabel: String
     var micEnabled: Bool
     var micDeviceLabel: String
+    /// Resolved mic device uniqueID. nil means the system default input device.
+    var micDeviceUniqueID: String?
     var systemDeviceLabel: String
     var labels: TranscriptLabelConfig
 }
@@ -28,6 +32,13 @@ struct TranscriptSessionContext: Sendable {
 private struct TranscriptTimelineAnchor: Sendable {
     var audioOffset: TimeInterval
     var wallClock: Date
+}
+
+private struct ModelDownloadProgressEvent: Sendable {
+    var fractionCompleted: Double
+    var receivedBytes: Int
+    var totalBytes: Int
+    var stage: TranscriptDownloadStage
 }
 
 @MainActor
@@ -167,7 +178,7 @@ actor TranscriptSession {
 
         if context.micEnabled {
             do {
-                try microphoneCapture.start { [weak self] buffer in
+                try microphoneCapture.start(deviceUID: context.micDeviceUniqueID) { [weak self] buffer in
                     Task {
                         await self?.handleBuffer(source: .mic, buffer: buffer)
                     }
@@ -341,16 +352,34 @@ actor TranscriptSession {
         await sendLevel(source: .mic, level: 0)
         await sendLevel(source: .system, level: 0)
 
+        // Forward progress reports through a single stream so they reach the
+        // UI in the order they were reported. Spawning an independent Task per
+        // report would deliver them in nondeterministic order and let the
+        // final "clear" message overtake pending progress updates.
+        let (progressEvents, progressContinuation) = AsyncStream.makeStream(of: ModelDownloadProgressEvent.self)
         let task = Task<TranscriptionEngine?, Error> {
-            try await transcriptionEngineFactory { receivedBytes, totalBytes, fractionCompleted, stage in
-                Task {
-                    await self.sendModelDownloadProgress(
+            defer {
+                progressContinuation.finish()
+            }
+            return try await transcriptionEngineFactory { receivedBytes, totalBytes, fractionCompleted, stage in
+                progressContinuation.yield(
+                    ModelDownloadProgressEvent(
                         fractionCompleted: min(max(fractionCompleted, 0), 1),
                         receivedBytes: max(0, Int(receivedBytes)),
                         totalBytes: Int(totalBytes ?? -1),
                         stage: stage
                     )
-                }
+                )
+            }
+        }
+        let progressForwardingTask = Task {
+            for await event in progressEvents {
+                await self.sendModelDownloadProgress(
+                    fractionCompleted: event.fractionCompleted,
+                    receivedBytes: event.receivedBytes,
+                    totalBytes: event.totalBytes,
+                    stage: event.stage
+                )
             }
         }
         transcriptionPreparationTask = task
@@ -361,7 +390,9 @@ actor TranscriptSession {
 
         do {
             transcriptionEngine = try await task.value
+            await progressForwardingTask.value
         } catch {
+            await progressForwardingTask.value
             if isPreparationCancellation(error) {
                 throw CancellationError()
             }
@@ -667,6 +698,7 @@ actor TranscriptLevelMonitor {
 
     private let range: TranscriptBlockRange
     private let micEnabled: Bool
+    private let micDeviceUniqueID: String?
     private let systemProcesses: [AudioProcessDescriptor]
     private let microphoneCapture: MicrophoneCapturing
     private let systemAudioCapture: SystemAudioCapturing?
@@ -681,6 +713,7 @@ actor TranscriptLevelMonitor {
     init(
         range: TranscriptBlockRange,
         micEnabled: Bool,
+        micDeviceUniqueID: String? = nil,
         systemProcesses: [AudioProcessDescriptor],
         microphoneCapture: MicrophoneCapturing = MicrophoneCapture(),
         systemAudioCapture: SystemAudioCapturing? = SystemAudioCapture(),
@@ -691,6 +724,7 @@ actor TranscriptLevelMonitor {
     ) {
         self.range = range
         self.micEnabled = micEnabled
+        self.micDeviceUniqueID = micDeviceUniqueID
         self.systemProcesses = systemProcesses
         self.microphoneCapture = microphoneCapture
         self.systemAudioCapture = systemAudioCapture
@@ -710,7 +744,7 @@ actor TranscriptLevelMonitor {
 
         if micEnabled {
             do {
-                try microphoneCapture.start { [weak self] buffer in
+                try microphoneCapture.start(deviceUID: micDeviceUniqueID) { [weak self] buffer in
                     Task {
                         await self?.handleBuffer(source: .mic, buffer: buffer)
                     }
@@ -792,22 +826,6 @@ actor TranscriptSessionRegistry {
         }
         activeSession = session
         await session.start()
-    }
-
-    func pause(range: TranscriptBlockRange) async {
-        _ = range
-        guard let activeSession else {
-            return
-        }
-        await activeSession.pause()
-    }
-
-    func resume(range: TranscriptBlockRange) async {
-        _ = range
-        guard let activeSession else {
-            return
-        }
-        await activeSession.resume()
     }
 
     func stop(range: TranscriptBlockRange) async {

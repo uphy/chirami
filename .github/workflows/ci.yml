@@ -7,6 +7,7 @@ on:
       - '.swiftlint.yml'
       - 'Package.swift'
       - 'Package.resolved'
+      - 'editor-web/**'
 
 jobs:
   lint:
@@ -16,6 +17,23 @@ jobs:
       - uses: jdx/mise-action@v2
       - name: Run SwiftLint
         run: mise run lint
+
+  typecheck-editor:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: editor-web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: editor-web/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Run typecheck
+        run: npm run typecheck
 
   test-and-build:
     runs-on: macos-15

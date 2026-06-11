@@ -3,7 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "build": "esbuild src/main.ts --bundle --minify --sourcemap --loader:.tsx=tsx --jsx=automatic --outfile=../Chirami/Resources/editor/bundle.js && esbuild src/style.css --bundle --minify --loader:.woff=file --loader:.woff2=file --outfile=../Chirami/Resources/editor/bundle.css && node scripts/copy-html.js",
+    "typecheck": "tsc --noEmit",
+    "build": "npm run typecheck && esbuild src/main.ts --bundle --minify --sourcemap --loader:.tsx=tsx --jsx=automatic --outfile=../Chirami/Resources/editor/bundle.js && esbuild src/style.css --bundle --minify --loader:.woff=file --loader:.woff2=file --outfile=../Chirami/Resources/editor/bundle.css && node scripts/copy-html.js",
     "dev": "esbuild src/main.ts --bundle --watch --loader:.tsx=tsx --jsx=automatic --outfile=../Chirami/Resources/editor/bundle.js"
   },
   "dependencies": {

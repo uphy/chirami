@@ -31,7 +31,11 @@ private struct DisplayWebViewRepresentable: NSViewRepresentable {
 
     func makeNSView(context: Context) -> NoteWebView {
         let view = NoteWebView(frame: .zero)
-        if !isReadOnly {
+        if isReadOnly {
+            // Disable editing in CodeMirror itself; read-only windows have no
+            // save path, so any input would otherwise be silently lost.
+            view.setReadOnly(true)
+        } else {
             view.onContentChanged = { [model] text in
                 model.text = text
             }
@@ -44,6 +48,9 @@ private struct DisplayWebViewRepresentable: NSViewRepresentable {
         }
         view.onOpenLink = { url in
             NSWorkspace.shared.open(url)
+        }
+        model.setWindowActive = { [weak view] active in
+            view?.setWindowActive(active)
         }
         model.getEditorContext = { [weak view] options, completion in
             guard let view else {

@@ -13,7 +13,6 @@ final class NoteWebViewBridge: NSObject, WKScriptMessageHandler {
     var onCursorChanged: ((Int, Int) -> Void)?  // (offset, line)
     var onScrollChanged: ((Double) -> Void)?
     var onOpenLink: ((URL) -> Void)?
-    var onFontSizeChange: ((Int) -> Void)?
     var onPasteImage: ((String) -> Void)?  // dataUrl
     var onPlainPaste: (() -> Void)?
     var onFoldChanged: (([Int]) -> Void)?  // 1-based line numbers
@@ -21,8 +20,6 @@ final class NoteWebViewBridge: NSObject, WKScriptMessageHandler {
     var onPluginStateRequest: ((_ pluginId: String) -> Void)?
     var onPluginStateChanged: ((_ pluginId: String, _ stateJson: String) -> Void)?
     var onTranscriptRecordStart: ((TranscriptRecordStartMessage) -> Void)?
-    var onTranscriptRecordPause: ((TranscriptBlockRange) -> Void)?
-    var onTranscriptRecordResume: ((TranscriptBlockRange) -> Void)?
     var onTranscriptRecordStop: ((TranscriptBlockRange) -> Void)?
     var onTranscriptRecordClear: ((TranscriptBlockRange) -> Void)?
     var onTranscriptLevelMonitorStart: ((TranscriptLevelMonitorStartMessage) -> Void)?
@@ -74,10 +71,6 @@ final class NoteWebViewBridge: NSObject, WKScriptMessageHandler {
                 if let urlString = body["url"] as? String, let url = URL(string: urlString) {
                     onOpenLink?(url)
                 }
-            case "fontSizeChange":
-                if let delta = body["delta"] as? Int {
-                    onFontSizeChange?(delta)
-                }
             case "pasteImage":
                 if let dataUrl = body["dataUrl"] as? String {
                     onPasteImage?(dataUrl)
@@ -106,18 +99,6 @@ final class NoteWebViewBridge: NSObject, WKScriptMessageHandler {
                     onTranscriptRecordStart?(message)
                 } else {
                     logger.warning("transcriptRecordStart payload could not be decoded")
-                }
-            case "transcriptRecordPause":
-                if let range = decodeRange(body) {
-                    onTranscriptRecordPause?(range)
-                } else {
-                    logger.warning("transcriptRecordPause payload could not be decoded")
-                }
-            case "transcriptRecordResume":
-                if let range = decodeRange(body) {
-                    onTranscriptRecordResume?(range)
-                } else {
-                    logger.warning("transcriptRecordResume payload could not be decoded")
                 }
             case "transcriptRecordStop":
                 if let range = decodeRange(body) {

@@ -33,6 +33,16 @@ enum TranscriptDeviceResolver {
         )
     }
 
+    /// Extracts the concrete device uniqueID from a resolved mic selection.
+    /// Returns nil for "default" / "off" selections (system default input / mic disabled).
+    static func micDeviceUniqueID(from selection: TranscriptDeviceSnapshot) -> String? {
+        let value = selection.value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !value.isEmpty, value != "default", value != "off" else {
+            return nil
+        }
+        return value
+    }
+
     static func resolveSystemSelection(
         blockSelection: TranscriptDeviceSnapshot,
         configuredValue: String,

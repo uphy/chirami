@@ -432,6 +432,24 @@ struct NoteConfig: Codable, NoteAppearanceResolvable {
     }
 }
 
+// Custom decoding lives in an extension so the memberwise initializer is preserved.
+extension NoteConfig {
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        path = try container.decode(String.self, forKey: .path)
+        title = try container.decodeIfPresent(String.self, forKey: .title)
+        theme = try container.decodeIfPresent(String.self, forKey: .theme)
+        transparency = try container.decodeIfPresent(Double.self, forKey: .transparency)
+        // `hotkeys` is optional in YAML; default to an empty list when omitted.
+        hotkeys = try container.decodeIfPresent([HotkeyBinding].self, forKey: .hotkeys) ?? []
+        position = try container.decodeIfPresent(String.self, forKey: .position)
+        alwaysOnTop = try container.decodeIfPresent(Bool.self, forKey: .alwaysOnTop)
+        rolloverDelay = try container.decodeIfPresent(String.self, forKey: .rolloverDelay)
+        template = try container.decodeIfPresent(String.self, forKey: .template)
+        attachment = try container.decodeIfPresent(AttachmentConfig.self, forKey: .attachment)
+    }
+}
+
 // MARK: - Adhoc Config
 
 struct AdhocConfig: Codable {
@@ -451,6 +469,20 @@ struct AdhocProfile: Codable, NoteAppearanceResolvable {
         case alwaysOnTop = "always_on_top"
     }
 
+}
+
+// Custom decoding lives in an extension so the memberwise initializer is preserved.
+extension AdhocProfile {
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        title = try container.decodeIfPresent(String.self, forKey: .title)
+        theme = try container.decodeIfPresent(String.self, forKey: .theme)
+        transparency = try container.decodeIfPresent(Double.self, forKey: .transparency)
+        position = try container.decodeIfPresent(String.self, forKey: .position)
+        alwaysOnTop = try container.decodeIfPresent(Bool.self, forKey: .alwaysOnTop)
+        // `hotkeys` is optional in YAML; default to an empty list when omitted.
+        hotkeys = try container.decodeIfPresent([HotkeyBinding].self, forKey: .hotkeys) ?? []
+    }
 }
 
 // MARK: - Folding State

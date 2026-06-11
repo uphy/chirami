@@ -125,10 +125,12 @@ class DisplayWindowController: NSObject, NSWindowDelegate, EditorContextProvider
     // MARK: - NSWindowDelegate
 
     func windowDidBecomeKey(_ notification: Notification) {
+        contentModel.setWindowActive?(true)
         WindowManager.shared.editorWindowDidBecomeKey(self)
     }
 
     func windowDidResignKey(_ notification: Notification) {
+        contentModel.setWindowActive?(false)
         guard !isPinned, panel.isVisible else { return }
         setVisible(false)
     }
