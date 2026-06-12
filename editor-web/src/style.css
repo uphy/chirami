@@ -64,7 +64,12 @@ body ::selection {
 /* Links — --chirami-link falls back to accent for custom themes that don't define it */
 .cm-editor .tok-link { color: var(--chirami-link, var(--chirami-accent)); text-decoration: underline; }
 .cm-editor .tok-url { color: var(--chirami-link, var(--chirami-accent)); }
-.cm-editor .cm-clickable-link { cursor: pointer; }
+/* Rendered clickable spans (Link previews and standalone autolinked URLs) share the link look */
+.cm-editor .cm-clickable-link {
+  cursor: pointer;
+  color: var(--chirami-link, var(--chirami-accent));
+  text-decoration: underline;
+}
 
 /* Inline code */
 .chirami-inline-code {

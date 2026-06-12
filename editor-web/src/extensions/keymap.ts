@@ -294,7 +294,10 @@ function linkUrlAtPosition(view: EditorView, pos: number): string | null {
 
 export function openLink(url: string | null | undefined): boolean {
   if (!url) return false;
-  postToSwift({ type: "openLink", url });
+  // GFM autolinks like "www.example.com" carry no scheme; Swift's URL(string:)
+  // cannot open them, so default to https.
+  const normalized = /^www\./i.test(url) ? `https://${url}` : url;
+  postToSwift({ type: "openLink", url: normalized });
   return true;
 }
 
