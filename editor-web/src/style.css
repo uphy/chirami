@@ -513,6 +513,10 @@ body ::selection {
     0 0 0 0.5px color-mix(in srgb, var(--chirami-text) 8%, transparent),
     inset 0 1px 0 var(--widget-inset);
   max-width: var(--cm-block-width, 100%);
+  /* Keep the widget's intrinsic width from inflating .cm-content (a flex
+     item with min-width:auto), which would push the whole widget past the
+     right edge of narrow note windows. */
+  contain: inline-size;
   overflow: visible;
   overflow-anchor: none;
 }
@@ -523,9 +527,11 @@ body ::selection {
 
 .cm-transcript-header {
   display: flex;
-  flex-wrap: nowrap;
+  /* Wrap the toolbar onto its own row instead of overflowing when the
+     note window is too narrow for badge + buttons on one line. */
+  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 6px 8px;
   min-width: 0;
   padding: 8px 10px;
   border-top-left-radius: inherit;
@@ -596,7 +602,11 @@ body ::selection {
 
 .cm-transcript-header-actions {
   display: flex;
-  flex: 0 0 auto;
+  /* Allow shrinking + wrapping so the toolbar never overflows narrow notes. */
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  min-width: 0;
   align-items: center;
   gap: 6px;
   margin-left: auto;
@@ -717,7 +727,8 @@ body ::selection {
 
 .cm-transcript-level-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  /* min(220px, 100%) keeps meters from overflowing containers under 220px. */
+  grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
   gap: 8px;
   padding: 8px 10px 6px;
   border-bottom: var(--widget-border);
