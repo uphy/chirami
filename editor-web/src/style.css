@@ -330,11 +330,14 @@ body ::selection {
   font-weight: bold;
 }
 
-/* Edit-as-Markdown button (hidden by default, shown on hover) */
+/* Edit-as-Markdown button (hidden by default, shown on hover).
+   Anchored above the table's top-right corner so it never covers cell
+   content; the 1px border overlap keeps the wrap's :hover chain unbroken
+   while the pointer travels from the table onto the button. */
 .cm-table-edit-btn {
   position: absolute;
-  top: 4px;
-  right: 4px;
+  bottom: calc(100% - 1px);
+  right: 0;
   padding: 2px 8px;
   font-size: 12px;
   border: 1px solid var(--chirami-border);
