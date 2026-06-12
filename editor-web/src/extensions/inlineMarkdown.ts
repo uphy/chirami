@@ -47,6 +47,12 @@ function appendRenderedChildren(
 }
 
 function renderInlineNode(node: SyntaxNode, text: string): Node | null {
+  // Backslash escapes (e.g. "\|" in table cells) render without the backslash;
+  // the childless Escape node would otherwise fall through to the raw slice.
+  if (node.name === "Escape") {
+    return document.createTextNode(text.slice(node.from + 1, node.to));
+  }
+
   if (isStandaloneURLNode(node)) {
     const href = text.slice(node.from, node.to);
     const link = document.createElement("a");

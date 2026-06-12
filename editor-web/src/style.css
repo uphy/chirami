@@ -303,8 +303,13 @@ body ::selection {
 
 /* Table widget */
 .cm-table-widget {
-  overflow-x: auto;
+  position: relative;
   margin: 0.5em 0;
+}
+
+/* Inner scroller owns overflow so the hover button stays pinned to the wrap */
+.cm-table-scroll {
+  overflow-x: auto;
 }
 
 .cm-table-widget table {
@@ -323,6 +328,47 @@ body ::selection {
 .cm-table-widget thead tr {
   background: var(--chirami-surface);
   font-weight: bold;
+}
+
+/* Edit-as-Markdown button (hidden by default, shown on hover) */
+.cm-table-edit-btn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  padding: 2px 8px;
+  font-size: 12px;
+  border: 1px solid var(--chirami-border);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--chirami-surface-raised) 90%, transparent);
+  color: var(--chirami-text);
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+}
+
+.cm-table-widget:hover .cm-table-edit-btn {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.cm-table-widget td.cm-table-cell-editing,
+.cm-table-widget th.cm-table-cell-editing {
+  outline: 2px solid var(--chirami-accent);
+  outline-offset: -2px;
+}
+
+.cm-table-cell-input {
+  width: 100%;
+  min-width: 3em;
+  box-sizing: border-box;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  padding: 0;
+  margin: 0;
 }
 
 /* Image widget */

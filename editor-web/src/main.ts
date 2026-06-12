@@ -4,6 +4,7 @@ import { applyCapabilities } from "./capabilities";
 import { debounce, setWindowActiveEffect } from "./extensions/utils";
 import { applyFoldingFromLines } from "./extensions/foldMarkdown";
 import { Transaction } from "@codemirror/state";
+import { isTableCellEditActive, setTableCellEditEndCallback } from "./extensions/table";
 import {
   appendTranscriptChunk,
   clearTranscriptBlock,
@@ -59,8 +60,15 @@ function isCompositionActive(): boolean {
   return compositionDepth > 0 || view.composing;
 }
 
+// Doc mutations from outside the user's typing flow (transcript chunks) are
+// deferred while IME composition or a table cell edit session is active —
+// both would be destroyed by a concurrent doc change.
+function isTranscriptMutationBlocked(): boolean {
+  return isCompositionActive() || isTableCellEditActive();
+}
+
 function flushDeferredTranscriptMutations(): void {
-  if (isCompositionActive() || deferredTranscriptMutations.length === 0) return;
+  if (isTranscriptMutationBlocked() || deferredTranscriptMutations.length === 0) return;
   const queued = deferredTranscriptMutations;
   deferredTranscriptMutations = [];
   for (const mutation of queued) {
@@ -71,7 +79,7 @@ function flushDeferredTranscriptMutations(): void {
 
 function scheduleDeferredTranscriptFlush(attempt = 0): void {
   window.setTimeout(() => {
-    if (isCompositionActive()) {
+    if (isTranscriptMutationBlocked()) {
       if (attempt < POST_COMPOSITION_RETRY_LIMIT) {
         scheduleDeferredTranscriptFlush(attempt + 1);
       }
@@ -117,7 +125,7 @@ function resetCompositionState(): void {
 
 function dispatchTranscriptMutation(mutation: () => void): void {
   const epoch = transcriptMutationEpoch;
-  if (isCompositionActive()) {
+  if (isTranscriptMutationBlocked()) {
     deferredTranscriptMutations.push({ epoch, run: mutation });
     return;
   }
@@ -125,12 +133,24 @@ function dispatchTranscriptMutation(mutation: () => void): void {
   mutation();
 }
 
-view.contentDOM.addEventListener("compositionstart", () => {
+setTableCellEditEndCallback(() => {
+  scheduleDeferredTranscriptFlush();
+});
+
+// Composition inside a table cell input is managed by its edit session;
+// keep it out of the global (main editor) composition state.
+function isFromTableCellInput(e: Event): boolean {
+  return !!(e.target as HTMLElement | null)?.closest?.(".cm-table-cell-input");
+}
+
+view.contentDOM.addEventListener("compositionstart", (e) => {
+  if (isFromTableCellInput(e)) return;
   compositionDepth += 1;
   syncCompositionClass();
 });
 
-view.contentDOM.addEventListener("compositionend", () => {
+view.contentDOM.addEventListener("compositionend", (e) => {
+  if (isFromTableCellInput(e)) return;
   resetCompositionState();
 });
 
@@ -142,7 +162,8 @@ view.contentDOM.addEventListener("blur", () => {
 // via external tools like Karabiner Elements. If CodeMirror reports no active
 // composition but our depth counter is still elevated, reset it so the
 // chirami-ime-composing class (which hides selection) is cleared.
-view.contentDOM.addEventListener("keydown", () => {
+view.contentDOM.addEventListener("keydown", (e) => {
+  if (isFromTableCellInput(e)) return;
   if (compositionDepth > 0 && !view.composing) {
     compositionDepth = 0;
     syncCompositionClass();
