@@ -26,7 +26,7 @@ Chirami renders Markdown in an Obsidian-style Live Preview: the block containing
 - Code blocks with syntax highlighting (triple backticks with optional language)
 - Mermaid diagrams (` ```mermaid ` blocks) — rendered as SVG when cursor is outside the block
 - Excalidraw diagrams (` ```excalidraw ` blocks) — rendered as SVG preview; hover to show Edit button, click to open fullscreen Excalidraw editor overlay
-- Tables (GitHub Flavored Markdown pipe syntax)
+- Tables (GitHub Flavored Markdown pipe syntax) — rendered as HTML tables; click a cell to edit it in place. See [Table editing](#editor-features).
 - Thematic breaks (`---`, `***`, `___`)
 - `<details>`/`<summary>` HTML blocks — rendered as collapsible sections; click to expand/collapse
 
@@ -81,6 +81,14 @@ excalidraw:
 ```
 
 **Obsidian Callouts** — Blockquotes starting with `> [!type]` are rendered as styled callout blocks (colored border, background, icon). All standard Obsidian callout types are supported: `note`, `tip`, `warning`, `danger`, `success`, `question`, `failure`, `abstract`, `example`, `quote`, and their aliases. The title defaults to the type name if omitted.
+
+**Table editing** — Tables render as HTML tables when the cursor is outside them. Click a cell to edit it in place:
+
+- **Tab / Shift+Tab** — Move to the next / previous cell. Tab on the last cell appends a new row.
+- **Enter** — Move to the cell below.
+- **Escape** — Discard the edit.
+
+Changes are committed when you navigate to another cell or the editor loses focus. To edit the raw Markdown instead, hover over the table and click the `</>` button — the cursor jumps to the clicked cell. Tables inside blockquotes or lists, and cells containing escapes beyond `\\` and `\|`, fall back to raw Markdown editing.
 
 **Task list toggle** — Cmd+L converts the current line to/from a task list item (`- [ ]`). Click a checkbox to toggle it.
 

@@ -22,6 +22,9 @@ title: Keyboard Shortcuts
 | Shift+Tab (with selection) | Dedent all selected lines |
 | Enter (on list item) | Continue list with next marker |
 | Enter (on empty list item) | End list |
+| Tab / Shift+Tab (editing table cell) | Move to next / previous cell (Tab on last cell appends a row) |
+| Enter (editing table cell) | Move to cell below |
+| Escape (editing table cell) | Discard cell edit |
 | Cmd+[ | Fold block at cursor |
 | Cmd+] | Unfold block at cursor |
 | Cmd+Shift+[ | Fold all blocks |
