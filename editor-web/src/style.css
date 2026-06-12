@@ -61,9 +61,9 @@ body ::selection {
 .cm-editor .tok-emphasis { font-style: italic; }
 .cm-editor .tok-strong { font-weight: 700; }
 
-/* Links */
-.cm-editor .tok-link { color: var(--chirami-accent); text-decoration: underline; }
-.cm-editor .tok-url { color: var(--chirami-accent); }
+/* Links — --chirami-link falls back to accent for custom themes that don't define it */
+.cm-editor .tok-link { color: var(--chirami-link, var(--chirami-accent)); text-decoration: underline; }
+.cm-editor .tok-url { color: var(--chirami-link, var(--chirami-accent)); }
 .cm-editor .cm-clickable-link { cursor: pointer; }
 
 /* Inline code */
