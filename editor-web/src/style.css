@@ -36,6 +36,11 @@ html, body {
   border-left-color: var(--chirami-text) !important;
 }
 
+/* Empty-document placeholder (CodeMirror placeholder extension) */
+.cm-editor .cm-placeholder {
+  color: color-mix(in srgb, var(--chirami-muted) 72%, transparent);
+}
+
 body ::selection {
   background-color: var(--chirami-selection);
   color: inherit;

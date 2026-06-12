@@ -4,7 +4,7 @@ import { markdown } from "@codemirror/lang-markdown";
 import { languages } from "@codemirror/language-data";
 import { search, searchKeymap } from "@codemirror/search";
 import { Compartment, EditorState, Prec, Transaction } from "@codemirror/state";
-import { EditorView, ViewUpdate, keymap, drawSelection } from "@codemirror/view";
+import { EditorView, ViewUpdate, keymap, drawSelection, placeholder } from "@codemirror/view";
 import { GFM } from "@lezer/markdown";
 import { classHighlighter, tags } from "@lezer/highlight";
 import { chiramiKeymap, openLink, openLinkAtPosition, tightListEnterKeymap, surroundSelectionHandler } from "./extensions/keymap";
@@ -266,6 +266,7 @@ export function createEditor(parent: HTMLElement, callbacks: EditorCallbacks): E
         },
       }),
       drawSelection(),
+      placeholder("Write something…"),
       EditorView.lineWrapping,
       windowActiveField,
       cursorRevealField,
