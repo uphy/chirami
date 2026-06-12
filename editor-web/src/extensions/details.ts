@@ -6,7 +6,7 @@ import {
   keymap,
   WidgetType,
 } from "@codemirror/view";
-import { collectHtmlBlocks, cursorLineFromState, transactionHasWindowActiveEffect } from "./utils";
+import { collectHtmlBlocks, cursorLineFromState, transactionCursorRevealChanged, transactionHasWindowActiveEffect } from "./utils";
 import { postToSwift } from "../bridge";
 
 const DETAILS_OPEN_RE = /^<details/i;
@@ -195,6 +195,7 @@ const detailsDecoField = StateField.define<DecorationSet>({
     if (
       hasToggle ||
       transactionHasWindowActiveEffect(tr) ||
+      transactionCursorRevealChanged(tr) ||
       tr.docChanged ||
       tr.startState.selection.main.head !== tr.state.selection.main.head
     ) {

@@ -29,8 +29,48 @@ export function transactionHasWindowActiveEffect(tr: Transaction): boolean {
   return tr.effects.some((effect) => effect.is(setWindowActiveEffect));
 }
 
+// User events that count as a deliberate interaction with the editor.
+// "external" (setContent) and synthetic flushes are excluded so programmatic
+// updates never reveal raw Markdown on their own.
+const INTERACTION_USER_EVENTS = ["input", "delete", "move", "select", "undo", "redo"];
+
+function isInteractionTransaction(tr: Transaction): boolean {
+  // Synthetic annotations like "input.compose.flush" carry a user event but
+  // change nothing; require an actual document or selection change.
+  if (!tr.docChanged && !tr.selection) return false;
+  return INTERACTION_USER_EVENTS.some((event) => tr.isUserEvent(event));
+}
+
+// Tracks whether the user has interacted (clicked, typed, moved the cursor)
+// since the window was last shown. While false, the cursor line keeps its
+// rendered preview instead of revealing raw Markdown, so opening a note never
+// flashes raw syntax on the restored cursor line. Hiding the window resets it.
+export const cursorRevealField = StateField.define<boolean>({
+  create: () => false,
+  update: (revealed, tr) => {
+    for (const effect of tr.effects) {
+      if (effect.is(setWindowActiveEffect) && !effect.value) {
+        return false;
+      }
+    }
+    if (!revealed && isInteractionTransaction(tr)) return true;
+    return revealed;
+  },
+});
+
+function stateCursorRevealed(state: EditorState): boolean {
+  // Default to true when the field is not registered (e.g. minimal test states)
+  // so the original cursor-line behavior is preserved.
+  return state.field(cursorRevealField, false) ?? true;
+}
+
+export function transactionCursorRevealChanged(tr: Transaction): boolean {
+  return tr.startState.field(cursorRevealField, false) !== tr.state.field(cursorRevealField, false);
+}
+
 export function cursorLineNumber(view: EditorView): number {
   if (!view.hasFocus || !isWindowActive()) return -1;
+  if (!stateCursorRevealed(view.state)) return -1;
   return view.state.doc.lineAt(view.state.selection.main.head).number;
 }
 
@@ -56,6 +96,7 @@ export function shouldRebuild(update: ViewUpdate): boolean {
   const windowActiveChanged = update.transactions.some(transactionHasWindowActiveEffect);
   if (foldChanged) return true;
   if (windowActiveChanged) return true;
+  if (update.transactions.some(transactionCursorRevealChanged)) return true;
   if (update.docChanged || update.viewportChanged || update.focusChanged) return true;
   if (!update.selectionSet) return false;
   // Skip when only the anchor moved (e.g. shift+click with same head position).
@@ -77,6 +118,7 @@ export function collectHtmlBlocks(state: EditorState): Array<{ from: number; to:
 
 export function cursorLineFromState(state: EditorState): number {
   if (!stateWindowActive(state)) return -1;
+  if (!stateCursorRevealed(state)) return -1;
   return state.doc.lineAt(state.selection.main.head).number;
 }
 
@@ -90,6 +132,7 @@ export function makeDecorationField(
     update: (deco, tr) => {
       if (
         transactionHasWindowActiveEffect(tr) ||
+        transactionCursorRevealChanged(tr) ||
         tr.docChanged ||
         tr.startState.selection.main.head !== tr.state.selection.main.head
       ) {

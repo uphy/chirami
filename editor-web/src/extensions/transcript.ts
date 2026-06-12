@@ -12,7 +12,7 @@ import {
   TranscriptChunkPayload,
   TranscriptPreviewPayload,
 } from "../bridge";
-import { cursorLineFromState, parseCodeBlockInfo, transactionHasWindowActiveEffect } from "./utils";
+import { cursorLineFromState, parseCodeBlockInfo, transactionCursorRevealChanged, transactionHasWindowActiveEffect } from "./utils";
 import {
   createTranscriptWidget,
   sameTranscriptWidgetSnapshot,
@@ -258,6 +258,7 @@ const transcriptDecorations = StateField.define<DecorationSet>({
     // DOM instead of recreating it.
     const needsRebuild =
       transactionHasWindowActiveEffect(tr) ||
+      transactionCursorRevealChanged(tr) ||
       tr.docChanged ||
       tr.startState.selection.main.head !== tr.state.selection.main.head ||
       tr.effects.some((effect) => effect.is(transcriptRuntimeEffect));

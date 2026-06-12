@@ -31,7 +31,7 @@ import { foldedRanges } from "@codemirror/language";
 import { smartPaste, plainPasteKeymap } from "./extensions/smartPaste";
 import { slashCommandExtension } from "./extensions/slashCommand";
 import { foldGutterLineHover } from "./extensions/foldGutterHover";
-import { windowActiveField } from "./extensions/utils";
+import { cursorRevealField, windowActiveField } from "./extensions/utils";
 import type { EditorContextOptions } from "./bridge";
 
 // Heading font sizes and strikethrough must be set here as inline styles —
@@ -268,6 +268,7 @@ export function createEditor(parent: HTMLElement, callbacks: EditorCallbacks): E
       drawSelection(),
       EditorView.lineWrapping,
       windowActiveField,
+      cursorRevealField,
       livePreview,
       markdownHeadingFold,
       markdownListFold,
