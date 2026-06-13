@@ -1,4 +1,4 @@
-import { createEditor, setEditorContent, setEditorReadOnly, getEditorContext } from "./editor";
+import { createEditor, setEditorContent, setEditorReadOnly, getEditorContext, closeSearch } from "./editor";
 import { postToSwift, exposeApi } from "./bridge";
 import { applyCapabilities } from "./capabilities";
 import { debounce, setWindowActiveEffect } from "./extensions/utils";
@@ -192,6 +192,9 @@ exposeApi({
   },
   setReadOnly: (readOnly) => {
     setEditorReadOnly(view, readOnly);
+  },
+  closeSearch: () => {
+    closeSearch(view);
   },
   setCapabilities: (caps) => {
     applyCapabilities(caps);

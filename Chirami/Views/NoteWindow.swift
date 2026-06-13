@@ -297,6 +297,10 @@ class NoteWindowController: NSWindowController, NSWindowDelegate, EditorContextP
     func hide() {
         guard let panel = window as? NotePanel else { return }
 
+        // Reset transient editor UI so it does not linger on the next show.
+        // closeSearchPanel is a no-op when the search panel is already closed.
+        contentModel.closeSearchPanel?()
+
         saveEditorState()
 
         // Cancel any fade-in still waiting on WebView ready
@@ -825,6 +829,9 @@ class NoteContentModel: ObservableObject {
     nonisolated(unsafe) var savedCursorLocation: Int = 0
     nonisolated(unsafe) var savedScrollOffset: CGPoint = .zero
     var focusWebView: (() -> Void)?
+    /// Closes the CodeMirror search panel if open. Invoked when the note window
+    /// is hidden so the search bar does not linger on the next show.
+    var closeSearchPanel: (() -> Void)?
     var setWindowActive: ((Bool) -> Void)?
     var getEditorContext: ((ContextRequestOptions?, @escaping (Result<String, Error>) -> Void) -> Void)?
     /// Fires once after the WebView is ready and its panel background matches the theme.

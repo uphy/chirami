@@ -324,6 +324,16 @@ export function createEditor(parent: HTMLElement, callbacks: EditorCallbacks): E
   return view;
 }
 
+/**
+ * Closes the CodeMirror search panel if it is open. Used by the host to reset
+ * editor state when the note window is hidden, so the panel does not linger on
+ * the next show. No-op when the panel is already closed.
+ */
+export function closeSearch(view: EditorView) {
+  if (!searchPanelOpen(view.state)) return;
+  closeSearchPanel(view);
+}
+
 export function setEditorContent(view: EditorView, text: string) {
   // Preserve fold state across document replacement.
   // Replacing the entire document invalidates all fold ranges in CodeMirror,

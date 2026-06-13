@@ -339,6 +339,13 @@ final class NoteWebView: NSView {
         enqueueOrEval("document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}))")
     }
 
+    /// Closes the CodeMirror search panel if it is open. Called when the note
+    /// window is hidden so the panel (and its match highlights) do not linger on
+    /// the next show.
+    func closeSearchPanel() {
+        enqueueOrEval("window.chirami.closeSearch();")
+    }
+
     func getEditorContext(options: ContextRequestOptions? = nil, completion: @escaping (Result<String, Error>) -> Void) {
         guard isReady else {
             completion(.failure(NSError(domain: "NoteWebView", code: -1,
@@ -735,6 +742,9 @@ struct NoteWebViewRepresentable: NSViewRepresentable {
         }
         model.focusWebView = { [weak view] in
             view?.focus()
+        }
+        model.closeSearchPanel = { [weak view] in
+            view?.closeSearchPanel()
         }
         return view
     }
