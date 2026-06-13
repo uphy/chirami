@@ -577,12 +577,27 @@ function handleCellKeydown(session: CellEditSession, e: KeyboardEvent): void {
     finishWithNav(session, nextCellLocation(rowCount, colCount, session.row, session.col, dir));
   } else if (e.key === "Enter") {
     e.preventDefault();
+    if (e.shiftKey) {
+      // Insert a hard line break inside the cell; renders as a <br> line break
+      // once committed. The cell editor is single-line, so the marker stays
+      // visible as raw text while editing.
+      insertAtCursor(session.input, "<br>");
+      return;
+    }
     finishWithNav(session, nextCellLocation(rowCount, colCount, session.row, session.col, "down"));
   } else if (e.key === "Escape") {
     e.preventDefault();
     finishCellEdit(session, null, false, true);
   }
   // Everything else (including Cmd+Z) stays native to the input.
+}
+
+function insertAtCursor(input: HTMLInputElement, snippet: string): void {
+  const start = input.selectionStart ?? input.value.length;
+  const end = input.selectionEnd ?? input.value.length;
+  input.value = input.value.slice(0, start) + snippet + input.value.slice(end);
+  const pos = start + snippet.length;
+  input.setSelectionRange(pos, pos);
 }
 
 function finishWithNav(session: CellEditSession, nav: CellNav): void {
