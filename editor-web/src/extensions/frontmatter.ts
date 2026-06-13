@@ -153,15 +153,17 @@ class FrontmatterChipsWidget extends WidgetType {
 
     const total = this.entries.length;
     // Show as many chips as fit on the first row; collapse the rest into "+N".
-    // Reading offsetTop forces layout but the chip count is small. Hiding chips
-    // never widens the container (its width is bounded by the editor), so this
-    // does not trigger a ResizeObserver feedback loop.
+    // The container uses flex-wrap so it respects the editor width (no window
+    // growth); a CSS max-height clips any wrapped rows to keep the widget exactly
+    // one row tall, so hiding overflow never changes the widget height (which
+    // would shift the body content below — misplacing the caret and fold markers).
+    // Fit is detected via offsetTop: a chip that wrapped sits below the first row.
     const relayout = () => {
       for (const chip of chips) chip.style.display = "";
       more.style.display = "none";
       if (chips.length === 0) return;
       const rowTop = chips[0].offsetTop;
-      let firstWrapped = chips.findIndex((c) => c.offsetTop > rowTop);
+      const firstWrapped = chips.findIndex((c) => c.offsetTop > rowTop);
       if (firstWrapped === -1) return; // everything fits on one row
 
       let shownCount = firstWrapped;
@@ -332,8 +334,28 @@ function arrowUpIntoFrontmatter(view: EditorView): boolean {
   return true;
 }
 
+// Toggling the frontmatter between raw text (N lines) and the collapsed chip
+// block (1 line) changes the document height. CodeMirror can draw the caret and
+// the fold gutter markers against the pre-toggle geometry for one frame (the
+// caret appears a line too low until the next keystroke forces a redraw). Force
+// a re-measure whenever the raw/chips state flips so the redraw happens at once.
+function isFrontmatterRaw(state: EditorState): boolean {
+  const range = findFrontmatter(state);
+  if (!range) return false;
+  const cl = cursorLineFromState(state);
+  return cl >= range.startLine && cl <= range.endLine;
+}
+
+const frontmatterRemeasure = EditorView.updateListener.of((update) => {
+  if (!update.docChanged && !update.selectionSet) return;
+  if (isFrontmatterRaw(update.startState) !== isFrontmatterRaw(update.state)) {
+    update.view.requestMeasure();
+  }
+});
+
 export const frontmatterExtension = [
   frontmatterDecorations,
   frontmatterCaretGuard,
+  frontmatterRemeasure,
   Prec.high(keymap.of([{ key: "ArrowUp", run: arrowUpIntoFrontmatter }])),
 ];

@@ -1829,6 +1829,11 @@ body ::selection {
 .cm-frontmatter-chips {
   display: flex;
   flex-wrap: wrap;
+  /* Clip to a single row: relayout hides chips that wrapped below, and the
+     max-height keeps the widget one row tall even for the one frame before the
+     ResizeObserver relayout runs — so the body content below never shifts. */
+  max-height: 1.9em;
+  overflow: hidden;
   gap: 4px 6px;
   padding: 2px 0 6px;
   font-size: 0.85em;
