@@ -291,9 +291,15 @@ body ::selection {
   margin: 0.25em 0;
 }
 
-/* Mermaid diagram container */
-.cm-mermaid-container {
+/* Mermaid diagram container.
+   The outer wrap is the hover/position anchor (no overflow so the edit
+   button is never clipped); the inner scroller owns overflow. */
+.cm-mermaid-widget {
+  position: relative;
   margin: 0.5em 0;
+}
+
+.cm-mermaid-container {
   overflow: auto;
   max-width: var(--cm-block-width, 100%);
   max-height: var(--cm-block-height, none);
@@ -344,10 +350,10 @@ body ::selection {
 }
 
 /* Edit-as-Markdown button (hidden by default, shown on hover).
-   Anchored above the table's top-right corner so it never covers cell
-   content; the 1px border overlap keeps the wrap's :hover chain unbroken
-   while the pointer travels from the table onto the button. */
-.cm-table-edit-btn {
+   Shared by the table and mermaid widgets. Anchored above the widget's
+   top-right corner so it never covers content; the 1px border overlap keeps
+   the wrap's :hover chain unbroken while the pointer travels onto the button. */
+.cm-source-edit-btn {
   position: absolute;
   bottom: calc(100% - 1px);
   right: 0;
@@ -363,7 +369,8 @@ body ::selection {
   transition: opacity 0.15s;
 }
 
-.cm-table-widget:hover .cm-table-edit-btn {
+.cm-table-widget:hover .cm-source-edit-btn,
+.cm-mermaid-widget:hover .cm-source-edit-btn {
   opacity: 1;
   pointer-events: auto;
 }

@@ -228,28 +228,54 @@ if (typeof document !== "undefined" && typeof window !== "undefined") {
 class MermaidWidget extends WidgetType {
   constructor(
     private code: string,
+    private readonly blockFrom: number,
     private readonly sizeOptions: CodeBlockSizeOptions = {},
   ) {
     super();
   }
 
   eq(other: MermaidWidget): boolean {
-    return other.code === this.code && sizeOptionsEq(other.sizeOptions, this.sizeOptions);
+    // blockFrom is compared so the widget is rebuilt when the block moves;
+    // otherwise the source-edit button would dispatch to a stale position.
+    return (
+      other.code === this.code &&
+      other.blockFrom === this.blockFrom &&
+      sizeOptionsEq(other.sizeOptions, this.sizeOptions)
+    );
   }
 
   toDOM(view: EditorView): HTMLElement {
+    // Two layers: the outer wrap anchors the hover button; the inner container
+    // owns overflow and holds the rendered SVG (re-rendered on theme changes).
+    const wrap = document.createElement("div");
+    wrap.className = "cm-mermaid-widget";
+
     const container = document.createElement("div");
     container.className = "cm-mermaid-container";
     applySizeOptions(container, this.sizeOptions);
+    wrap.appendChild(container);
+
+    const sourceBtn = document.createElement("button");
+    sourceBtn.className = "cm-source-edit-btn";
+    sourceBtn.textContent = "</>";
+    sourceBtn.title = "Edit as Markdown";
+    sourceBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      // Move the cursor into the block so it reverts to raw Markdown.
+      view.dispatch({ selection: { anchor: this.blockFrom } });
+      view.focus();
+    });
+    wrap.appendChild(sourceBtn);
 
     liveDiagrams.set(container, { code: this.code, view });
     renderDiagram(container, this.code, view);
 
-    return container;
+    return wrap;
   }
 
   destroy(dom: HTMLElement): void {
-    liveDiagrams.delete(dom);
+    const container = dom.querySelector(".cm-mermaid-container");
+    if (container instanceof HTMLElement) liveDiagrams.delete(container);
   }
 
   ignoreEvent(): boolean {
@@ -283,7 +309,7 @@ function buildMermaidDecorations(state: EditorState): DecorationSet {
 
       decorations.push(
         Decoration.replace({
-          widget: new MermaidWidget(code, sizeOptions),
+          widget: new MermaidWidget(code, startLine.from, sizeOptions),
         }).range(startLine.from, endLine.to),
       );
 

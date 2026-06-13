@@ -725,7 +725,7 @@ class TableWidget extends WidgetType {
     wrap.appendChild(scroll);
 
     const sourceBtn = document.createElement("button");
-    sourceBtn.className = "cm-table-edit-btn";
+    sourceBtn.className = "cm-source-edit-btn";
     sourceBtn.textContent = "</>";
     sourceBtn.title = "Edit as Markdown";
     sourceBtn.addEventListener("click", (e) => {
