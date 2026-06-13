@@ -4,8 +4,10 @@ import { Decoration, DecorationSet, EditorView, WidgetType } from "@codemirror/v
 import { parse as parseYaml } from "yaml";
 import {
   cursorLineFromState,
+  cursorRevealField,
   transactionCursorRevealChanged,
   transactionHasWindowActiveEffect,
+  windowActiveField,
 } from "./utils";
 import { postToSwift } from "../bridge";
 
@@ -22,6 +24,8 @@ interface FrontmatterRange {
   // Line-aligned range used for the block replacement decoration.
   blockFrom: number;
   blockTo: number;
+  // blockFrom..closing-line-end + trailing newline; used as the replace range.
+  replaceTo: number;
   startLine: number;
   endLine: number;
   // YAML body between the two `---` dash lines.
@@ -49,6 +53,11 @@ function findFrontmatter(state: EditorState): FrontmatterRange | null {
   return {
     blockFrom: startLineObj.from,
     blockTo: endLineObj.to,
+    // Include the closing line's trailing newline in the replaced range. A
+    // block widget that stops exactly at endLine.to leaves a boundary position
+    // (body start) that CodeMirror draws at the widget's full height — a giant
+    // blinking caret. Consuming the "\n" makes the cursor land on the body line.
+    replaceTo: Math.min(state.doc.length, endLineObj.to + 1),
     startLine: startLineObj.number,
     endLine: endLineObj.number,
     contentFrom,
@@ -154,7 +163,10 @@ class FrontmatterChipsWidget extends WidgetType {
       if (selection && !selection.isCollapsed) return; // allow text selection
       e.preventDefault();
       e.stopPropagation();
-      view.dispatch({ selection: { anchor: this.editFrom }, scrollIntoView: true });
+      // userEvent "select" marks this as a deliberate interaction so the editor
+      // "reveals" the cursor line (see cursorRevealField); without it the raw
+      // YAML would not appear even though the cursor is inside the block.
+      view.dispatch({ selection: { anchor: this.editFrom }, scrollIntoView: true, userEvent: "select" });
       view.focus();
     });
 
@@ -199,7 +211,7 @@ function _buildFrontmatterDecorations(state: EditorState): DecorationSet {
     Decoration.replace({
       widget: new FrontmatterChipsWidget(entries, editFrom, signature),
       block: true,
-    }).range(range.blockFrom, range.blockTo),
+    }).range(range.blockFrom, range.replaceTo),
   ]);
 }
 
@@ -241,4 +253,25 @@ const frontmatterDecorations = StateField.define<DecorationSet>({
   provide: (field) => EditorView.decorations.from(field),
 });
 
-export const frontmatterExtension = [frontmatterDecorations];
+// When a note is opened the cursor is often restored to offset 0, which is
+// inside the leading frontmatter. While the cursor is "unrevealed" the chips
+// are shown (correct), but CodeMirror still draws the caret at offset 0 — i.e.
+// inside the block widget — producing a giant, full-height blinking caret.
+// Nudge the caret just past the frontmatter in that case. This runs only while
+// unrevealed, so it never fights a deliberate cursor move into the block (which
+// reveals and shows raw YAML), and it does not reveal the body line.
+const frontmatterCaretGuard = EditorView.updateListener.of((update) => {
+  const { state } = update;
+  if (state.field(cursorRevealField, false)) return; // user is interacting → leave caret
+  if (!(state.field(windowActiveField, false) ?? true)) return; // hidden → caret not drawn
+  const sel = state.selection.main;
+  if (!sel.empty) return;
+  const range = findFrontmatter(state);
+  if (!range) return;
+  if (sel.head < range.blockFrom || sel.head > range.blockTo) return; // already outside
+  const bodyPos = Math.min(state.doc.length, range.replaceTo);
+  if (bodyPos === sel.head) return;
+  update.view.dispatch({ selection: { anchor: bodyPos } });
+});
+
+export const frontmatterExtension = [frontmatterDecorations, frontmatterCaretGuard];
