@@ -2,7 +2,7 @@ import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirro
 import { HighlightStyle, foldGutter, syntaxHighlighting, indentUnit } from "@codemirror/language";
 import { markdown } from "@codemirror/lang-markdown";
 import { languages } from "@codemirror/language-data";
-import { search, searchKeymap } from "@codemirror/search";
+import { search, searchKeymap, searchPanelOpen, closeSearchPanel } from "@codemirror/search";
 import { Compartment, EditorState, Prec, Transaction } from "@codemirror/state";
 import { EditorView, ViewUpdate, keymap, drawSelection, placeholder } from "@codemirror/view";
 import { GFM } from "@lezer/markdown";
@@ -33,6 +33,7 @@ import { slashCommandExtension } from "./extensions/slashCommand";
 import { foldGutterLineHover } from "./extensions/foldGutterHover";
 import { cursorRevealField, windowActiveField } from "./extensions/utils";
 import type { EditorContextOptions } from "./bridge";
+import { postToSwift } from "./bridge";
 
 // Heading font sizes and strikethrough must be set here as inline styles —
 // classHighlighter CSS classes alone don't apply font-size to heading lines correctly.
@@ -160,6 +161,11 @@ function buildTranscriptContext(
 }
 
 export function createEditor(parent: HTMLElement, callbacks: EditorCallbacks): EditorView {
+  // Tracks the CodeMirror search panel open state. Mirrored to Swift via the
+  // `searchPanelVisible` bridge message so NotePanel can route ESC to JS (close
+  // the panel) instead of hiding the note window. Same pattern as `overlayVisible`.
+  let searchPanelVisible = false;
+
   const updateListener = EditorView.updateListener.of((update: ViewUpdate) => {
     if (update.docChanged) {
       const immediate = update.transactions.some((transaction) => {
@@ -171,6 +177,11 @@ export function createEditor(parent: HTMLElement, callbacks: EditorCallbacks): E
       const head = update.state.selection.main.head;
       const line = update.state.doc.lineAt(head).number;
       callbacks.onCursorChanged(head, line);
+    }
+    const nextSearchPanelVisible = searchPanelOpen(update.state);
+    if (nextSearchPanelVisible !== searchPanelVisible) {
+      searchPanelVisible = nextSearchPanelVisible;
+      postToSwift({ type: "searchPanelVisible", visible: searchPanelVisible });
     }
   });
 
@@ -295,6 +306,21 @@ export function createEditor(parent: HTMLElement, callbacks: EditorCallbacks): E
   });
 
   const view = new EditorView({ state, parent });
+
+  // Swift intercepts ESC and, when the search panel is open, re-dispatches a
+  // synthetic Escape keydown on `document` (see NoteWebView.dispatchEscapeKey).
+  // CodeMirror's searchKeymap Escape only fires while the search input is focused,
+  // so we close the panel at the document level instead. The Excalidraw overlay
+  // installs its own document keydown listener while open; if its overlay is
+  // showing the search panel is closed, so `searchPanelOpen` guards against
+  // interfering with that flow.
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    if (!searchPanelOpen(view.state)) return;
+    closeSearchPanel(view);
+    e.preventDefault();
+  });
+
   return view;
 }
 

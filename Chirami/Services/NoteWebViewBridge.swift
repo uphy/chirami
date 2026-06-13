@@ -17,6 +17,7 @@ final class NoteWebViewBridge: NSObject, WKScriptMessageHandler {
     var onPlainPaste: (() -> Void)?
     var onFoldChanged: (([Int]) -> Void)?  // 1-based line numbers
     var onOverlayVisibleChanged: ((Bool) -> Void)?
+    var onSearchPanelVisibleChanged: ((Bool) -> Void)?
     var onPluginStateRequest: ((_ pluginId: String) -> Void)?
     var onPluginStateChanged: ((_ pluginId: String, _ stateJson: String) -> Void)?
     /// JS -> Swift transcript dispatch target. Weak: the coordinator is owned by
@@ -89,6 +90,10 @@ final class NoteWebViewBridge: NSObject, WKScriptMessageHandler {
             case "overlayVisible":
                 if let visible = body["visible"] as? Bool {
                     onOverlayVisibleChanged?(visible)
+                }
+            case "searchPanelVisible":
+                if let visible = body["visible"] as? Bool {
+                    onSearchPanelVisibleChanged?(visible)
                 }
             case "pluginStateRequest":
                 if let pluginId = body["pluginId"] as? String {

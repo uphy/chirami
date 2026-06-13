@@ -132,6 +132,7 @@ type JsToSwiftMessage =
   | { type: "foldChanged"; foldedLines: number[] }
   | { type: "log"; level: "debug" | "info" | "warn" | "error"; message: string }
   | { type: "overlayVisible"; visible: boolean }
+  | { type: "searchPanelVisible"; visible: boolean }
   | { type: "pluginStateRequest"; pluginId: string }
   | { type: "pluginStateChanged"; pluginId: string; stateJson: string }
   | { type: "transcriptRecordStart"; range: TranscriptBlockRange; micDevice: TranscriptDeviceSnapshot; systemDevice: TranscriptDeviceSnapshot }

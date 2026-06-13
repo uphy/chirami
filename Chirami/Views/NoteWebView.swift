@@ -55,6 +55,9 @@ final class NoteWebView: NSView {
     /// True while an overlay (e.g. Excalidraw) is open in the WebView.
     private(set) var overlayVisible: Bool = false
 
+    /// True while the CodeMirror search panel (Cmd+F) is open in the WebView.
+    private(set) var searchPanelVisible: Bool = false
+
     override init(frame frameRect: NSRect) {
         let config = WKWebViewConfiguration()
         #if DEBUG
@@ -151,6 +154,9 @@ final class NoteWebView: NSView {
         }
         bridge.onOverlayVisibleChanged = { [weak self] visible in
             self?.overlayVisible = visible
+        }
+        bridge.onSearchPanelVisibleChanged = { [weak self] visible in
+            self?.searchPanelVisible = visible
         }
         bridge.onPluginStateRequest = { [weak self] pluginId in
             self?.sendPluginState(pluginId: pluginId)
