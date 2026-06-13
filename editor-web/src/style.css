@@ -83,6 +83,9 @@ body ::selection {
   background-color: var(--chirami-code-bg);
   border-radius: 3px;
   padding: 0 4px;
+  /* Wrap long inline code at the window edge: prefer word boundaries, but
+     break within a token when a single run exceeds the available width. */
+  overflow-wrap: anywhere;
 }
 
 /* Blockquote */
