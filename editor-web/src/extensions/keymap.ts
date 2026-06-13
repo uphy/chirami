@@ -332,6 +332,7 @@ const SURROUND_PAIRS: Record<string, string> = {
   "`": "`",
   "_": "_",
   "~": "~",
+  "=": "=",  // type = twice over a selection to wrap as ==highlight==
   "(": ")",
   "[": "]",
   "{": "}",
