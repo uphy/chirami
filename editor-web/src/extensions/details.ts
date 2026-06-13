@@ -82,20 +82,17 @@ class SummaryWidget extends WidgetType {
 
     container.addEventListener("mousedown", (e) => e.preventDefault());
 
-    arrow.addEventListener("click", (e) => {
+    // Toggle on a click anywhere on the summary row (arrow + text), matching
+    // the native <summary> behavior in browsers and Obsidian. Raw-edit mode is
+    // still reachable via keyboard (↑/↓ into the atomic widget, Enter inside).
+    container.addEventListener("click", (e) => {
+      // Skip when the user just finished a drag-selection inside the summary,
+      // so selecting text does not accidentally toggle the block.
+      const selection = window.getSelection();
+      if (selection && !selection.isCollapsed) return;
       e.preventDefault();
       e.stopPropagation();
       view.dispatch({ effects: toggleDetailsEffect.of(this.blockPos) });
-    });
-
-    // Text click: enter raw-edit mode by placing the cursor after the opening
-    // tag block. The decoration build will skip this block once the cursor is
-    // inside the details range, revealing the raw Markdown.
-    text.addEventListener("click", (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      view.dispatch({ selection: { anchor: this.blockEnd } });
-      view.focus();
     });
 
     return container;
