@@ -1820,3 +1820,42 @@ body ::selection {
 .cm-searchMatch-selected {
   background-color: color-mix(in srgb, var(--chirami-accent) 55%, transparent);
 }
+
+/* Frontmatter block (leading --- … --- YAML).
+   Shown above the body as a compact, read-only row of key/value chips when the
+   cursor is outside; when the cursor is inside, the chips are removed and the
+   raw YAML is edited directly (lang-yaml highlighting — no styles here).
+   Colours use --chirami-* so the block follows the active note theme. */
+.cm-frontmatter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  padding: 2px 0 6px;
+  font-size: 0.85em;
+  cursor: text;
+}
+
+.cm-frontmatter-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  max-width: 100%;
+  min-width: 0;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background-color: color-mix(in srgb, var(--chirami-surface) 60%, transparent);
+}
+
+.cm-frontmatter-chip-key {
+  color: var(--chirami-muted);
+  white-space: nowrap;
+  flex: none;
+}
+
+.cm-frontmatter-chip-value {
+  color: var(--chirami-text);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

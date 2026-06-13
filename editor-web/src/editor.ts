@@ -1,6 +1,7 @@
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { HighlightStyle, foldGutter, syntaxHighlighting, indentUnit } from "@codemirror/language";
 import { markdown } from "@codemirror/lang-markdown";
+import { yamlFrontmatter } from "@codemirror/lang-yaml";
 import { languages } from "@codemirror/language-data";
 import { search, searchKeymap, searchPanelOpen, closeSearchPanel } from "@codemirror/search";
 import { Compartment, EditorState, Prec, Transaction } from "@codemirror/state";
@@ -22,6 +23,7 @@ import {
   TranscriptBlockRef,
 } from "./extensions/transcript";
 import { detailsExtension } from "./extensions/details";
+import { frontmatterExtension } from "./extensions/frontmatter";
 import {
   markdownHeadingFold,
   markdownListFold,
@@ -257,7 +259,7 @@ export function createEditor(parent: HTMLElement, callbacks: EditorCallbacks): E
         ...historyKeymap,
         ...searchKeymap,
       ]),
-      markdown({ extensions: [GFM, Highlight], codeLanguages: languages }),
+      yamlFrontmatter({ content: markdown({ extensions: [GFM, Highlight], codeLanguages: languages }) }),
       syntaxHighlighting(classHighlighter),
       syntaxHighlighting(markdownStyle),
       EditorView.theme({
@@ -310,6 +312,7 @@ export function createEditor(parent: HTMLElement, callbacks: EditorCallbacks): E
       excalidrawExtension,
       transcriptExtension,
       detailsExtension,
+      frontmatterExtension,
       slashCommandExtension,
       smartPaste,
       updateListener,

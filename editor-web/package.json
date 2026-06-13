@@ -23,7 +23,8 @@
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "turndown": "^7",
-    "turndown-plugin-gfm": "^1"
+    "turndown-plugin-gfm": "^1",
+    "yaml": "^2.9.0"
   },
   "devDependencies": {
     "@types/react": "^19.2.14",
