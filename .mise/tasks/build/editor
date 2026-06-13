@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+#MISE description="Build the editor-web JS bundle into Chirami/Resources/editor/"
+set -euo pipefail
+
+cd "$(git rev-parse --show-toplevel)/editor-web"
+
+if [ ! -d node_modules ]; then
+  npm install
+fi
+
+npm run build

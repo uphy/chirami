@@ -2,7 +2,7 @@
 *.xcuserstate
 xcuserdata/
 .build/
-build/
+/build/
 DerivedData/
 Package.resolved
 .swiftpm/

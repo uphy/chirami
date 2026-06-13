@@ -486,8 +486,13 @@ final class NoteWebView: NSView {
     fileprivate static let userCSSElementID = "chirami-user-css"
 
     /// Built-in theme CSS loaded once from the bundle and reused by every webview.
+    ///
+    /// Loaded from `Bundle.main` (the `.app`'s `Contents/Resources`) — the same
+    /// mechanism used for the editor web files — so the resource ships with the
+    /// app bundle rather than relying on the SwiftPM resource bundle, which is
+    /// not copied into the distributed `.app`.
     private static let defaultCSSScript: WKUserScript? = {
-        guard let cssURL = Bundle.module.url(forResource: "chirami-default", withExtension: "css"),
+        guard let cssURL = Bundle.main.url(forResource: "chirami-default", withExtension: "css"),
               let css = try? String(contentsOf: cssURL, encoding: .utf8) else {
             staticLogger.error("chirami-default.css not found in bundle")
             return nil
