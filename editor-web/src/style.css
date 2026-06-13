@@ -66,6 +66,19 @@ body ::selection {
 .cm-editor .tok-emphasis { font-style: italic; }
 .cm-editor .tok-strong { font-weight: 700; }
 
+/* Highlight (Obsidian-style ==text==).
+   `.cm-highlight` is the Live Preview span (markdownStyle in editor.ts);
+   `mark` is the static rendered element (renderInlineMarkdown). No dedicated
+   theme variable exists, so derive a subtle accent-tinted background that stays
+   legible across all themes (including the yellow default). */
+.cm-editor .cm-highlight,
+.cm-editor mark {
+  background-color: color-mix(in srgb, var(--chirami-accent) 28%, transparent);
+  color: inherit;
+  border-radius: 3px;
+  padding: 0 2px;
+}
+
 /* Links — --chirami-link falls back to accent for custom themes that don't define it */
 .cm-editor .tok-link { color: var(--chirami-link, var(--chirami-accent)); text-decoration: underline; }
 .cm-editor .tok-url { color: var(--chirami-link, var(--chirami-accent)); }

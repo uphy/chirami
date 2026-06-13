@@ -8,6 +8,7 @@ import { EditorView, ViewUpdate, keymap, drawSelection, placeholder } from "@cod
 import { GFM } from "@lezer/markdown";
 import { classHighlighter, tags } from "@lezer/highlight";
 import { chiramiKeymap, openLink, openLinkAtPosition, tightListEnterKeymap, surroundSelectionHandler } from "./extensions/keymap";
+import { Highlight, highlightTag } from "./extensions/highlight";
 import { livePreview } from "./extensions/livePreview";
 import { tableExtension } from "./extensions/table";
 import { mermaidExtension } from "./extensions/mermaid";
@@ -45,6 +46,7 @@ const markdownStyle = HighlightStyle.define([
   { tag: [tags.heading4, tags.heading5, tags.heading6], fontWeight: "bold" },
   { tag: tags.strikethrough, textDecoration: "line-through" },
   { tag: tags.monospace, class: "chirami-inline-code" },
+  { tag: highlightTag, class: "cm-highlight" },
 ]);
 
 // Compartment so Swift can toggle read-only mode at runtime (e.g. Ad-hoc Notes
@@ -240,7 +242,7 @@ export function createEditor(parent: HTMLElement, callbacks: EditorCallbacks): E
         ...historyKeymap,
         ...searchKeymap,
       ]),
-      markdown({ extensions: GFM, codeLanguages: languages }),
+      markdown({ extensions: [GFM, Highlight], codeLanguages: languages }),
       syntaxHighlighting(classHighlighter),
       syntaxHighlighting(markdownStyle),
       EditorView.theme({

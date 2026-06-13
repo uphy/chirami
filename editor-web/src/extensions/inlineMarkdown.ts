@@ -1,15 +1,17 @@
 import { GFM, parser } from "@lezer/markdown";
 import type { SyntaxNode } from "@lezer/common";
+import { Highlight } from "./highlight";
 
 export const INLINE_FORMAT_MARK_NODES = new Set([
   "EmphasisMark",
   "CodeMark",
   "StrikethroughMark",
+  "HighlightMark",
 ]);
 
 export const INLINE_LINK_MARK_NODES = new Set(["LinkMark", "URL"]);
 
-const inlineMarkdownParser = parser.configure(GFM);
+const inlineMarkdownParser = parser.configure([GFM, Highlight]);
 
 export function renderInlineMarkdown(text: string): DocumentFragment {
   const fragment = document.createDocumentFragment();
@@ -78,6 +80,10 @@ function renderInlineNode(node: SyntaxNode, text: string): Node | null {
     return wrapInlineNode("del", node, text);
   }
 
+  if (node.name === "Highlight") {
+    return wrapInlineNode("mark", node, text);
+  }
+
   if (node.name === "InlineCode") {
     const code = wrapInlineNode("code", node, text);
     code.className = "chirami-inline-code";
@@ -98,7 +104,7 @@ function renderInlineNode(node: SyntaxNode, text: string): Node | null {
   return fragment;
 }
 
-function wrapInlineNode(tagName: "strong" | "em" | "del" | "code", node: SyntaxNode, text: string): HTMLElement {
+function wrapInlineNode(tagName: "strong" | "em" | "del" | "code" | "mark", node: SyntaxNode, text: string): HTMLElement {
   const element = document.createElement(tagName);
   appendRenderedChildren(element, node, text);
   return element;
