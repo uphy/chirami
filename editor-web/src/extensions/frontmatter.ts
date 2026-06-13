@@ -21,11 +21,16 @@ import { postToSwift } from "../bridge";
 // file byte-for-byte intact (Obsidian non-destructive compatibility).
 
 interface FrontmatterRange {
-  // Line-aligned range used for the block replacement decoration.
+  // Line-aligned range used for the block replacement decoration. blockTo is
+  // the end of the closing "---" line, NOT including its trailing newline:
+  // including the newline would make the body line's start coincide with the
+  // replace range's end, which pushes a caret placed at the body line start
+  // back to the block start (into the frontmatter).
   blockFrom: number;
   blockTo: number;
-  // blockFrom..closing-line-end + trailing newline; used as the replace range.
-  replaceTo: number;
+  // Start of the body line (just past the closing newline) — outside the
+  // replace range. Used as the safe spot to park the caret (see caret guard).
+  bodyStart: number;
   startLine: number;
   endLine: number;
   // YAML body between the two `---` dash lines.
@@ -53,11 +58,7 @@ function findFrontmatter(state: EditorState): FrontmatterRange | null {
   return {
     blockFrom: startLineObj.from,
     blockTo: endLineObj.to,
-    // Include the closing line's trailing newline in the replaced range. A
-    // block widget that stops exactly at endLine.to leaves a boundary position
-    // (body start) that CodeMirror draws at the widget's full height — a giant
-    // blinking caret. Consuming the "\n" makes the cursor land on the body line.
-    replaceTo: Math.min(state.doc.length, endLineObj.to + 1),
+    bodyStart: Math.min(state.doc.length, endLineObj.to + 1),
     startLine: startLineObj.number,
     endLine: endLineObj.number,
     contentFrom,
@@ -247,7 +248,7 @@ function _buildFrontmatterDecorations(state: EditorState): DecorationSet {
     Decoration.replace({
       widget: new FrontmatterChipsWidget(entries, editFrom, signature),
       block: true,
-    }).range(range.blockFrom, range.replaceTo),
+    }).range(range.blockFrom, range.blockTo),
   ]);
 }
 
@@ -305,9 +306,8 @@ const frontmatterCaretGuard = EditorView.updateListener.of((update) => {
   const range = findFrontmatter(state);
   if (!range) return;
   if (sel.head < range.blockFrom || sel.head > range.blockTo) return; // already outside
-  const bodyPos = Math.min(state.doc.length, range.replaceTo);
-  if (bodyPos === sel.head) return;
-  update.view.dispatch({ selection: { anchor: bodyPos } });
+  if (range.bodyStart === sel.head) return;
+  update.view.dispatch({ selection: { anchor: range.bodyStart } });
 });
 
 export const frontmatterExtension = [frontmatterDecorations, frontmatterCaretGuard];
