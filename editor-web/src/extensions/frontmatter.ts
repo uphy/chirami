@@ -99,10 +99,10 @@ interface FrontmatterEntry {
   raw: string;
 }
 
-// Cap the number of chips shown so a frontmatter with many fields does not
-// dominate the small note. Overflow collapses into a single "+N" chip;
-// clicking it (like any chip) enters raw editing where every field is visible.
-const MAX_CHIPS = 6;
+// Element holding the per-widget ResizeObserver so destroy() can disconnect it.
+interface ChipsRoot extends HTMLElement {
+  __chiramiFmObserver?: ResizeObserver;
+}
 
 class FrontmatterChipsWidget extends WidgetType {
   constructor(
@@ -118,11 +118,11 @@ class FrontmatterChipsWidget extends WidgetType {
   }
 
   toDOM(view: EditorView): HTMLElement {
-    const container = document.createElement("div");
+    const container = document.createElement("div") as ChipsRoot;
     container.className = "cm-frontmatter-chips";
 
-    const shown = this.entries.slice(0, MAX_CHIPS);
-    for (const entry of shown) {
+    const chips: HTMLElement[] = [];
+    for (const entry of this.entries) {
       const chip = document.createElement("span");
       chip.className = "cm-frontmatter-chip";
 
@@ -140,16 +140,48 @@ class FrontmatterChipsWidget extends WidgetType {
       chip.appendChild(value);
 
       container.appendChild(chip);
+      chips.push(chip);
     }
 
-    const overflow = this.entries.length - shown.length;
-    if (overflow > 0) {
-      const more = document.createElement("span");
-      more.className = "cm-frontmatter-chip cm-frontmatter-chip-more";
-      more.textContent = `+${overflow}`;
-      more.title = `${overflow} more — click to edit`;
-      container.appendChild(more);
-    }
+    // Overflow chip: how many fields are hidden because they don't fit on the
+    // first row. Count is computed by measurement (relayout), not a fixed cap.
+    const more = document.createElement("span");
+    more.className = "cm-frontmatter-chip cm-frontmatter-chip-more";
+    more.style.display = "none";
+    container.appendChild(more);
+
+    const total = this.entries.length;
+    // Show as many chips as fit on the first row; collapse the rest into "+N".
+    // Reading offsetTop forces layout but the chip count is small. Hiding chips
+    // never widens the container (its width is bounded by the editor), so this
+    // does not trigger a ResizeObserver feedback loop.
+    const relayout = () => {
+      for (const chip of chips) chip.style.display = "";
+      more.style.display = "none";
+      if (chips.length === 0) return;
+      const rowTop = chips[0].offsetTop;
+      let firstWrapped = chips.findIndex((c) => c.offsetTop > rowTop);
+      if (firstWrapped === -1) return; // everything fits on one row
+
+      let shownCount = firstWrapped;
+      more.style.display = "";
+      const apply = () => {
+        chips.forEach((c, i) => (c.style.display = i < shownCount ? "" : "none"));
+        const hidden = total - shownCount;
+        more.textContent = `+${hidden}`;
+        more.title = `${hidden} more — click to edit`;
+      };
+      apply();
+      // Make room for the "+N" chip itself on the first row.
+      while (shownCount > 0 && more.offsetTop > rowTop) {
+        shownCount -= 1;
+        apply();
+      }
+    };
+
+    const observer = new ResizeObserver(() => relayout());
+    observer.observe(container);
+    container.__chiramiFmObserver = observer;
 
     // Clicking the chips switches to raw-edit mode by moving the cursor inside
     // the frontmatter (the next rebuild then drops the chips and shows the YAML).
@@ -171,6 +203,10 @@ class FrontmatterChipsWidget extends WidgetType {
     });
 
     return container;
+  }
+
+  destroy(dom: HTMLElement): void {
+    (dom as ChipsRoot).__chiramiFmObserver?.disconnect();
   }
 
   ignoreEvent(): boolean {
