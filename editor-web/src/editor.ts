@@ -229,6 +229,21 @@ export function createEditor(parent: HTMLElement, callbacks: EditorCallbacks): E
     extensions: [
       history(),
       search(),
+      // Japanese labels for the CodeMirror search/replace panel. Keys match the
+      // phrase strings the search extension passes to `state.phrase(...)`.
+      EditorState.phrases.of({
+        Find: "検索",
+        Replace: "置換",
+        next: "次へ",
+        previous: "前へ",
+        all: "すべて",
+        "match case": "大文字小文字",
+        regexp: "正規表現",
+        "by word": "単語単位",
+        replace: "置換",
+        "replace all": "すべて置換",
+        close: "閉じる",
+      }),
       indentUnit.of("\t"),
       EditorState.tabSize.of(3),
       readOnlyCompartment.of([]),

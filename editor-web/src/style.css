@@ -1663,3 +1663,152 @@ body ::selection {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* Search / replace panel (@codemirror/search standard panel).
+   The default panel ships with bare white styling that clashes with the note
+   theme and is too tall for narrow note windows (~248pt). Restyle it to use the
+   --chirami-* theme variables and compact spacing while keeping all controls
+   (find / next / prev / all / case / regexp / word / replace) functional. */
+.cm-panels {
+  background-color: var(--chirami-surface-raised);
+  color: var(--chirami-text);
+  border-color: var(--chirami-border);
+}
+
+.cm-panels-bottom {
+  border-top: 1px solid var(--chirami-border);
+}
+
+.cm-panels-top {
+  border-bottom: 1px solid var(--chirami-border);
+}
+
+.cm-panel.cm-search {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 5px;
+  /* Reserve space on the right for the absolutely-positioned close button. */
+  padding: 6px 24px 6px 8px;
+  font-size: 12px;
+  background-color: var(--chirami-surface-raised);
+  color: var(--chirami-text);
+}
+
+/* Force a line break before the replace row (the panel inserts a <br>). */
+.cm-panel.cm-search br {
+  flex-basis: 100%;
+  height: 0;
+  margin: 0;
+}
+
+.cm-panel.cm-search .cm-textfield {
+  flex: 1 1 96px;
+  min-width: 0;
+  padding: 3px 7px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--chirami-text);
+  background-color: var(--chirami-surface);
+  border: 1px solid var(--chirami-border);
+  border-radius: 5px;
+  outline: none;
+}
+
+.cm-panel.cm-search .cm-textfield::placeholder {
+  color: var(--chirami-muted);
+}
+
+.cm-panel.cm-search .cm-textfield:focus {
+  border-color: var(--chirami-accent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--chirami-accent) 45%, transparent);
+}
+
+.cm-panel.cm-search .cm-button {
+  flex: 0 0 auto;
+  padding: 3px 9px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--chirami-text);
+  background-image: none;
+  background-color: var(--chirami-surface);
+  border: 1px solid var(--chirami-border);
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.12s ease, border-color 0.12s ease;
+}
+
+.cm-panel.cm-search .cm-button:hover {
+  background-color: color-mix(in srgb, var(--chirami-accent) 12%, var(--chirami-surface) 88%);
+  border-color: color-mix(in srgb, var(--chirami-accent) 40%, var(--chirami-border) 60%);
+}
+
+.cm-panel.cm-search .cm-button:active {
+  background-color: color-mix(in srgb, var(--chirami-accent) 20%, var(--chirami-surface) 80%);
+}
+
+.cm-panel.cm-search label {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11.5px;
+  color: var(--chirami-muted);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+/* Reset the round task-checkbox styling (`.cm-editor input[type="checkbox"]`,
+   which also matches here since the panel lives inside .cm-editor) back to a
+   native square checkbox for the search options. */
+.cm-panel.cm-search label input[type="checkbox"] {
+  appearance: auto;
+  -webkit-appearance: checkbox;
+  width: 13px;
+  height: 13px;
+  margin: 0;
+  border: none;
+  border-radius: 0;
+  background: none;
+  accent-color: var(--chirami-accent);
+  vertical-align: middle;
+}
+
+/* Cancel the round-checkbox checkmark pseudo-element inherited from the global
+   task-checkbox rule. */
+.cm-panel.cm-search label input[type="checkbox"]:checked {
+  background: none;
+}
+
+.cm-panel.cm-search label input[type="checkbox"]:checked::after {
+  content: none;
+}
+
+/* Close button (×): no name-based class, target by name attribute. */
+.cm-panel.cm-search button[name="close"] {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  padding: 0 4px;
+  font-size: 16px;
+  line-height: 1;
+  color: var(--chirami-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.cm-panel.cm-search button[name="close"]:hover {
+  color: var(--chirami-text);
+}
+
+/* Search match highlighting — derive from theme variables so matches read well
+   across all themes instead of the default raw yellow. */
+.cm-searchMatch {
+  background-color: color-mix(in srgb, var(--chirami-accent) 28%, transparent);
+  border-radius: 2px;
+}
+
+.cm-searchMatch-selected {
+  background-color: color-mix(in srgb, var(--chirami-accent) 55%, transparent);
+}
