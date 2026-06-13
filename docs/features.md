@@ -14,6 +14,7 @@ Chirami renders Markdown in an Obsidian-style Live Preview: the block containing
 - **Bold** (`**text**`, `__text__`)
 - *Italic* (`*text*`, `_text_`)
 - ~~Strikethrough~~ (`~~text~~`)
+- ==Highlight== (`==text==`) — Obsidian-compatible
 - Inline code (`` `code` ``)
 - Links (`[text](url)`) — clickable
 - Images (`![alt](url)`) — rendered inline, fits to window width. See [Images](advanced.md#images).
@@ -28,7 +29,7 @@ Chirami renders Markdown in an Obsidian-style Live Preview: the block containing
 - Excalidraw diagrams (` ```excalidraw ` blocks) — rendered as SVG preview; hover to show Edit button, click to open fullscreen Excalidraw editor overlay
 - Tables (GitHub Flavored Markdown pipe syntax) — rendered as HTML tables; click a cell to edit it in place. See [Table editing](#editor-features).
 - Thematic breaks (`---`, `***`, `___`)
-- `<details>`/`<summary>` HTML blocks — rendered as collapsible sections; click to expand/collapse
+- `<details>`/`<summary>` HTML blocks — rendered as collapsible sections; click anywhere on the summary to expand/collapse
 
 ## Window Operations
 
@@ -50,6 +51,7 @@ Chirami renders Markdown in an Obsidian-style Live Preview: the block containing
 
 - `/excalidraw` — Insert an Excalidraw diagram block and open the editor overlay immediately
 - `/mermaid` — Insert a Mermaid code block with a starter template
+- `/transcript` — Insert a transcript block
 - `/details` — Insert a collapsible `<details>` block with the summary text selected
 - `/table` — Insert a 2×2 Markdown table template
 
@@ -96,7 +98,7 @@ Changes are committed when you navigate to another cell or the editor loses focu
 
 **Text surround** — Select text and type a bracket or quote character to wrap the selection. Supported pairs:
 
-- `*`, `_`, `` ` ``, `~` (wrap with same character)
+- `*`, `_`, `` ` ``, `~`, `=` (wrap with same character — type `=` twice to make `==highlight==`)
 - `(`, `[`, `{` (wrap with matching close bracket)
 - `"`, `'` (wrap with same quote)
 
