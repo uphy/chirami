@@ -1,6 +1,6 @@
 import { syntaxTree } from "@codemirror/language";
-import { EditorState, Range, StateField } from "@codemirror/state";
-import { Decoration, DecorationSet, EditorView, WidgetType } from "@codemirror/view";
+import { EditorState, Prec, Range, StateField } from "@codemirror/state";
+import { Decoration, DecorationSet, EditorView, keymap, WidgetType } from "@codemirror/view";
 import { parse as parseYaml } from "yaml";
 import {
   cursorLineFromState,
@@ -310,4 +310,30 @@ const frontmatterCaretGuard = EditorView.updateListener.of((update) => {
   update.view.dispatch({ selection: { anchor: range.bodyStart } });
 });
 
-export const frontmatterExtension = [frontmatterDecorations, frontmatterCaretGuard];
+// ArrowUp from the first body line would, by default, jump the caret to the
+// block widget's start (the file start / opening "---") because a block-replace
+// widget has no internal caret positions. Redirect it to the closing "---" line
+// so pressing Up steps into the frontmatter at its bottom (revealing raw YAML),
+// matching normal text navigation. Only fires when the caret sits on the line
+// immediately after the frontmatter (i.e. the chips are collapsed).
+function arrowUpIntoFrontmatter(view: EditorView): boolean {
+  const state = view.state;
+  const sel = state.selection.main;
+  if (!sel.empty) return false;
+  const range = findFrontmatter(state);
+  if (!range) return false;
+  const headLine = state.doc.lineAt(sel.head);
+  const bodyLine = state.doc.lineAt(range.bodyStart);
+  if (headLine.number !== bodyLine.number) return false; // not on the first body line
+  const col = sel.head - headLine.from;
+  const closeLine = state.doc.line(range.endLine);
+  const target = Math.min(closeLine.from + col, closeLine.to);
+  view.dispatch({ selection: { anchor: target }, userEvent: "move", scrollIntoView: true });
+  return true;
+}
+
+export const frontmatterExtension = [
+  frontmatterDecorations,
+  frontmatterCaretGuard,
+  Prec.high(keymap.of([{ key: "ArrowUp", run: arrowUpIntoFrontmatter }])),
+];
