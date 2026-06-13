@@ -1598,6 +1598,8 @@ body ::selection {
   gap: 4px;
   user-select: none;
   padding: 1px 0;
+  /* The whole row toggles, so the whole row shows the pointer cursor. */
+  cursor: pointer;
 }
 
 .cm-details-arrow {
@@ -1612,7 +1614,6 @@ body ::selection {
 
 .cm-details-summary-text {
   color: var(--chirami-text);
-  cursor: default;
 }
 
 /* Slash command picker */
