@@ -101,9 +101,52 @@ for i in range(3):
 | a (Cmd+A) | 0 |
 | z (Cmd+Z) | 6 |
 
-## 4. 確認フローの基本パターン
+## 4. レンダリング確認はファイル直書き＋トグル再読込で行う
+
+`paste_and_capture` は既存内容に **追記** する（クリアしない）。何度も使うと過去の入力が蓄積し、新しい入力と混ざって判別不能になる。`Cmd+A`→`Delete` でのクリアは効かないことがある。
+
+内容を入れ替えてレンダリングを確認する場合は、**テストファイルを直接書き換えてウィンドウをトグル（hide→show）して再読込する**のが確実。
+
+まず Test ノートの実ファイルパスを config.yaml から確認する（`/tmp` 決め打ちにしない）。
+
+```bash
+# Test ノートの path を確認
+grep -A1 'title: Test' ~/.config/chirami/config.yaml   # path: ... の行を読む
+```
+
+確認したパス（例 `/tmp/chirami-test.md`）に対して直書きし、トグルで再読込する。
+
+```bash
+TEST_MD=/tmp/chirami-test.md   # config.yaml で確認した実パスに置き換える
+
+cat > "$TEST_MD" <<'EOF'
+## 見出し
+**太字** *斜体*
+EOF
+
+# 表示中なら一度隠してから出すと再読込される
+python3 - <<'PY'
+import sys, time
+sys.path.insert(0, ".claude/skills/chirami-verify/scripts")
+from chirami_interact import post_key, get_window, capture
+import Quartz
+w = get_window("Test")
+if w:
+    post_key(29, Quartz.kCGEventFlagMaskAlternate); time.sleep(0.5)  # hide
+post_key(29, Quartz.kCGEventFlagMaskAlternate); time.sleep(0.9)      # show
+w = get_window("Test")
+capture(w["kCGWindowNumber"], "/tmp/out.png")
+PY
+```
+
+確認時の注意点：
+
+- スクロール（`CGScrollWheelEvent`）は効かないことがある。ウィンドウは内容に合わせて自動リサイズされるので、長い内容は短く分割し、**1画面に収まる単位で個別に投入**する。
+
+## 5. 確認フローの基本パターン
 
 1. 必要に応じて `mise run apply` でビルド・再起動
-2. `chirami_interact.py` で Test ノートを表示・操作・キャプチャ
-3. Read ツールで結果を視覚確認
-4. 必要に応じて追加操作して再確認
+2. **レンダリングの確認** → セクション 4（ファイル直書き＋トグル再読込）
+3. **操作・挙動の確認**（クリック・キー入力・ホットキー）→ `chirami_interact.py`
+4. Read ツールで結果を視覚確認
+5. 必要に応じて追加操作して再確認
