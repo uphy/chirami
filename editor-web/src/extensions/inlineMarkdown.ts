@@ -99,6 +99,16 @@ function renderInlineNode(node: SyntaxNode, text: string): Node | null {
     return link;
   }
 
+  // Inline HTML: only <br> becomes a real line break (common inside table
+  // cells). Any other tag is shown as literal text — we never inject raw HTML.
+  if (node.name === "HTMLTag") {
+    const raw = text.slice(node.from, node.to);
+    if (/^<br\s*\/?>$/i.test(raw)) {
+      return document.createElement("br");
+    }
+    return document.createTextNode(raw);
+  }
+
   const fragment = document.createDocumentFragment();
   appendRenderedChildren(fragment, node, text);
   return fragment;
