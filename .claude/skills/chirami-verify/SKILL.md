@@ -33,43 +33,86 @@ mise run -f apply     # キャッシュ無効ビルド
 
 config.yaml が変更されている場合は `cat ~/.config/chirami/config.yaml` で確認する。
 
-## 3. インタラクションスクリプト
+## 3. 確認の2系統：レンダリング（focus不要）と操作（key window必須）
 
-Chirami はフォーカスを失うと自動的に非表示になる。`osascript` や `cliclick` を個別に呼ぶと間に focus 切り替えが入るため、**全操作は `scripts/chirami_interact.py` で一括実行する**。
+検証には性質の異なる2系統がある。**まずレンダリング系で確認し、操作系は本当に必要なときだけ使う**。
+
+- **レンダリング確認** … 表示が正しいかの確認。`option+0` は**グローバルホットキー**なので focus に関係なく効く。ファイルを直書きして hide→show で再読込すれば良い（セクション4）。**これが最も確実**。
+- **操作確認** … クリック・ローカルキー入力（Cmd+V, Tab, チェックボックス, Cmd+F, `/` 入力 など）。これらは **Chirami が key window でないと届かない**。`activate()` で前面化してから送る。
+
+> **key window の壁:** option+0 で表示してもウィンドウは key にならない（frontmost はターミナル等のまま）。合成クリック・ローカルキーが無言で失われたら、まずこれを疑う。ターミナル/マルチプレクサ（例 `cmux`）がフォーカスを保持し続けると activate が通らないことがある（→ セクション3.1 のフォールバック）。
 
 ```bash
 SCRIPT=.claude/skills/chirami-verify/scripts/chirami_interact.py
 
-# Test ノートを表示してキャプチャ（内容変更なし）
-python3 $SCRIPT show_test /tmp/out.png
+# レンダリング: 直書き済みファイルを再読込してキャプチャ（focus不要・最優先）
+python3 $SCRIPT reload /tmp/out.png
 
-# テキストをペーストしてキャプチャ（\n で改行、日本語も OK）
+# 操作: -o キャプチャのピクセル(px,py)をクリック（activate込み）
+python3 $SCRIPT click 110 400 /tmp/out.png
+
+# 表示のみ / 追記ペースト（後者は既存内容に追記する点に注意 → セクション4）
+python3 $SCRIPT show_test /tmp/out.png
 python3 $SCRIPT paste_and_capture "## 見出し\n**太字**\n- item" /tmp/out.png
 ```
 
 キャプチャ後は Read ツールで画像を読み込んで視覚的に確認する。
 
-### カスタム操作（スクリプトを直接書く場合）
+### キャプチャ座標（`-o` で影を除外）
+
+`capture()` は `screencapture -l <id> -o` を使う。`-o` で影が消えるため **画像 = ウィンドウ bounds × 2x（Retina）** になり、座標換算が単純になる：
+
+```
+screen_x = bounds["X"] + pixel_x / 2
+screen_y = bounds["Y"] + pixel_y / 2
+```
+
+クリック先は「`-o` キャプチャ画像の何 px か」を Read で見て決め、`click <px> <py>` か `click_px()` に渡す。
+
+### 3.1 操作系のフォーカス確保とフォールバック
+
+`activate()` は `osascript ... to activate` を Popen（非ブロッキング）で投げ ~0.18s 待つ。`act_key` / `act_paste` / `click_px` は**各アクション前に activate** するので、リトライループで複数回試すと通りやすい。
 
 ```python
 import sys, time
 sys.path.insert(0, ".claude/skills/chirami-verify/scripts")
-from chirami_interact import post_key, post_click, set_clipboard, get_window, window_center, capture
+from chirami_interact import act_paste, frontmost_app
+# 通らない時は数回試す（毎回 activate される）
+for _ in range(3):
+    act_paste("text")
+print(frontmost_app())   # "Chirami" でなければ前面化に失敗している
+```
+
+`frontmost_app()` が常に "Chirami" にならず操作系が一切通らない場合のフォールバック（無理に送らない）：
+
+1. 数回リトライ（上記）。ユーザーがターミナルを操作中だと原理的に奪えないことがある。
+2. **ロジックはログで確認**：`log stream --predicate 'subsystem == "io.github.uphy.Chirami"' --level debug` で bridge メッセージ（例: 検索パネル開閉、reload）を観測し、画面操作なしで挙動を裏取りする。
+3. それでも画面確認が要るなら、ユーザーに「該当ノートをクリックして前面化／`/` などを入力」してもらう。
+
+> ⚠️ **Esc を汎用 dismiss に使わない。** Esc はノートを閉じる。さらに 2 発目の Esc が背後のアプリ（Claude Code を動かすターミナル）に抜けて**セッションを中断**させ得る。パネルを閉じたいときは `×` ボタンのクリックなど対象を特定した操作で。
+
+### カスタム操作（スクリプトを直接書く場合）
+
+操作系は `activate()` で前面化してから送る。`act_key` / `act_paste` / `click_px` は内部で activate するのでそれらを優先する。
+
+```python
+import sys
+sys.path.insert(0, ".claude/skills/chirami-verify/scripts")
+from chirami_interact import (
+    reload_window, click_px, act_key, act_paste, capture, get_window,
+)
 import Quartz
 
-post_key(29, Quartz.kCGEventFlagMaskAlternate)  # option+0: Test ノート表示
-time.sleep(0.8)
+# 1) まずファイル直書き → reload で表示（focus不要）
+reload_window("Test")
 
+# 2) 操作（各 act_* / click_px が前面化してから送る）
+click_px("Test", 110, 400)                 # -o 画像の px をクリック
+act_key(36, 0)                             # Return
+act_paste("テキスト")                       # Cmd+V でペースト
+
+# 3) キャプチャ（-o・影なし）
 w = get_window("Test")
-cx, cy = window_center(w)
-post_click(cx, cy)
-time.sleep(0.3)
-
-post_key(36, 0)                                         # Return
-post_key(51, 0)                                         # Delete
-set_clipboard("テキスト")
-post_key(9, Quartz.kCGEventFlagMaskCommand)             # Cmd+V
-
 capture(w["kCGWindowNumber"], "/tmp/out.png")
 ```
 
@@ -124,19 +167,8 @@ cat > "$TEST_MD" <<'EOF'
 **太字** *斜体*
 EOF
 
-# 表示中なら一度隠してから出すと再読込される
-python3 - <<'PY'
-import sys, time
-sys.path.insert(0, ".claude/skills/chirami-verify/scripts")
-from chirami_interact import post_key, get_window, capture
-import Quartz
-w = get_window("Test")
-if w:
-    post_key(29, Quartz.kCGEventFlagMaskAlternate); time.sleep(0.5)  # hide
-post_key(29, Quartz.kCGEventFlagMaskAlternate); time.sleep(0.9)      # show
-w = get_window("Test")
-capture(w["kCGWindowNumber"], "/tmp/out.png")
-PY
+# 直書き済みファイルを hide→show で再読込してキャプチャ（focus不要）
+python3 .claude/skills/chirami-verify/scripts/chirami_interact.py reload /tmp/out.png
 ```
 
 確認時の注意点：
@@ -145,8 +177,8 @@ PY
 
 ## 5. 確認フローの基本パターン
 
-1. 必要に応じて `mise run apply` でビルド・再起動
-2. **レンダリングの確認** → セクション 4（ファイル直書き＋トグル再読込）
-3. **操作・挙動の確認**（クリック・キー入力・ホットキー）→ `chirami_interact.py`
+1. 必要に応じて `mise run apply` でビルド・再起動（再起動で focus 状態はリセットされる）
+2. **まずレンダリングの確認**（focus不要・最優先）→ セクション 4（ファイル直書き＋`reload`）
+3. 操作・挙動の確認が必要なときだけ操作系へ → セクション 3（`activate` 必須）。通らなければセクション 3.1 のフォールバック
 4. Read ツールで結果を視覚確認
 5. 必要に応じて追加操作して再確認
