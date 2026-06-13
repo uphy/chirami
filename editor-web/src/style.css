@@ -1612,7 +1612,11 @@ body ::selection {
   border: 1px solid var(--chirami-border);
   border-radius: 6px;
   box-shadow: 0 4px 16px color-mix(in srgb, black 18%, transparent);
+  /* min-width/max-width are set dynamically in slashCommand.ts so the picker
+     fits the editor width on narrow notes. These are fallbacks for the brief
+     pre-position frame and any case where JS positioning does not run. */
   min-width: 220px;
+  max-width: 100%;
   max-height: 240px;
   overflow-y: auto;
   z-index: 10000;

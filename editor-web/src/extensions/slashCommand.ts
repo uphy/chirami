@@ -237,16 +237,30 @@ class SlashCommandPicker {
 
       const PICKER_HEIGHT = 200;
       const MARGIN = 4;
+      const EDGE_MARGIN = 16;
       const viewportHeight = window.innerHeight;
+      const editorRect = view.dom.getBoundingClientRect();
+
+      // Cap width so the picker stays within the editor bounds; the desc text
+      // then truncates via CSS ellipsis instead of being clipped at the window
+      // edge. Also clamp min-width so it never overrides the cap on narrow notes.
+      const applyMaxWidth = (left: number) => {
+        if (!this.el) return;
+        const maxWidth = Math.max(0, editorRect.right - left - EDGE_MARGIN);
+        this.el.style.maxWidth = `${maxWidth}px`;
+        this.el.style.minWidth = `${Math.min(220, maxWidth)}px`;
+      };
 
       if (!coords) {
-        const editorRect = view.dom.getBoundingClientRect();
-        this.el.style.left = `${editorRect.left + 16}px`;
+        const left = editorRect.left + EDGE_MARGIN;
+        this.el.style.left = `${left}px`;
         this.el.style.top = `${editorRect.top + 40}px`;
+        applyMaxWidth(left);
         return;
       }
 
       this.el.style.left = `${coords.left}px`;
+      applyMaxWidth(coords.left);
 
       if (coords.bottom + PICKER_HEIGHT + MARGIN > viewportHeight) {
         this.el.style.top = "";
