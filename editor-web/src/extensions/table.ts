@@ -256,7 +256,10 @@ export function computeCellCommit(
     if (!range.empty && state.sliceDoc(range.from, range.to).trim() !== originalRaw) return null;
     if (range.empty && originalRaw !== "") return null;
 
-    const escaped = escapeCell(newText.replace(/[\r\n]+/g, " ").trim());
+    // Newlines (from the textarea cell editor) persist as <br> line breaks:
+    // the rendered cell turns them back into real breaks, and escapeCell only
+    // touches "\" and "|", so the markers survive untouched.
+    const escaped = escapeCell(newText.trim().replace(/\r\n|\r|\n/g, "<br>"));
     if (!range.empty) {
       let insert = escaped;
       // Defensive: a trailing odd backslash run directly before a pipe would
@@ -319,7 +322,7 @@ interface CellEditSession {
   tableMarkdown: string;
   row: number;
   col: number;
-  input: HTMLInputElement;
+  input: HTMLTextAreaElement;
   td: HTMLTableCellElement;
   wrap: HTMLElement;
   savedNodes: Node[];
@@ -456,10 +459,12 @@ function openCellEditor(
   const tableNode = findTableNode(view.state, tableFrom);
   const tableMarkdown = tableNode ? view.state.sliceDoc(tableNode.from, tableNode.to) : "";
   const raw = view.state.sliceDoc(range.from, range.to).trim();
-  const initialValue = unescapeCell(raw);
+  // Show stored <br> markers as real newlines while editing; commit converts
+  // them back to <br>. Round-trips to the original raw for unedited cells, so
+  // the no-op detection still holds.
+  const initialValue = unescapeCell(raw).replace(/<br\s*\/?>/gi, "\n");
 
-  const input = document.createElement("input");
-  input.type = "text";
+  const input = document.createElement("textarea");
   input.className = "cm-table-cell-input";
   input.spellcheck = false;
   input.setAttribute("autocapitalize", "off");
@@ -468,6 +473,8 @@ function openCellEditor(
   // Mirror the cell's column alignment so the caret/text stays where the
   // rendered content was (GFM center/right columns).
   if (td.style.textAlign) input.style.textAlign = td.style.textAlign;
+  // Single visible row by default; autoResize grows it for multi-line content.
+  input.rows = 1;
 
   const savedNodes = Array.from(td.childNodes);
   // Freeze the column width before swapping content so the auto table layout
@@ -498,6 +505,7 @@ function openCellEditor(
 
   const signal = controller.signal;
   input.addEventListener("keydown", (e) => handleCellKeydown(session, e), { signal });
+  input.addEventListener("input", () => autoResize(input), { signal });
   input.addEventListener("blur", () => {
     if (session.closed) return;
     if (session.composing) {
@@ -541,6 +549,13 @@ function openCellEditor(
   input.focus();
   if (selectAll) input.select();
   else input.setSelectionRange(input.value.length, input.value.length);
+  autoResize(input);
+}
+
+// Grows the textarea to fit its content height (width stays frozen by the td).
+function autoResize(input: HTMLTextAreaElement): void {
+  input.style.height = "auto";
+  input.style.height = `${input.scrollHeight}px`;
 }
 
 function flushPendingFinish(session: CellEditSession): void {
@@ -578,10 +593,10 @@ function handleCellKeydown(session: CellEditSession, e: KeyboardEvent): void {
   } else if (e.key === "Enter") {
     e.preventDefault();
     if (e.shiftKey) {
-      // Insert a hard line break inside the cell; renders as a <br> line break
-      // once committed. The cell editor is single-line, so the marker stays
-      // visible as raw text while editing.
-      insertAtCursor(session.input, "<br>");
+      // Insert a real newline inside the cell; the textarea shows it as a line
+      // break and commit converts it to a <br> marker in the markdown.
+      insertAtCursor(session.input, "\n");
+      autoResize(session.input);
       return;
     }
     finishWithNav(session, nextCellLocation(rowCount, colCount, session.row, session.col, "down"));
@@ -592,7 +607,7 @@ function handleCellKeydown(session: CellEditSession, e: KeyboardEvent): void {
   // Everything else (including Cmd+Z) stays native to the input.
 }
 
-function insertAtCursor(input: HTMLInputElement, snippet: string): void {
+function insertAtCursor(input: HTMLTextAreaElement, snippet: string): void {
   const start = input.selectionStart ?? input.value.length;
   const end = input.selectionEnd ?? input.value.length;
   input.value = input.value.slice(0, start) + snippet + input.value.slice(end);

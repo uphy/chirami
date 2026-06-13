@@ -336,10 +336,24 @@ describe("computeCellCommit", () => {
     expect(newState.sliceDoc(second!.from, second!.to)).toBe("d");
   });
 
-  it("collapses newlines defensively", () => {
+  it("converts newlines to <br> so multi-line cells survive the single table line", () => {
     const state = stateOf(TABLE);
     const changes = computeCellCommit(state, 0, 1, 0, "a\nb", "cc", "cc", false);
-    expect(changes![0].insert).toBe("a b");
+    expect(changes![0].insert).toBe("a<br>b");
+  });
+
+  it("converts CRLF and lone CR to <br> as well", () => {
+    const state = stateOf(TABLE);
+    const changes = computeCellCommit(state, 0, 1, 0, "a\r\nb\rc", "cc", "cc", false);
+    expect(changes![0].insert).toBe("a<br>b<br>c");
+  });
+
+  it("treats a <br> cell reopened as a newline value as a no-op (round-trip)", () => {
+    const doc = "| aa | bb |\n| --- | --- |\n| c<br>d | ee |";
+    const state = stateOf(doc);
+    // initialValue is the unescaped raw with <br> shown as a newline; an
+    // unedited commit feeds that same value back, so nothing is rewritten.
+    expect(computeCellCommit(state, 0, 1, 0, "c\nd", "c\nd", "c<br>d", false)).toEqual([]);
   });
 
   it("synthesizes missing pipes when committing into a ragged row", () => {
