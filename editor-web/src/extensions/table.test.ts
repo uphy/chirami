@@ -9,6 +9,7 @@ import {
   escapeCell,
   findTableByMarkdown,
   nextCellLocation,
+  parseColumnAligns,
   resolveCellRange,
   splitTableRow,
   tableHasLinePrefix,
@@ -169,6 +170,29 @@ describe("buildEmptyRowMarkdown", () => {
   it("builds piped empty rows", () => {
     expect(buildEmptyRowMarkdown(1)).toBe("|   |");
     expect(buildEmptyRowMarkdown(3)).toBe("|   |   |   |");
+  });
+});
+
+describe("parseColumnAligns", () => {
+  it("maps colon markers to alignment", () => {
+    expect(parseColumnAligns("|:-----|:----:|-----:|")).toEqual(["left", "center", "right"]);
+  });
+
+  it("treats a plain dash run as no alignment", () => {
+    expect(parseColumnAligns("| --- | --- |")).toEqual([null, null]);
+  });
+
+  it("handles mixed and padded delimiter cells", () => {
+    expect(parseColumnAligns("| :--- | --- | ---: | :---: |")).toEqual([
+      "left",
+      null,
+      "right",
+      "center",
+    ]);
+  });
+
+  it("handles rows without boundary pipes", () => {
+    expect(parseColumnAligns(":--- | ---:")).toEqual(["left", "right"]);
   });
 });
 

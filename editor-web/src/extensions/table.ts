@@ -155,6 +155,24 @@ export function buildEmptyRowMarkdown(columns: number): string {
   return "|" + "   |".repeat(Math.max(1, columns));
 }
 
+export type ColumnAlign = "left" | "center" | "right" | null;
+
+// Parses a GFM delimiter row (e.g. "| :--- | :--: | ---: |") into per-column
+// alignment. Each delimiter cell is a well-defined pattern of dashes bounded by
+// optional colons, so a colon presence check is sufficient (no regex needed):
+// leading ":" -> left, trailing ":" -> right, both -> center, neither -> none.
+export function parseColumnAligns(delimiterLine: string): ColumnAlign[] {
+  return splitTableRow(delimiterLine).map((cell) => {
+    const trimmed = cell.trim();
+    const left = trimmed.startsWith(":");
+    const right = trimmed.endsWith(":");
+    if (left && right) return "center";
+    if (right) return "right";
+    if (left) return "left";
+    return null;
+  });
+}
+
 // Splits a table row line into cell strings using the same escape toggle as
 // lezer's parseRow (esc = !esc && ch === "\\"), so DOM cell indexes always
 // match syntax-tree slots. Cell strings keep their escape sequences.
@@ -447,6 +465,9 @@ function openCellEditor(
   input.setAttribute("autocapitalize", "off");
   input.setAttribute("autocorrect", "off");
   input.value = initialValue;
+  // Mirror the cell's column alignment so the caret/text stays where the
+  // rendered content was (GFM center/right columns).
+  if (td.style.textAlign) input.style.textAlign = td.style.textAlign;
 
   const savedNodes = Array.from(td.childNodes);
   // Freeze the column width before swapping content so the auto table layout
@@ -829,15 +850,24 @@ function buildTable(md: string): HTMLTableElement {
   if (lines.length < 2) return table;
 
   const headers = splitTableRow(lines[0]);
+  const aligns = parseColumnAligns(lines[1]);
+
+  // GFM applies the column alignment to both header and body cells.
+  const applyAlign = (cell: HTMLTableCellElement, col: number): void => {
+    const align = aligns[col] ?? null;
+    if (align) cell.style.textAlign = align;
+  };
+
   const dataRows = lines.slice(2).map(splitTableRow);
 
   const thead = table.createTHead();
   const headerRow = thead.insertRow();
-  for (const h of headers) {
+  headers.forEach((h, i) => {
     const th = document.createElement("th");
     th.appendChild(renderInlineMarkdown(h));
+    applyAlign(th, i);
     headerRow.appendChild(th);
-  }
+  });
 
   const tbody = table.createTBody();
   for (const row of dataRows) {
@@ -847,6 +877,7 @@ function buildTable(md: string): HTMLTableElement {
     for (let i = 0; i < headers.length; i++) {
       const td = tr.insertCell();
       td.appendChild(renderInlineMarkdown(row[i] ?? ""));
+      applyAlign(td, i);
     }
   }
 
