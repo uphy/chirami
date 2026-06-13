@@ -66,10 +66,11 @@ yamlFrontmatter({ content: markdown({ extensions: [GFM, Highlight], codeLanguage
 構文木からは JS オブジェクトは取れないため、整形表示用に `yaml`（eemeli/yaml）パッケージを追加し、frontmatter テキストを `parse()` する。
 
 - 値はトップレベルのフィールドを型別に表示する:
-  - scalar（string / number / bool）: そのまま1行表示。長い場合は CSS の `text-overflow: ellipsis` で省略し、全文は `title` 属性に入れる。
-  - array: 中点区切りのインラインテキスト（例 `work · idea · draft`）。チップ（pill）は DOM・視覚的に重く「補助的・省スペース」の方針と editor-web ルール（装飾は簡潔に）に反するため採用しない。
-  - object（ネスト）: トップレベルの key 名を波括弧で要約（例 `{ a, nested }`）。3 個を超えたら `…` で省略。深追いはしない。
+  - scalar（string / number / bool）: そのまま1行表示。長い場合は CSS の `text-overflow: ellipsis`（`max-width: 22ch`）で省略し、全文は `title` 属性に入れる。
+  - array: 中点区切りのインラインテキスト（例 `work · idea · draft`）。
+  - object（ネスト）: トップレベルの key 名を波括弧で要約（例 `{ a, b, c … }`）。3 個を超えたら `…` で省略。深追いはしない。
   - null / 空値: 淡色の em-dash `—` を表示。
+- **チップ数の上限**: 先頭 `MAX_CHIPS`（= 6）件のみ表示し、超過分は単一の `+N` チップに集約する。`+N` も含めチップをクリックすると raw 編集に入り全フィールドが見える。多数フィールドの frontmatter が小さな付箋の縦を占有しすぎるのを防ぐ（検証で 15 件 → 6 件＋`+9` に圧縮、ウィンドウ高さの肥大を回避できることを確認）。
 - パッケージサイズは ~40KB 程度で、既存の excalidraw / mermaid に比べ誤差。
 
 ### 実装方式

@@ -1855,7 +1855,13 @@ body ::selection {
 .cm-frontmatter-chip-value {
   color: var(--chirami-text);
   min-width: 0;
+  max-width: 22ch;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.cm-frontmatter-chip-more {
+  color: var(--chirami-muted);
+  flex: none;
 }

@@ -90,6 +90,11 @@ interface FrontmatterEntry {
   raw: string;
 }
 
+// Cap the number of chips shown so a frontmatter with many fields does not
+// dominate the small note. Overflow collapses into a single "+N" chip;
+// clicking it (like any chip) enters raw editing where every field is visible.
+const MAX_CHIPS = 6;
+
 class FrontmatterChipsWidget extends WidgetType {
   constructor(
     private readonly entries: FrontmatterEntry[],
@@ -107,7 +112,8 @@ class FrontmatterChipsWidget extends WidgetType {
     const container = document.createElement("div");
     container.className = "cm-frontmatter-chips";
 
-    for (const entry of this.entries) {
+    const shown = this.entries.slice(0, MAX_CHIPS);
+    for (const entry of shown) {
       const chip = document.createElement("span");
       chip.className = "cm-frontmatter-chip";
 
@@ -127,12 +133,27 @@ class FrontmatterChipsWidget extends WidgetType {
       container.appendChild(chip);
     }
 
-    // Clicking the chips (but not while selecting text) places the cursor
-    // inside the frontmatter so the next rebuild reveals the raw YAML to edit.
-    container.addEventListener("mousedown", (e) => {
+    const overflow = this.entries.length - shown.length;
+    if (overflow > 0) {
+      const more = document.createElement("span");
+      more.className = "cm-frontmatter-chip cm-frontmatter-chip-more";
+      more.textContent = `+${overflow}`;
+      more.title = `${overflow} more — click to edit`;
+      container.appendChild(more);
+    }
+
+    // Clicking the chips switches to raw-edit mode by moving the cursor inside
+    // the frontmatter (the next rebuild then drops the chips and shows the YAML).
+    // preventDefault on mousedown stops CodeMirror's own pointer handler from
+    // placing the cursor at the widget boundary (outside the block) and
+    // overriding our dispatch; the actual selection is set on click (mouseup),
+    // matching details.ts. A drag-selection is left alone.
+    container.addEventListener("mousedown", (e) => e.preventDefault());
+    container.addEventListener("click", (e) => {
       const selection = window.getSelection();
       if (selection && !selection.isCollapsed) return; // allow text selection
       e.preventDefault();
+      e.stopPropagation();
       view.dispatch({ selection: { anchor: this.editFrom }, scrollIntoView: true });
       view.focus();
     });
