@@ -43,6 +43,9 @@ karabiner:
   on_unfocus: 0
   cli_path: /Library/Application Support/org.pqrs/Karabiner-Elements/bin/karabiner_cli
 
+wikilink:
+  open: ["open", "obsidian://open?path={{path_encoded}}"]
+
 notes:
   - path: ~/Notes/todo.md
     title: TODO
@@ -85,6 +88,7 @@ notes:
 | `warp_margin` | object | `{top: 8, right: 8, bottom: 8, left: 8}` | Display-edge gaps used by Window Warp, window scaling clamp, and cursor-positioned note clamp. Values are in points. |
 | `smart_paste` | object | — | Smart Paste configuration. See [Smart Paste](advanced.md#smart-paste). |
 | `karabiner` | object | — | Karabiner-Elements integration. See [Karabiner](advanced.md#karabiner-elements-integration). |
+| `wikilink` | object | — | Default `[[wiki link]]` resolution and open command. See [Wiki Links](#wiki-links). |
 | `notes` | array | `[]` | List of Registered Note configurations. |
 
 ## Note Settings (Registered Notes)
@@ -103,6 +107,7 @@ Each entry in `notes` configures one Registered Note — a sticky note window ma
 | `rollover_delay` | string | — | no | Delay before date rollover for periodic notes (e.g. `2h`, `30m`). |
 | `template` | string | — | no | Template file path for periodic notes. Copied when creating a new day's file. |
 | `attachment.dir` | string | — | no | Attachment directory for images. See [Images](advanced.md#images). |
+| `wikilink` | object | — | no | Per-note `[[wiki link]]` override. `open` and `vault` fall back field-by-field to the global `wikilink` config. See [Wiki Links](#wiki-links). |
 
 ### Hotkey Format
 
@@ -171,6 +176,56 @@ excalidraw:
 ```
 
 Libraries from [libraries.excalidraw.com](https://libraries.excalidraw.com/) can be downloaded as `.excalidrawlib` files and placed here.
+
+## Wiki Links
+
+Configures how `[[wiki links]]` are resolved and opened. Clicking a wiki link (or pressing Cmd+Enter with the cursor inside it) resolves the target to a local `.md` file and runs the `open` command with it.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `wikilink.open` | string or string[] | `["open", "{{path}}"]` | Command run with the resolved file. See [Command format](#command-format). |
+| `wikilink.vault` | string | — | Vault root for resolution. When omitted, Chirami walks up from the source note to the nearest `.obsidian` directory. Supports `~` expansion. |
+
+Both fields can also be set per note under `notes[].wikilink`; each field falls back to the global value, then to the default.
+
+**Resolution** — The target (`Page`, `Page#Heading`, or `Page|Alias`) is matched to a file by name, looking first in the source note's directory, then for the shortest matching `.md` under the vault root. This first version resolves to the **file** only; `#heading` / `^block` jumps and `![[embeds]]` are not supported.
+
+### Command format
+
+`open` accepts two shapes:
+
+- **Array** (recommended) — executed directly without a shell, so paths with spaces or non-ASCII characters are passed safely: `["code", "{{path}}"]`.
+- **String** — executed via `/bin/sh -c`, enabling shell features and `$CHIRAMI_*` environment variables: `"code $CHIRAMI_TARGET"`.
+
+Tokens are substituted in both forms:
+
+| Placeholder | Env variable | Value |
+|-------------|--------------|-------|
+| `{{path}}` | `$CHIRAMI_TARGET` | Resolved absolute file path. |
+| `{{path_encoded}}` | `$CHIRAMI_TARGET_ENCODED` | Percent-encoded absolute path, for embedding in a URL such as `obsidian://open?path=…`. |
+| `{{vault}}` | `$CHIRAMI_VAULT` | Resolved vault root (empty if none). |
+| `{{target}}` | `$CHIRAMI_TARGET_NAME` | Link name (without `#heading` / `|alias`). |
+
+Examples:
+
+```yaml
+# Open every wiki link in Obsidian, picking the correct vault from the path.
+wikilink:
+  open: ["open", "obsidian://open?path={{path_encoded}}"]
+
+notes:
+  - path: ~/scratch.md
+    title: Scratch
+    # This note lives outside any vault — open its links with the OS default app.
+    wikilink:
+      open: ["open", "{{path}}"]
+
+  - path: ~/project/todo.md
+    title: TODO
+    # Open this project's links in VS Code instead.
+    wikilink:
+      open: ["code", "{{path}}"]
+```
 
 ## Smart Paste
 

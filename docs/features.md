@@ -17,6 +17,7 @@ Chirami renders Markdown in an Obsidian-style Live Preview: the block containing
 - ==Highlight== (`==text==`) — Obsidian-compatible
 - Inline code (`` `code` ``)
 - Links (`[text](url)`) — clickable
+- Wiki links (`[[Page]]`, `[[Page|Alias]]`, `[[Page#Heading]]`) — Obsidian-compatible; rendered as clickable links that resolve to local files. See [Wiki Links](configuration.md#wiki-links).
 - Images (`![alt](url)`) — rendered inline, fits to window width. See [Images](advanced.md#images).
 - Unordered lists (`-`, `*`)
 - Ordered lists (`1.`, `2.`)
@@ -115,6 +116,8 @@ Changes are committed when you navigate to another cell or the editor loses focu
 **Link click** — Click a rendered link to open it in the default browser.
 
 **Link open from caret** — Place the cursor inside a markdown link and press Cmd+Enter or Option+Enter to open the URL in the default browser. Works in both regular text and task list items.
+
+**Wiki links** — `[[Page]]`, `[[Page|Alias]]`, and `[[Page#Heading]]` render as clickable links (the brackets are hidden; an alias is shown instead of the target). Click a link, or press Cmd+Enter with the cursor inside it, and Chirami resolves the target to a local `.md` file and opens it with a configurable command — for example in Obsidian or your editor. Resolution looks first next to the source note, then for the shortest match under the vault root (the nearest `.obsidian` directory, or a configured `vault`). The open command and vault can be set globally or per note. This first version resolves to the **file** only — `#heading` / `^block` jumps and `![[embeds]]` are not yet supported. See [Wiki Links](configuration.md#wiki-links).
 
 ## Keyboard Shortcuts
 

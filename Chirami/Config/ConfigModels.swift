@@ -79,6 +79,44 @@ struct ExcalidrawConfig: Codable {
     var libraries: [String]?
 }
 
+/// A command template for opening a resolved file. YAML accepts two shapes:
+///
+/// - Array form (`["code", "{{path}}"]`): executed directly without a shell,
+///   so file names with special characters never trigger shell expansion.
+/// - String form (`"code $CHIRAMI_TARGET"`): executed via `/bin/sh -c`, so
+///   shell features and `$CHIRAMI_*` environment variables are available.
+enum CommandTemplate: Codable, Equatable {
+    case args([String])
+    case shell(String)
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if let array = try? container.decode([String].self) {
+            self = .args(array)
+        } else {
+            self = .shell(try container.decode(String.self))
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        switch self {
+        case .args(let array): try container.encode(array)
+        case .shell(let string): try container.encode(string)
+        }
+    }
+}
+
+/// Configuration for `[[wiki link]]` resolution and opening.
+///
+/// `open` is the command run with the resolved file (array form is preferred
+/// and used as the default when omitted). `vault` pins the search root; when
+/// absent, the resolver walks up from the source note looking for `.obsidian`.
+struct WikiLinkConfig: Codable, Equatable {
+    var open: CommandTemplate?
+    var vault: String?
+}
+
 struct TranscriptDeviceConfig: Codable, Equatable {
     var mic: String
     var system: String
@@ -208,9 +246,10 @@ struct ChiramiConfig: Codable {
     var warpMargin: WarpMarginConfig?
     var excalidraw: ExcalidrawConfig?
     var transcript: TranscriptConfig?
+    var wikilink: WikiLinkConfig?
 
     enum CodingKeys: String, CodingKey {
-        case appearance, hotkeys, notes, adhoc, karabiner, excalidraw, transcript
+        case appearance, hotkeys, notes, adhoc, karabiner, excalidraw, transcript, wikilink
         case launchAtLogin = "launch_at_login"
         case showMenuBarIcon = "show_menu_bar_icon"
         case smartPaste = "smart_paste"
@@ -374,6 +413,9 @@ struct NoteConfig: Codable, NoteAppearanceResolvable {
     var rolloverDelay: String?
     var template: String?
     var attachment: AttachmentConfig?
+    /// Per-note override for `[[wiki link]]` opening. Falls back field-by-field
+    /// to the global `wikilink` config when absent.
+    var wikilink: WikiLinkConfig?
 
     var isPeriodicNote: Bool {
         PathTemplateResolver.isTemplate(path)
@@ -393,7 +435,7 @@ struct NoteConfig: Codable, NoteAppearanceResolvable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case path, title, theme, transparency, hotkeys, position, template, attachment
+        case path, title, theme, transparency, hotkeys, position, template, attachment, wikilink
         case alwaysOnTop = "always_on_top"
         case rolloverDelay = "rollover_delay"
     }
@@ -447,6 +489,7 @@ extension NoteConfig {
         rolloverDelay = try container.decodeIfPresent(String.self, forKey: .rolloverDelay)
         template = try container.decodeIfPresent(String.self, forKey: .template)
         attachment = try container.decodeIfPresent(AttachmentConfig.self, forKey: .attachment)
+        wikilink = try container.decodeIfPresent(WikiLinkConfig.self, forKey: .wikilink)
     }
 }
 

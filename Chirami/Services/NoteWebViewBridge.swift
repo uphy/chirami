@@ -13,6 +13,7 @@ final class NoteWebViewBridge: NSObject, WKScriptMessageHandler {
     var onCursorChanged: ((Int, Int) -> Void)?  // (offset, line)
     var onScrollChanged: ((Double) -> Void)?
     var onOpenLink: ((URL) -> Void)?
+    var onOpenWikiLink: ((String) -> Void)?  // raw target, e.g. "Page|Alias"
     var onPasteImage: ((String) -> Void)?  // dataUrl
     var onPlainPaste: (() -> Void)?
     var onFoldChanged: (([Int]) -> Void)?  // 1-based line numbers
@@ -76,6 +77,10 @@ final class NoteWebViewBridge: NSObject, WKScriptMessageHandler {
             case "openLink":
                 if let urlString = body["url"] as? String, let url = URL(string: urlString) {
                     onOpenLink?(url)
+                }
+            case "openWikiLink":
+                if let target = body["target"] as? String {
+                    onOpenWikiLink?(target)
                 }
             case "pasteImage":
                 if let dataUrl = body["dataUrl"] as? String {

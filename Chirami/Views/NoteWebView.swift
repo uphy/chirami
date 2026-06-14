@@ -38,6 +38,7 @@ final class NoteWebView: NSView {
     var onCursorChanged: ((Int, Int) -> Void)?
     var onScrollChanged: ((Double) -> Void)?
     var onOpenLink: ((URL) -> Void)?
+    var onOpenWikiLink: ((String) -> Void)?  // raw wiki link target
     var onPasteImage: ((String) -> Void)?  // dataUrl
     var onFoldChanged: (([Int]) -> Void)?  // 1-based line numbers
     /// JS -> Swift transcript dispatch target, forwarded to the bridge.
@@ -131,6 +132,9 @@ final class NoteWebView: NSView {
         }
         bridge.onOpenLink = { [weak self] url in
             self?.onOpenLink?(url)
+        }
+        bridge.onOpenWikiLink = { [weak self] target in
+            self?.onOpenWikiLink?(target)
         }
         bridge.onPasteImage = { [weak self] dataUrl in
             guard let self else { return }
@@ -676,6 +680,13 @@ extension NoteWebView {
         }
         onOpenLink = { url in
             NSWorkspace.shared.open(url)
+        }
+        onOpenWikiLink = { [weak host] target in
+            WikiLinkResolver.open(
+                target: target,
+                sourceFileURL: host?.noteFileURL,
+                noteConfig: host?.noteWikiLinkConfig
+            )
         }
         if capabilities.pasteImage {
             onPasteImage = { [weak host, weak self] dataUrl in

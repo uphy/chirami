@@ -97,54 +97,43 @@ Live Preview is implemented with WKWebView + CodeMirror 6.
 | turndown | HTML → Markdown conversion (Smart Paste) |
 | @excalidraw/excalidraw | Excalidraw diagram editor |
 
+> 各ブロック機能のユーザー向け挙動・config の詳細は `docs/` を正とする。ここには docs に無い開発固有情報（データ保存方式・ブリッジ機構・関連ファイル）だけを置く。
+
 ### Excalidraw Block
 
-` ```excalidraw ` コードブロックで Excalidraw ダイアグラムを埋め込める。ブロックをクリックまたは `Cmd+Enter` でフルスクリーンのオーバーレイエディタが開く。
+` ```excalidraw ` コードブロックで Excalidraw ダイアグラムを埋め込む。挙動・ライブラリ設定は [docs/features.md](docs/features.md) / [docs/configuration.md](docs/configuration.md#excalidraw) を参照。
 
-**データ保存**: ダイアグラムデータ（JSON）はコードブロック内にインラインで保存される。
+- ダイアグラムデータ（JSON）はコードブロック内にインライン保存（`.md` は plain text のまま）
+- ユーザー保存のライブラリアイテムは `~/.local/state/chirami/plugins/excalidraw.json` に永続化（`PluginStateStore` 経由）
+- プラグイン状態ブリッジ: ライブラリ状態は `pluginStateRequest` / `pluginStateChanged` で JS ↔ Swift 交換。`requestPluginState("excalidraw")` のレスポンスは `{ userItems: LibraryItem[], externalItems: LibraryItem[] }` 形式
 
-**ライブラリ**:
-
-- ユーザーが Excalidraw 内で保存したライブラリアイテムは `~/.local/state/chirami/plugins/excalidraw.json` に永続化（`PluginStateStore` 経由）
-- 外部ライブラリ（`.excalidrawlib` ファイル）は `config.yaml` の `excalidraw.libraries` で指定する。version 1 / version 2 両形式に対応
-
-### Transcript Block
-
-` ```transcript ` コードブロックで会議の書き起こしを埋め込める。ブロック外ではウィジェット表示、ブロック内では生の Markdown を編集する。
-
-- 出力は `[YYYY-MM-DD HH:MM:SS] You: ...` / `[YYYY-MM-DD HH:MM:SS] Others: ...` 形式の plain Markdown
-- `config.yaml` の `transcript:` セクションで `model`, `language`, `devices.mic`, `devices.system`, `labels.mic`, `labels.system` を指定できる
-- 既定モデルは `sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17`
-- 初回記録時に sherpa-onnx モデルを `~/.local/state/chirami/models/sherpa-onnx/` へダウンロードする
-- macOS 14.2 以上が必要
-
-```yaml
-transcript:
-  model: sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17
-  language: ja
-  devices:
-    mic: default
-    system: all
-  labels:
-    mic: You
-    system: Others
-```
-
-```yaml
-# config.yaml
-excalidraw:
-  libraries:
-    - ~/.config/chirami/excalidraw/my-library.excalidrawlib
-```
-
-**関連ファイル**:
+関連ファイル:
 
 - `editor-web/src/excalidraw-overlay.tsx` — React オーバーレイコンポーネント
 - `editor-web/src/extensions/excalidraw.ts` — CodeMirror プラグイン（プレビュー・ウィジェット）
 - `editor-web/src/extensions/excalidrawShared.ts` — 共有型・パース関数
 - `Chirami/Config/ExcalidrawLibraryStore.swift` — 外部ライブラリの読み込みとユーザーアイテムとのマージ
 
-**プラグイン状態ブリッジ**: JS ↔ Swift 間のライブラリ状態は `pluginStateRequest` / `pluginStateChanged` メッセージで交換する。`requestPluginState("excalidraw")` のレスポンスは `{ userItems: LibraryItem[], externalItems: LibraryItem[] }` 形式。
+### Transcript Block
+
+` ```transcript ` コードブロックで会議の書き起こしを埋め込む（ブロック外はウィジェット、ブロック内は生 Markdown）。設定・使い方は [docs/configuration.md](docs/configuration.md#transcript) を参照。
+
+- 出力は `[YYYY-MM-DD HH:MM:SS] You: ...` / `Others: ...` 形式の plain Markdown（安定した契約。編集時は維持する）
+- sherpa-onnx モデルは初回記録時に `~/.local/state/chirami/models/sherpa-onnx/` へダウンロード。macOS 14.2 以上が必要
+
+### Wiki Links
+
+`[[Page]]` / `[[Page|Alias]]` / `[[Page#Heading]]` 形式の Obsidian 風リンク。挙動・設定（open コマンド、トークン、vault、ノート単位上書き）は [docs/configuration.md](docs/configuration.md#wiki-links) を参照。
+
+- クリック / `Cmd+Enter` で `openWikiLink` を Swift へ送る。パス解決とアプリ起動は `WikiLinkResolver`（ファイルシステムを見られる Swift 側。JS では不可）が担う
+- 第一段はファイル単位の解決（`#heading` / `^block` の行ジャンプ・`![[embed]]` は非対応）
+
+関連ファイル:
+
+- `editor-web/src/extensions/wikilink.ts` — WikiLink lezer パーサー・ターゲット抽出
+- `editor-web/src/extensions/livePreview.ts` / `inlineMarkdown.ts` — レンダリング
+- `Chirami/Services/WikiLinkResolver.swift` — パス解決・コマンド実行
+- `Chirami/Config/ConfigModels.swift` — `WikiLinkConfig` / `CommandTemplate`
 
 ## Logging Rules
 

@@ -1,6 +1,7 @@
 import { GFM, parser } from "@lezer/markdown";
 import type { SyntaxNode } from "@lezer/common";
 import { Highlight } from "./highlight";
+import { WikiLink, wikiLinkDisplayText } from "./wikilink";
 
 export const INLINE_FORMAT_MARK_NODES = new Set([
   "EmphasisMark",
@@ -11,7 +12,7 @@ export const INLINE_FORMAT_MARK_NODES = new Set([
 
 export const INLINE_LINK_MARK_NODES = new Set(["LinkMark", "URL"]);
 
-const inlineMarkdownParser = parser.configure([GFM, Highlight]);
+const inlineMarkdownParser = parser.configure([GFM, Highlight, WikiLink]);
 
 export function renderInlineMarkdown(text: string): DocumentFragment {
   const fragment = document.createDocumentFragment();
@@ -66,6 +67,18 @@ function renderInlineNode(node: SyntaxNode, text: string): Node | null {
 
   if (INLINE_FORMAT_MARK_NODES.has(node.name) || INLINE_LINK_MARK_NODES.has(node.name)) {
     return null;
+  }
+
+  if (node.name === "WikiLinkMark") {
+    return null;
+  }
+
+  if (node.name === "WikiLink") {
+    const inner = text.slice(node.from + 2, node.to - 2);
+    const link = document.createElement("a");
+    link.className = "cm-clickable-link tok-link";
+    link.textContent = wikiLinkDisplayText(inner);
+    return link;
   }
 
   if (node.name === "StrongEmphasis") {

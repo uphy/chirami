@@ -11,6 +11,7 @@ import { classHighlighter, tags } from "@lezer/highlight";
 import { chiramiKeymap, openLink, openLinkAtPosition, tightListEnterKeymap, surroundSelectionHandler } from "./extensions/keymap";
 import { Highlight, highlightTag } from "./extensions/highlight";
 import { livePreview } from "./extensions/livePreview";
+import { WikiLink } from "./extensions/wikilink";
 import { tableExtension } from "./extensions/table";
 import { mermaidExtension } from "./extensions/mermaid";
 import { imageExtension } from "./extensions/image";
@@ -259,7 +260,7 @@ export function createEditor(parent: HTMLElement, callbacks: EditorCallbacks): E
         ...historyKeymap,
         ...searchKeymap,
       ]),
-      yamlFrontmatter({ content: markdown({ extensions: [GFM, Highlight], codeLanguages: languages }) }),
+      yamlFrontmatter({ content: markdown({ extensions: [GFM, Highlight, WikiLink], codeLanguages: languages }) }),
       syntaxHighlighting(classHighlighter),
       syntaxHighlighting(markdownStyle),
       EditorView.theme({

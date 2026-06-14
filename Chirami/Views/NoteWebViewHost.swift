@@ -29,6 +29,14 @@ struct NoteWebViewCapabilities {
 protocol NoteWebViewHost: AnyObject {
     var webViewCapabilities: NoteWebViewCapabilities { get }
 
+    /// File URL of the note backing this host, used as the base for resolving
+    /// `[[wiki links]]`. `nil` for hosts with no on-disk file.
+    var noteFileURL: URL? { get }
+
+    /// Per-note `[[wiki link]]` override, if this host maps to a registered
+    /// note that defines one. `nil` falls back to the global config.
+    var noteWikiLinkConfig: WikiLinkConfig? { get }
+
     // Required callbacks.
     func webViewContentChanged(_ text: String)
     var savedCursorLocation: Int { get set }
@@ -48,4 +56,5 @@ extension NoteWebViewHost {
     func webViewPastedImage(dataUrl: String, insertMarkdown: @escaping (String) -> Void) {}
     func webViewFoldChanged(lines: [Int]) {}
     var transcriptCoordinator: TranscriptCoordinator? { nil }
+    var noteWikiLinkConfig: WikiLinkConfig? { nil }
 }

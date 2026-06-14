@@ -128,6 +128,7 @@ type JsToSwiftMessage =
   | { type: "cursorChanged"; offset: number; line: number }
   | { type: "scrollChanged"; offset: number }
   | { type: "openLink"; url: string }
+  | { type: "openWikiLink"; target: string }
   | { type: "pasteImage"; dataUrl: string }
   | { type: "plainPaste" }
   | { type: "foldChanged"; foldedLines: number[] }

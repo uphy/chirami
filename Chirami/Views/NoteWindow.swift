@@ -946,6 +946,17 @@ class NoteContentModel: ObservableObject {
 extension NoteContentModel: NoteWebViewHost {
     var webViewCapabilities: NoteWebViewCapabilities { .all }
 
+    var noteFileURL: URL? { note.path }
+
+    var noteWikiLinkConfig: WikiLinkConfig? {
+        AppConfig.shared.config.notes.first { nc in
+            if let info = note.periodicInfo {
+                return nc.path == info.pathTemplate
+            }
+            return nc.resolvedPath == note.path.path
+        }?.wikilink
+    }
+
     func webViewContentChanged(_ text: String) {
         self.text = text
     }

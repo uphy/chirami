@@ -425,6 +425,24 @@ class LivePreviewPlugin {
             return;
           }
 
+          if (node.name === "WikiLink") {
+            // Cursor inside: leave the raw `[[..]]` visible for editing.
+            if (cursorInSpan(cursorPos, node.from, node.to)) return false;
+            decorations.push(CLICKABLE_LINK.range(node.from, node.to));
+            // Hide the opening/closing brackets.
+            decorations.push(HIDDEN_DECORATION.range(node.from, node.from + 2));
+            decorations.push(HIDDEN_DECORATION.range(node.to - 2, node.to));
+            // `[[target|alias]]` shows only the alias: hide "target|".
+            const inner = view.state.sliceDoc(node.from + 2, node.to - 2);
+            const pipe = inner.indexOf("|");
+            if (pipe >= 0) {
+              decorations.push(
+                HIDDEN_DECORATION.range(node.from + 2, node.from + 2 + pipe + 1)
+              );
+            }
+            return false;
+          }
+
           if (LINK_MARK_NODES.has(node.name)) {
             if (isStandaloneURLNode(node.node)) {
               if (cursorInSpan(cursorPos, node.from, node.to)) return;

@@ -35,6 +35,8 @@ class DisplayContentModel: ObservableObject {
 extension DisplayContentModel: NoteWebViewHost {
     var webViewCapabilities: NoteWebViewCapabilities { .none }
 
+    var noteFileURL: URL? { fileURL }
+
     func webViewContentChanged(_ text: String) {
         guard !isReadOnly else { return }
         self.text = text

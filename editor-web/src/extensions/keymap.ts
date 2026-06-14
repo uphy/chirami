@@ -3,6 +3,7 @@ import { EditorSelection } from "@codemirror/state";
 import { EditorView, KeyBinding } from "@codemirror/view";
 import { insertNewlineContinueMarkupCommand } from "@codemirror/lang-markdown";
 import { postToSwift } from "../bridge";
+import { wikiLinkTargetAtPosition } from "./wikilink";
 
 // Always dedent on empty list items instead of converting to a loose list.
 const continueMarkup = insertNewlineContinueMarkupCommand({ nonTightLists: false });
@@ -301,7 +302,17 @@ export function openLink(url: string | null | undefined): boolean {
   return true;
 }
 
+export function openWikiLink(target: string | null | undefined): boolean {
+  if (!target) return false;
+  postToSwift({ type: "openWikiLink", target });
+  return true;
+}
+
 export function openLinkAtPosition(view: EditorView, pos: number, fallbackUrl?: string | null): boolean {
+  // Wiki links resolve to local files on the Swift side; check them before
+  // falling back to standard URL links.
+  const wiki = wikiLinkTargetAtPosition(view, pos);
+  if (wiki) return openWikiLink(wiki);
   const url = linkUrlAtPosition(view, pos) ?? fallbackUrl;
   return openLink(url);
 }
