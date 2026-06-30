@@ -220,6 +220,11 @@ class NoteWindowController: NSWindowController, NSWindowDelegate, EditorContextP
             // Startup path: show without stealing keyboard focus.
             panel.orderFront(nil)
         } else {
+            // Activate the app before making the panel key. Without this, the
+            // WKWebView's DOM focus call is silently ignored when the host app
+            // is inactive (LSUIElement + .nonactivatingPanel), so the caret
+            // never appears until the user manually clicks the note.
+            NSApp.activate(ignoringOtherApps: true)
             // Always make key explicitly. showWindow(nil) calls orderFront (not
             // makeKeyAndOrderFront) for floating panels, so becomeKey never fires.
             panel.makeKeyAndOrderFront(nil)
@@ -311,6 +316,12 @@ class NoteWindowController: NSWindowController, NSWindowDelegate, EditorContextP
         isFadingOut = true
         let token = fadeOutToken
         let targetTransparency = note.transparency
+        // If this panel held key status, surrender app activation after
+        // orderOut so focus returns to the previously active app. show()
+        // activates the app explicitly, and without this counterpart the
+        // user would be stuck "in Chirami" with no visible window after
+        // pressing Cmd+W / Esc / the toggle hotkey.
+        let wasKey = panel.isKeyWindow
 
         noteStore.setVisible(false, for: note)
 
@@ -323,6 +334,9 @@ class NoteWindowController: NSWindowController, NSWindowDelegate, EditorContextP
                 self.isFadingOut = false
                 panel.orderOut(nil)
                 panel.alphaValue = targetTransparency  // Restore for next show()
+                if wasKey {
+                    NSApp.deactivate()
+                }
             }
         })
     }
@@ -345,6 +359,7 @@ class NoteWindowController: NSWindowController, NSWindowDelegate, EditorContextP
             if window?.isKeyWindow == true {
                 hide()
             } else {
+                NSApp.activate(ignoringOtherApps: true)
                 window?.makeKeyAndOrderFront(nil)
             }
         } else {
