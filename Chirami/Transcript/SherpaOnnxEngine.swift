@@ -24,9 +24,10 @@ final class SherpaOnnxSenseVoiceTranscriber: SherpaOnnxTranscribing {
             featConfig: featureConfig,
             modelConfig: modelConfig
         )
+        let safeHotwords = sherpaOnnxFilterHotwords(hotwords, tokensPath: tokensPath)
         recognizer = try SherpaOnnxOfflineRecognizerWrapper(
             config: &recognizerConfig,
-            hotwords: hotwords
+            hotwords: safeHotwords
         )
     }
 
@@ -36,6 +37,7 @@ final class SherpaOnnxSenseVoiceTranscriber: SherpaOnnxTranscribing {
 }
 
 final class SherpaOnnxNemoCTCTranscriber: SherpaOnnxTranscribing {
+    private static let logger = Logger(subsystem: "io.github.uphy.Chirami", category: "SherpaOnnx")
     private let recognizer: SherpaOnnxOfflineRecognizerWrapper
 
     init(modelFolder: URL, hotwords: String?) throws {
@@ -49,9 +51,16 @@ final class SherpaOnnxNemoCTCTranscriber: SherpaOnnxTranscribing {
             featConfig: featureConfig,
             modelConfig: modelConfig
         )
+        // NeMo CTC parakeet ships a SentencePiece-style BPE vocab; the
+        // shared "cjkchar" modeling_unit can't encode that, and passing
+        // hotwords causes sherpa-onnx to exit(255) inside OpenFST hotword
+        // graph construction. Drop hotwords for this model family.
+        if hotwords?.isEmpty == false {
+            Self.logger.warning("NeMo CTC model ignores hotwords (unsupported modeling unit)")
+        }
         recognizer = try SherpaOnnxOfflineRecognizerWrapper(
             config: &recognizerConfig,
-            hotwords: hotwords
+            hotwords: nil
         )
     }
 

@@ -1,5 +1,6 @@
 import CSherpaOnnx
 import Foundation
+import OSLog
 
 private func sherpaOnnxCString(_ value: String) -> UnsafePointer<CChar>? {
     (value as NSString).utf8String
@@ -172,6 +173,52 @@ enum SherpaOnnxOfflineRecognizerError: LocalizedError, Equatable {
             return "Failed to read SherpaOnnx recognition result."
         }
     }
+}
+
+/// Sanitizes a hotword payload by dropping lines that reference tokens not
+/// present in the model's tokens.txt. Sherpa-onnx (via OpenFST) calls
+/// `exit(255)` when hotwords contain unknown tokens, which would otherwise
+/// take the whole app down at first-utterance decode time.
+func sherpaOnnxFilterHotwords(_ hotwords: String?, tokensPath: String) -> String? {
+    let logger = Logger(subsystem: "io.github.uphy.Chirami", category: "SherpaOnnx")
+    guard let hotwords, !hotwords.isEmpty else { return nil }
+
+    guard let contents = try? String(contentsOfFile: tokensPath, encoding: .utf8) else {
+        logger.warning("hotword filter could not read tokensPath=\(tokensPath, privacy: .public); passing through")
+        return hotwords
+    }
+
+    var vocab = Set<String>()
+    for rawLine in contents.split(separator: "\n", omittingEmptySubsequences: true) {
+        let line = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !line.isEmpty else { continue }
+        // tokens.txt format is "<token> <id>" with a single space; the token
+        // itself can contain non-space characters only.
+        if let spaceIndex = line.firstIndex(of: " ") {
+            vocab.insert(String(line[..<spaceIndex]))
+        } else {
+            vocab.insert(line)
+        }
+    }
+
+    let lines = hotwords.split(separator: "/", omittingEmptySubsequences: false)
+    var keptLines: [String] = []
+    var droppedLines: [String] = []
+    for line in lines {
+        let tokens = line.split(separator: " ", omittingEmptySubsequences: true).map(String.init)
+        guard !tokens.isEmpty else { continue }
+        if tokens.allSatisfy({ vocab.contains($0) }) {
+            keptLines.append(tokens.joined(separator: " "))
+        } else {
+            droppedLines.append(String(line))
+        }
+    }
+
+    if !droppedLines.isEmpty {
+        logger.warning("hotword filter dropped \(droppedLines.count, privacy: .public) line(s) with out-of-vocab tokens: \(droppedLines.joined(separator: " | "), privacy: .public)")
+    }
+
+    return keptLines.isEmpty ? nil : keptLines.joined(separator: "/")
 }
 
 final class SherpaOnnxOfflineRecognizerWrapper: @unchecked Sendable {
