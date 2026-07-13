@@ -12,9 +12,18 @@ class NoteWindowController: NSWindowController, NSWindowDelegate, EditorContextP
     private let noteStore = NoteStore.shared
     private let logger = Logger(subsystem: "io.github.uphy.Chirami", category: "NoteWindowController")
     private var fileWatcher: FileWatcher?
+    private var directoryWatcher: DirectoryWatcher?
     private var contentModel: NoteContentModel
     private var cancellables = Set<AnyCancellable>()
+    /// Periodic: "is showing today's file". Stream: "is showing the latest
+    /// matching file". Reused across both modes per the stream-note-mode design.
     private var isShowingToday: Bool = true
+    /// Stream only: the latest matching file as of the last directory rescan
+    /// (initial value = the file resolved at open, which is latest by
+    /// construction — see `NoteStore.resolveStreamNote`). Used by
+    /// `StreamFollow.shouldFollow` to decide whether a newly detected file
+    /// should auto-advance the display.
+    private var lastKnownStreamLatest: URL?
     private var isPinned: Bool
     private var isFadingOut: Bool = false
     private var fadeOutToken: Int = 0
@@ -74,14 +83,18 @@ class NoteWindowController: NSWindowController, NSWindowDelegate, EditorContextP
             self?.hide()
         }
 
-        if note.periodicInfo != nil {
+        if let info = note.periodicInfo {
             panel.setupNavigationButtons(
                 target: self,
                 prevAction: #selector(navigatePrevious),
                 nextAction: #selector(navigateNext),
-                todayAction: #selector(navigateToToday)
+                todayAction: #selector(navigateToToday),
+                isStream: info.mode == .stream
             )
             updateNavigationButtons()
+            if info.mode == .stream {
+                lastKnownStreamLatest = note.path
+            }
         }
 
         panel.setupPinButton { [weak self] in self?.togglePinAction() }
@@ -419,6 +432,7 @@ class NoteWindowController: NSWindowController, NSWindowDelegate, EditorContextP
 
     func windowWillClose(_ notification: Notification) {
         transcriptCoordinator.stopAllLevelMonitors()
+        directoryWatcher?.stop()
         guard let window = window else { return }
         noteStore.saveWindowState(
             for: note,
@@ -701,15 +715,36 @@ class NoteWindowController: NSWindowController, NSWindowDelegate, EditorContextP
 
     private func resolveAndNavigateToToday(force: Bool) {
         guard let info = note.periodicInfo else { return }
-        let config = NoteConfig(path: info.pathTemplate, template: info.templateFile?.path)
-        let date = noteStore.logicalDate(rolloverDelay: info.rolloverDelay)
-        guard let newNote = noteStore.resolvePeriodicNote(from: config, for: date) else { return }
-        if !force {
-            guard newNote.path.path != note.path.path else { return }
+        switch info.mode {
+        case .periodic:
+            let config = NoteConfig(path: info.pathTemplate, template: info.templateFile?.path)
+            let date = noteStore.logicalDate(rolloverDelay: info.rolloverDelay)
+            guard let newNote = noteStore.resolvePeriodicNote(from: config, for: date) else { return }
+            if !force {
+                guard newNote.path.path != note.path.path else { return }
+            }
+            navigateToFile(newNote.path)
+            isShowingToday = true
+            updateNavigationButtons()
+        case .stream:
+            guard let newNote = resolveLatestOrCreateStreamNote() else { return }
+            if !force {
+                guard newNote.path.path != note.path.path else { return }
+            }
+            navigateToFile(newNote.path)
+            isShowingToday = true
+            lastKnownStreamLatest = newNote.path
+            updateNavigationButtons()
         }
-        navigateToFile(newNote.path)
-        isShowingToday = true
-        updateNavigationButtons()
+    }
+
+    /// Stream equivalent of `NoteStore.resolvePeriodicNote`: returns the latest
+    /// matching file, or creates one from the template resolved at the current
+    /// time when the directory has no matches yet (spec: "一致ファイルが無い場合").
+    private func resolveLatestOrCreateStreamNote() -> Note? {
+        guard let info = note.periodicInfo else { return nil }
+        let config = NoteConfig(path: info.pathTemplate, template: info.templateFile?.path, mode: .stream)
+        return noteStore.resolveStreamNote(from: config)
     }
 
     func handleRollover(_ newNote: Note) {
@@ -717,6 +752,19 @@ class NoteWindowController: NSWindowController, NSWindowDelegate, EditorContextP
         note.path = newNote.path
         note.title = newNote.title
         reloadContentForNavigation()
+    }
+
+    /// Forces navigation to a specific stream entry regardless of current
+    /// browsing state. Used by the `create` quick-capture hotkey (design
+    /// decision 6), which always creates a brand-new file and must show it as
+    /// latest even if the user was mid-browse through history.
+    func showStreamEntry(_ url: URL) {
+        guard note.periodicInfo?.mode == .stream else { return }
+        navigateToFile(url)
+        isShowingToday = true
+        lastKnownStreamLatest = url
+        updateNavigationButtons()
+        show()
     }
 
     private func navigateToFile(_ url: URL) {
@@ -731,11 +779,19 @@ class NoteWindowController: NSWindowController, NSWindowDelegate, EditorContextP
             }
         }
         isShowingToday = false
-        // Check if navigated file is actually today's file
+        // Check if the navigated file is "current": today's file for periodic
+        // notes (time-resolved), or the latest matching file for stream notes.
         if let info = note.periodicInfo {
-            let todayPath = PathTemplateResolver.resolve(info.pathTemplate, for: noteStore.logicalDate(rolloverDelay: info.rolloverDelay))
-            if let todayURL = resolveTemplatePath(todayPath), todayURL.path == url.path {
-                isShowingToday = true
+            switch info.mode {
+            case .periodic:
+                let todayPath = PathTemplateResolver.resolve(info.pathTemplate, for: noteStore.logicalDate(rolloverDelay: info.rolloverDelay))
+                if let todayURL = resolveTemplatePath(todayPath), todayURL.path == url.path {
+                    isShowingToday = true
+                }
+            case .stream:
+                if let files = periodicMatchingFiles(), files.last?.path == url.path {
+                    isShowingToday = true
+                }
             }
         }
         reloadContentForNavigation()
@@ -794,6 +850,66 @@ class NoteWindowController: NSWindowController, NSWindowDelegate, EditorContextP
             Task { @MainActor [weak self] in
                 self?.reloadContent()
             }
+        }
+
+        setupDirectoryWatcherIfNeeded()
+    }
+
+    /// For stream notes, watches the template's parent directory so new or
+    /// removed matching files are detected without restarting the app (design
+    /// decision 3). No-op — and clears any previous watcher — for
+    /// periodic/static notes. Called from `setupFileWatcher()`, i.e. on init
+    /// and on every navigation, so the watcher always tracks the current note.
+    private func setupDirectoryWatcherIfNeeded() {
+        directoryWatcher?.stop()
+        directoryWatcher = nil
+
+        guard let info = note.periodicInfo, info.mode == .stream else { return }
+        let baseDir = PathTemplateResolver.extractBaseDirectory(from: info.pathTemplate)
+        guard let baseDirURL = resolveTemplatePath(baseDir) else { return }
+
+        let watcher = DirectoryWatcher(url: baseDirURL) { [weak self] in
+            self?.handleStreamDirectoryChange()
+        }
+        watcher.start()
+        directoryWatcher = watcher
+    }
+
+    /// Directory-watcher callback for stream notes: rescans matching files and
+    /// either follows to the new latest (tail -f semantics, only when already
+    /// showing latest and visible), falls back when the displayed file was
+    /// deleted externally (a deletion surfaces as a directory `.write` event
+    /// too), or otherwise only refreshes navigation button state so a user
+    /// reading history is never interrupted.
+    private func handleStreamDirectoryChange() {
+        guard let info = note.periodicInfo, info.mode == .stream else { return }
+
+        let displayedFile = note.path
+        let displayedFileExists = FileManager.default.fileExists(atPath: displayedFile.path)
+        let files = periodicMatchingFiles() ?? []
+        let newLatest = files.last
+
+        defer { lastKnownStreamLatest = newLatest }
+
+        if !displayedFileExists {
+            if let newLatest {
+                navigateToFile(newLatest)
+            } else if let created = resolveLatestOrCreateStreamNote() {
+                navigateToFile(created.path)
+            }
+            updateNavigationButtons()
+            return
+        }
+
+        guard let newLatest, newLatest.path != displayedFile.path else {
+            updateNavigationButtons()
+            return
+        }
+
+        if StreamFollow.shouldFollow(isVisible: isVisible, displayedFile: displayedFile, previousLatest: lastKnownStreamLatest) {
+            navigateToFile(newLatest)
+        } else {
+            updateNavigationButtons()
         }
     }
 

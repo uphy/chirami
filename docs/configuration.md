@@ -98,13 +98,14 @@ Each entry in `notes` configures one Registered Note — a sticky note window ma
 | Field | Type | Default | Required | Description |
 |-------|------|---------|----------|-------------|
 | `path` | string | — | yes | File path. Absolute or `~/` relative. Supports `{date-format}` placeholders for periodic notes. |
+| `mode` | string | `periodic` | no | Resolution mode for template-path notes (`path` containing `{...}`): `periodic` resolves to the current date; `stream` resolves to the lexicographically latest matching file. `stream` requires a `{...}` placeholder in the filename component, and the filename may additionally include one `*` wildcard. See [Stream Notes](advanced.md#stream-notes). |
 | `title` | string | filename | no | Window title shown in the title bar. |
 | `theme` | string | — | no | Theme name, applied to the note via the `data-chirami-theme` attribute. Built-in: `yellow`, `blue`, `green`, `pink`, `purple`, `gray`. Custom themes defined in `appearance.css_file` are also accepted. See [CSS Theming](css-theming.md). |
 | `transparency` | number | `0.9` | no | Window opacity (0.0–1.0). |
 | `hotkeys` | array | `[]` | no | Hotkey bindings for this note. Registered Notes support `toggle` and `create`. |
 | `position` | string | `fixed` | no | `fixed` (remembers last position) or `cursor` (appears at mouse cursor). |
 | `always_on_top` | boolean | `true` | no | Whether the note window floats above all other windows. |
-| `rollover_delay` | string | — | no | Delay before date rollover for periodic notes (e.g. `2h`, `30m`). |
+| `rollover_delay` | string | — | no | Delay before date rollover for periodic notes (e.g. `2h`, `30m`). Ignored in `stream` mode. |
 | `template` | string | — | no | Template file path for periodic notes. Copied when creating a new day's file. |
 | `attachment.dir` | string | — | no | Attachment directory for images. See [Images](advanced.md#images). |
 | `wikilink` | object | — | no | Per-note `[[wiki link]]` override. `open` and `vault` fall back field-by-field to the global `wikilink` config. See [Wiki Links](#wiki-links). |

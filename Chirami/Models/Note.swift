@@ -12,6 +12,10 @@ struct PeriodicNoteInfo: Equatable {
     let rolloverDelay: TimeInterval
     let templateFile: URL?
     let titlePrefix: String?
+    /// `.periodic` (default) or `.stream`; see `NoteMode`. Determines whether
+    /// "current" resolves from the current time (periodic) or from the latest
+    /// matching file (stream), and whether the rollover timer applies.
+    var mode: NoteMode = .periodic
 }
 
 /// A Registered Note — a note defined in config.yaml's `notes[]` array.

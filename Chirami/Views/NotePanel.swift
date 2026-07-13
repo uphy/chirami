@@ -82,12 +82,16 @@ class NotePanel: NSPanel {
         customTitleLabel = label
     }
 
-    /// Set up navigation buttons (◀ ▶ ●) in the titlebar for periodic notes.
+    /// Set up navigation buttons (◀ ▶ ●) in the titlebar for periodic/stream notes.
+    /// - Parameter isStream: when true, the "jump to current" button is labeled
+    ///   "Latest" instead of "Today" (stream-note-mode design: the Today button
+    ///   becomes Latest for stream-mode notes).
     func setupNavigationButtons(
         target: AnyObject,
         prevAction: Selector,
         nextAction: Selector,
-        todayAction: Selector
+        todayAction: Selector,
+        isStream: Bool = false
     ) {
         guard let closeButton = standardWindowButton(.closeButton) else { return }
 
@@ -97,6 +101,7 @@ class NotePanel: NSPanel {
         let next = makeNavButton(symbolName: "chevron.right", action: nextAction, target: target)
         let latest = makeNavButton(symbolName: "forward.end.fill", action: todayAction, target: target)
         latest.isHidden = true // hidden when showing latest
+        latest.toolTip = isStream ? "Latest" : "Today"
 
         for button in [prev, next, latest] {
             fullWidthView.addSubview(button)

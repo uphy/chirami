@@ -90,12 +90,22 @@ class WindowManager: ObservableObject {
     }
 
     func createWindow(for noteId: String) {
-        guard let note = noteStore.refreshNote(for: noteId, ensureStaticFileExists: true) else {
+        // For stream notes this always creates a brand-new quick-capture entry
+        // (design decision 6), not just "today's" file — see
+        // `NoteStore.createStreamEntry`.
+        guard let note = noteStore.refreshNote(for: noteId, isCreateAction: true) else {
             return
         }
 
         if let controller = controllers[noteId] {
-            controller.show()
+            if note.periodicInfo?.mode == .stream {
+                // `showStreamEntry` forces navigation to the just-created file even
+                // if the controller was mid-browse through history; plain `show()`
+                // would only re-latest when already following (see `isShowingToday`).
+                controller.showStreamEntry(note.path)
+            } else {
+                controller.show()
+            }
             return
         }
 
@@ -129,8 +139,9 @@ class WindowManager: ObservableObject {
             openWindow(for: note)
         }
 
-        // Manage rollover timer
-        let hasPeriodicNotes = noteStore.notes.contains { $0.periodicInfo != nil }
+        // Manage rollover timer. Stream notes never roll over (design decision 5),
+        // so a directory of stream-only notes should not keep the timer running.
+        let hasPeriodicNotes = noteStore.notes.contains { $0.periodicInfo?.mode == .periodic }
         if hasPeriodicNotes {
             startRolloverTimer()
         } else {
@@ -157,6 +168,9 @@ class WindowManager: ObservableObject {
     func checkRollover() {
         for (_, controller) in controllers {
             guard let info = controller.note.periodicInfo else { continue }
+            // Stream notes have no time-based "current" to roll over to; the
+            // directory watcher covers new-file detection instead (design decision 5).
+            guard info.mode == .periodic else { continue }
             let logicalDate = noteStore.logicalDate(rolloverDelay: info.rolloverDelay)
             let newPath = PathTemplateResolver.resolve(info.pathTemplate, for: logicalDate)
             guard let newURL = resolvePath(newPath) else { continue }

@@ -131,6 +131,95 @@ struct PeriodicFileNavigatorTests {
         #expect(result == nil)
     }
 
+    // MARK: - latestMatchingFile
+
+    @Test("returns nil for an empty directory")
+    func latestMatchingFileEmptyDirectory() throws {
+        let dir = try createTempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        let template = dir.path + "/{yyyy-MM-dd}.md"
+        let latest = PeriodicFileNavigator.latestMatchingFile(template: template, baseDirectory: dir)
+
+        #expect(latest == nil)
+    }
+
+    @Test("returns the only file when there is one match")
+    func latestMatchingFileSingleMatch() throws {
+        let dir = try createTempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        try createFile(at: dir.appendingPathComponent("2026-02-21.md"))
+
+        let template = dir.path + "/{yyyy-MM-dd}.md"
+        let latest = PeriodicFileNavigator.latestMatchingFile(template: template, baseDirectory: dir)
+
+        #expect(latest?.lastPathComponent == "2026-02-21.md")
+    }
+
+    @Test("returns the lexicographically last file when there are multiple matches")
+    func latestMatchingFileMultipleMatches() throws {
+        let dir = try createTempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        try createFile(at: dir.appendingPathComponent("2026-02-21.md"))
+        try createFile(at: dir.appendingPathComponent("2026-02-23.md"))
+        try createFile(at: dir.appendingPathComponent("2026-02-22.md"))
+
+        let template = dir.path + "/{yyyy-MM-dd}.md"
+        let latest = PeriodicFileNavigator.latestMatchingFile(template: template, baseDirectory: dir)
+
+        #expect(latest?.lastPathComponent == "2026-02-23.md")
+    }
+
+    @Test("ignores non-matching files mixed into the directory")
+    func latestMatchingFileIgnoresNonMatchingFiles() throws {
+        let dir = try createTempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        try createFile(at: dir.appendingPathComponent("2026-02-21.md"))
+        try createFile(at: dir.appendingPathComponent("notes.txt"))
+        try createFile(at: dir.appendingPathComponent("not-a-date.md"))
+        try createFile(at: dir.appendingPathComponent("zzz-not-a-date.md"))
+
+        let template = dir.path + "/{yyyy-MM-dd}.md"
+        let latest = PeriodicFileNavigator.latestMatchingFile(template: template, baseDirectory: dir)
+
+        #expect(latest?.lastPathComponent == "2026-02-21.md")
+    }
+
+    // MARK: - wildcard templates (stream mode)
+
+    @Test("lists a slugged file matching a wildcard template and excludes non-matching files")
+    func listMatchingFilesWildcardSlug() throws {
+        let dir = try createTempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        try createFile(at: dir.appendingPathComponent("2026-07-13-091654-llm-ops.md"))
+        try createFile(at: dir.appendingPathComponent("memo.md"))
+
+        let template = dir.path + "/{yyyy-MM-dd-HHmmss}-*.md"
+        let files = PeriodicFileNavigator.listMatchingFiles(template: template, baseDirectory: dir)
+
+        #expect(files.count == 1)
+        #expect(files[0].lastPathComponent == "2026-07-13-091654-llm-ops.md")
+    }
+
+    @Test("latestMatchingFile resolves the latest slugged file for a wildcard template")
+    func latestMatchingFileWildcardSlug() throws {
+        let dir = try createTempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        try createFile(at: dir.appendingPathComponent("2026-07-13-090000-aaa.md"))
+        try createFile(at: dir.appendingPathComponent("2026-07-13-100000-bbb.md"))
+        try createFile(at: dir.appendingPathComponent("memo.md"))
+
+        let template = dir.path + "/{yyyy-MM-dd-HHmmss}-*.md"
+        let latest = PeriodicFileNavigator.latestMatchingFile(template: template, baseDirectory: dir)
+
+        #expect(latest?.lastPathComponent == "2026-07-13-100000-bbb.md")
+    }
+
     // MARK: - Helpers
 
     private func createTempDir() throws -> URL {

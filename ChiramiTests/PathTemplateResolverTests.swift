@@ -106,6 +106,48 @@ struct PathTemplateResolverTests {
         ))
     }
 
+    // MARK: - resolveStream
+
+    @Test("resolveStream resolves placeholders like resolve and strips the wildcard")
+    func resolveStreamStripsWildcard() {
+        let date = makeDate(year: 2026, month: 7, day: 13)
+        let result = PathTemplateResolver.resolveStream("~/notes/claude/{yyyy-MM-dd}-*.md", for: date)
+        #expect(result == "~/notes/claude/2026-07-13-.md")
+    }
+
+    @Test("resolveStream behaves like resolve when there is no wildcard")
+    func resolveStreamWithoutWildcard() {
+        let date = makeDate(year: 2026, month: 7, day: 13)
+        let result = PathTemplateResolver.resolveStream("~/notes/daily/{yyyy-MM-dd}.md", for: date)
+        #expect(result == "~/notes/daily/2026-07-13.md")
+    }
+
+    // MARK: - matches (wildcard / stream templates)
+
+    @Test("matches a slugged filename against a wildcard template")
+    func matchesWildcardSlug() {
+        #expect(PathTemplateResolver.matches(
+            relativePath: "2026-07-13-091654-llm-ops.md",
+            template: "~/notes/claude/{yyyy-MM-dd-HHmmss}-*.md"
+        ))
+    }
+
+    @Test("wildcard template matches when the slug is empty")
+    func matchesWildcardEmptySlug() {
+        #expect(PathTemplateResolver.matches(
+            relativePath: "2026-07-13-091654-.md",
+            template: "~/notes/claude/{yyyy-MM-dd-HHmmss}-*.md"
+        ))
+    }
+
+    @Test("wildcard template does not match an unrelated filename")
+    func matchesWildcardRejectsUnrelatedFile() {
+        #expect(!PathTemplateResolver.matches(
+            relativePath: "memo.md",
+            template: "~/notes/claude/{yyyy-MM-dd-HHmmss}-*.md"
+        ))
+    }
+
     // MARK: - extractBaseDirectory
 
     @Test("extracts base directory from single-level template")

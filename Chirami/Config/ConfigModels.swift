@@ -1,5 +1,6 @@
 import Foundation
 import CryptoKit
+import os
 
 // MARK: - Config (~/.config/chirami/config.yaml)
 
@@ -402,6 +403,53 @@ enum KarabinerValue: Codable, Equatable {
     }
 }
 
+/// The two flavors of a template-path (`{...}`) registered note.
+///
+/// - `periodic`: "current" resolves from the current time (`PathTemplateResolver.resolve`);
+///   the rollover timer keeps it in sync as the period changes.
+/// - `stream`: "current" resolves to the lexicographically last matching file
+///   (see `PeriodicFileNavigator.latestMatchingFile`); the rollover timer does
+///   not apply.
+///
+/// Absent `mode` in YAML decodes to `.periodic`, so existing configs are
+/// unaffected.
+enum NoteMode: String, Codable, Equatable {
+    case periodic
+    case stream
+}
+
+/// Configuration errors for a `NoteConfig` that prevent the note from being
+/// registered. Mirrors how other unresolvable notes are already dropped in
+/// `NoteStore` (silently excluded from `notes[]`); callers should log these
+/// via the standard warn-level config logging convention and skip the note.
+enum NoteConfigError: Error, Equatable, CustomStringConvertible {
+    /// `mode: stream` on a path without any `{...}` placeholder.
+    case streamRequiresPlaceholder
+    /// `mode: stream` with a `{...}` placeholder outside the filename component.
+    case streamPlaceholderMustBeInFilename
+    /// `*` present but `mode` is not `stream`.
+    case wildcardRequiresStreamMode
+    /// `*` present in the directory component instead of the filename component.
+    case wildcardInDirectoryComponent
+    /// More than one `*` in the filename component.
+    case multipleWildcardsInFilename
+
+    var description: String {
+        switch self {
+        case .streamRequiresPlaceholder:
+            return "mode: stream requires the path to contain a {...} placeholder"
+        case .streamPlaceholderMustBeInFilename:
+            return "mode: stream placeholders are only allowed in the filename component, not the directory component"
+        case .wildcardRequiresStreamMode:
+            return "* wildcard is only allowed with mode: stream"
+        case .wildcardInDirectoryComponent:
+            return "* wildcard is only allowed in the filename component, not the directory component"
+        case .multipleWildcardsInFilename:
+            return "only a single * wildcard is allowed in the filename component"
+        }
+    }
+}
+
 struct NoteConfig: Codable, NoteAppearanceResolvable {
     var path: String
     var title: String?
@@ -416,9 +464,49 @@ struct NoteConfig: Codable, NoteAppearanceResolvable {
     /// Per-note override for `[[wiki link]]` opening. Falls back field-by-field
     /// to the global `wikilink` config when absent.
     var wikilink: WikiLinkConfig?
+    /// `periodic` (default) or `stream`. Only meaningful for template-path notes.
+    var mode: NoteMode = .periodic
 
     var isPeriodicNote: Bool {
         PathTemplateResolver.isTemplate(path)
+    }
+
+    /// Validation errors that should prevent this note from being registered.
+    /// Empty when the config is valid.
+    var configErrors: [NoteConfigError] {
+        var errors: [NoteConfigError] = []
+
+        let hasPlaceholder = PathTemplateResolver.isTemplate(path)
+        let filenameComponent = (path as NSString).lastPathComponent
+        let directoryComponent = (path as NSString).deletingLastPathComponent
+        let wildcardCountInFilename = filenameComponent.filter { $0 == "*" }.count
+        let hasWildcardInDirectory = directoryComponent.contains("*")
+
+        if mode == .stream {
+            if !hasPlaceholder {
+                errors.append(.streamRequiresPlaceholder)
+            } else if PathTemplateResolver.isTemplate(directoryComponent) {
+                errors.append(.streamPlaceholderMustBeInFilename)
+            }
+        }
+
+        if wildcardCountInFilename > 0 || hasWildcardInDirectory {
+            if mode != .stream {
+                errors.append(.wildcardRequiresStreamMode)
+            }
+            if hasWildcardInDirectory {
+                errors.append(.wildcardInDirectoryComponent)
+            }
+            if wildcardCountInFilename > 1 {
+                errors.append(.multipleWildcardsInFilename)
+            }
+        }
+
+        return errors
+    }
+
+    var isConfigValid: Bool {
+        configErrors.isEmpty
     }
 
     var resolvedPath: String {
@@ -435,7 +523,7 @@ struct NoteConfig: Codable, NoteAppearanceResolvable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case path, title, theme, transparency, hotkeys, position, template, attachment, wikilink
+        case path, title, theme, transparency, hotkeys, position, template, attachment, wikilink, mode
         case alwaysOnTop = "always_on_top"
         case rolloverDelay = "rollover_delay"
     }
@@ -476,6 +564,8 @@ struct NoteConfig: Codable, NoteAppearanceResolvable {
 
 // Custom decoding lives in an extension so the memberwise initializer is preserved.
 extension NoteConfig {
+    private static let logger = Logger(subsystem: "io.github.uphy.Chirami", category: "NoteConfig")
+
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         path = try container.decode(String.self, forKey: .path)
@@ -490,6 +580,13 @@ extension NoteConfig {
         template = try container.decodeIfPresent(String.self, forKey: .template)
         attachment = try container.decodeIfPresent(AttachmentConfig.self, forKey: .attachment)
         wikilink = try container.decodeIfPresent(WikiLinkConfig.self, forKey: .wikilink)
+        // `mode` is optional in YAML; absent means `.periodic` (backward compatible).
+        mode = try container.decodeIfPresent(NoteMode.self, forKey: .mode) ?? .periodic
+
+        if mode == .stream, rolloverDelay != nil {
+            let notePath = path
+            Self.logger.warning("mode: stream is combined with rollover_delay for path \(notePath, privacy: .public); rollover_delay is ignored for stream notes")
+        }
     }
 }
 

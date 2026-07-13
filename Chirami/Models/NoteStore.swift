@@ -51,7 +51,50 @@ class NoteStore: ObservableObject {
     func resolvePeriodicNote(from config: NoteConfig, for date: Date) -> Note? {
         let resolvedPath = PathTemplateResolver.resolve(config.path, for: date)
         guard let url = resolvePath(resolvedPath) else { return nil }
+        return makeTemplateNote(url: url, config: config, mode: .periodic)
+    }
 
+    /// Resolves a Note in stream mode: "current" is the lexicographically last
+    /// file matching the template, or — when the directory has no matches yet —
+    /// a newly created file from the template resolved at the current time
+    /// (`*` → "", per `PathTemplateResolver.resolveStream`). Mirrors
+    /// `resolvePeriodicNote`'s file-creation contract but resolves "current"
+    /// from the directory listing instead of the current time.
+    func resolveStreamNote(from config: NoteConfig) -> Note? {
+        guard let url = latestOrNewStreamURL(for: config) else { return nil }
+        return makeTemplateNote(url: url, config: config, mode: .stream)
+    }
+
+    /// Stream "create" hotkey (quick capture): always creates a brand-new file
+    /// from the template resolved at the current time, regardless of whether a
+    /// matching file already exists. Distinct from `resolveStreamNote`, which
+    /// reuses the existing latest file when one is present.
+    func createStreamEntry(from config: NoteConfig) -> Note? {
+        let resolvedPath = PathTemplateResolver.resolveStream(config.path, for: Date())
+        guard let url = resolvePath(resolvedPath) else { return nil }
+        return makeTemplateNote(url: url, config: config, mode: .stream)
+    }
+
+    /// Returns the latest matching file for a stream template, or the
+    /// current-time-resolved path when no matching file exists yet.
+    private func latestOrNewStreamURL(for config: NoteConfig) -> URL? {
+        let baseDir = PathTemplateResolver.extractBaseDirectory(from: config.path)
+        guard let baseDirURL = resolvePath(baseDir) else { return nil }
+        let relativeTemplate = String(config.path.dropFirst(baseDir.count))
+
+        if let latest = PeriodicFileNavigator.latestMatchingFile(template: relativeTemplate, baseDirectory: baseDirURL) {
+            return latest
+        }
+
+        let resolvedPath = PathTemplateResolver.resolveStream(config.path, for: Date())
+        return resolvePath(resolvedPath)
+    }
+
+    /// Shared periodic/stream note construction: ensures the target file exists
+    /// (copying from `config.template` if configured, else an empty file),
+    /// builds title/appearance, and packages a `PeriodicNoteInfo` tagged with
+    /// `mode` so window/navigation code can branch on periodic vs. stream.
+    private func makeTemplateNote(url: URL, config: NoteConfig, mode: NoteMode) -> Note {
         let id = config.noteId
 
         // Create parent directory if needed
@@ -85,14 +128,17 @@ class NoteStore: ObservableObject {
         let alwaysOnTop = config.resolveAlwaysOnTop()
         let notePosition = config.resolvePosition()
 
-        let rolloverDelay = DurationParser.parse(config.rolloverDelay)
+        // rollover_delay has no meaning for stream notes (no time-based "current"
+        // to roll over); ignore it at runtime regardless of what's configured.
+        let rolloverDelay = mode == .stream ? 0 : DurationParser.parse(config.rolloverDelay)
         let templateFile: URL? = config.template.flatMap { resolvePath($0) }
 
         let periodicInfo = PeriodicNoteInfo(
             pathTemplate: config.path,
             rolloverDelay: rolloverDelay,
             templateFile: templateFile,
-            titlePrefix: config.title
+            titlePrefix: config.title,
+            mode: mode
         )
 
         let attachmentsDir = config.resolveAttachmentsDir(
@@ -115,9 +161,12 @@ class NoteStore: ObservableObject {
         appConfig.config.notes.first { $0.noteId == noteId }
     }
 
-    func refreshNote(for noteId: String, ensureStaticFileExists: Bool = false) -> Note? {
+    /// - Parameter isCreateAction: true when triggered by the `create` hotkey.
+    ///   For static notes this ensures the file exists; for stream notes this
+    ///   forces a brand-new quick-capture entry instead of reusing latest.
+    func refreshNote(for noteId: String, isCreateAction: Bool = false) -> Note? {
         guard let config = noteConfig(for: noteId),
-              let note = resolveNote(from: config, ensureStaticFileExists: ensureStaticFileExists) else {
+              let note = resolveNote(from: config, isCreateAction: isCreateAction) else {
             return nil
         }
 
@@ -130,14 +179,25 @@ class NoteStore: ObservableObject {
         return note
     }
 
-    private func resolveNote(from config: NoteConfig, ensureStaticFileExists: Bool = false) -> Note? {
-        if config.isPeriodicNote {
-            let rolloverDelay = DurationParser.parse(config.rolloverDelay)
-            let date = logicalDate(rolloverDelay: rolloverDelay)
-            return resolvePeriodicNote(from: config, for: date)
+    private func resolveNote(from config: NoteConfig, isCreateAction: Bool = false) -> Note? {
+        guard config.isConfigValid else {
+            let errors = config.configErrors.map(\.description).joined(separator: "; ")
+            logger.warning("skipping note with invalid config: path=\(config.path, privacy: .public) errors=\(errors, privacy: .public)")
+            return nil
         }
 
-        return resolveStaticNote(from: config, ensureFileExists: ensureStaticFileExists)
+        if config.isPeriodicNote {
+            switch config.mode {
+            case .stream:
+                return isCreateAction ? createStreamEntry(from: config) : resolveStreamNote(from: config)
+            case .periodic:
+                let rolloverDelay = DurationParser.parse(config.rolloverDelay)
+                let date = logicalDate(rolloverDelay: rolloverDelay)
+                return resolvePeriodicNote(from: config, for: date)
+            }
+        }
+
+        return resolveStaticNote(from: config, ensureFileExists: isCreateAction)
     }
 
     private func resolveStaticNote(from config: NoteConfig, ensureFileExists: Bool = false) -> Note? {

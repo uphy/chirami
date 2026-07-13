@@ -206,6 +206,117 @@ struct NoteConfigPeriodicNoteTests {
     }
 }
 
+// MARK: - NoteConfig mode / stream validation
+
+@Suite("NoteConfig mode field and stream validation")
+struct NoteConfigModeTests {
+
+    // MARK: - mode decoding / backward compatibility
+
+    @Test("mode defaults to periodic when omitted (backward compatible)")
+    func modeDefaultsToPeriodicWhenOmitted() throws {
+        let yaml = """
+        path: "~/notes/daily/{yyyy-MM-dd}.md"
+        title: "Daily Note"
+        rollover_delay: "2h"
+        template: ~/notes/templates/daily.md
+        """
+        let config = try YAMLDecoder().decode(NoteConfig.self, from: yaml)
+        #expect(config.mode == .periodic)
+        // Existing fields still parse exactly as before.
+        #expect(config.rolloverDelay == "2h")
+        #expect(config.template == "~/notes/templates/daily.md")
+        #expect(config.isPeriodicNote == true)
+        #expect(config.configErrors.isEmpty)
+    }
+
+    @Test("mode decodes explicit periodic and stream values")
+    func modeDecodesExplicitValues() throws {
+        let periodicYaml = """
+        path: "~/notes/daily/{yyyy-MM-dd}.md"
+        mode: periodic
+        """
+        let periodic = try YAMLDecoder().decode(NoteConfig.self, from: periodicYaml)
+        #expect(periodic.mode == .periodic)
+
+        let streamYaml = """
+        path: "~/notes/claude/{yyyy-MM-dd-HHmmss}.md"
+        mode: stream
+        """
+        let stream = try YAMLDecoder().decode(NoteConfig.self, from: streamYaml)
+        #expect(stream.mode == .stream)
+    }
+
+    // MARK: - configErrors: mode validation
+
+    @Test("stream mode with a placeholder path is valid")
+    func streamModeWithPlaceholderIsValid() {
+        let config = NoteConfig(path: "~/notes/claude/{yyyy-MM-dd-HHmmss}.md", mode: .stream)
+        #expect(config.configErrors.isEmpty)
+        #expect(config.isConfigValid)
+    }
+
+    @Test("stream mode without a placeholder is a config error")
+    func streamModeWithoutPlaceholderIsInvalid() {
+        let config = NoteConfig(path: "~/notes/memo.md", mode: .stream)
+        #expect(config.configErrors == [.streamRequiresPlaceholder])
+        #expect(!config.isConfigValid)
+    }
+
+    @Test("stream mode with a placeholder in the directory component is a config error")
+    func streamModePlaceholderInDirectoryIsInvalid() {
+        let config = NoteConfig(path: "~/notes/{yyyy}/{MM}/{dd}.md", mode: .stream)
+        #expect(config.configErrors.contains(.streamPlaceholderMustBeInFilename))
+    }
+
+    @Test("periodic mode is unaffected by stream-only validation")
+    func periodicModeHasNoStreamErrors() {
+        let config = NoteConfig(path: "~/notes/{yyyy}/{MM}/{dd}.md", mode: .periodic)
+        #expect(config.configErrors.isEmpty)
+    }
+
+    // MARK: - configErrors: wildcard validation
+
+    @Test("single wildcard in the filename component is valid for stream mode")
+    func singleWildcardInFilenameIsValid() {
+        let config = NoteConfig(path: "~/notes/claude/{yyyy-MM-dd-HHmmss}-*.md", mode: .stream)
+        #expect(config.configErrors.isEmpty)
+    }
+
+    @Test("multiple wildcards in the filename component is a config error")
+    func multipleWildcardsInFilenameIsInvalid() {
+        let config = NoteConfig(path: "~/notes/claude/{yyyy-MM-dd-HHmmss}-*-*.md", mode: .stream)
+        #expect(config.configErrors.contains(.multipleWildcardsInFilename))
+    }
+
+    @Test("wildcard in the directory component is a config error")
+    func wildcardInDirectoryComponentIsInvalid() {
+        let config = NoteConfig(path: "~/notes/*/{yyyy-MM-dd-HHmmss}.md", mode: .stream)
+        #expect(config.configErrors.contains(.wildcardInDirectoryComponent))
+    }
+
+    @Test("wildcard with periodic mode is a config error")
+    func wildcardWithPeriodicModeIsInvalid() {
+        let config = NoteConfig(path: "~/notes/daily/{yyyy-MM-dd}-*.md", mode: .periodic)
+        #expect(config.configErrors.contains(.wildcardRequiresStreamMode))
+    }
+
+    // MARK: - rollover_delay + stream combination (warning only, still registers)
+
+    @Test("rollover_delay combined with stream mode still parses (warning is logged, not a config error)")
+    func rolloverDelayWithStreamModeStillParses() throws {
+        let yaml = """
+        path: "~/notes/claude/{yyyy-MM-dd-HHmmss}.md"
+        mode: stream
+        rollover_delay: "4h"
+        """
+        let config = try YAMLDecoder().decode(NoteConfig.self, from: yaml)
+        #expect(config.mode == .stream)
+        #expect(config.rolloverDelay == "4h")
+        #expect(config.configErrors.isEmpty)
+    }
+}
+
 // MARK: - NoteConfig resolve methods
 
 @Suite("NoteConfig resolve method")
