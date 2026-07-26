@@ -252,6 +252,7 @@ class DisplayWindowManager {
         let isPinned = position != .cursor
         let panel = DisplayPanel(callbackPipePath: validPipe, isReadOnly: readOnly, transparency: transparency, customTitle: customTitle, alwaysOnTop: alwaysOnTop)
         panel.centerTitle()
+        if readOnly { panel.setupReadOnlyIndicator() }
         panel.setupCloseButtonHover()
         let contentModel = DisplayContentModel(content: displayContent, fileURL: fileURL, isReadOnly: readOnly)
         let contentView = DisplayContentView(model: contentModel, isReadOnly: readOnly, theme: theme)

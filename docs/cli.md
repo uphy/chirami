@@ -36,7 +36,7 @@ chirami display --wait --file ~/Notes/scratch.md
 
 **Content sources** (priority order): positional argument > `--file` > stdin.
 
-- Positional argument and stdin content are read-only.
+- Positional argument and stdin content are read-only. Read-only windows show a lock icon next to the title.
 - `--file` opens the file for editing.
 - `--wait` blocks the CLI process until the window is closed.
 

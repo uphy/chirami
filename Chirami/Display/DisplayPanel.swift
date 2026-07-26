@@ -5,6 +5,7 @@ import os
 class DisplayPanel: NotePanel {
 
     private var callbackPipeFd: Int32 = -1
+    private(set) var isReadOnly = false
     var didNotifyClosed = false
     private let logger = Logger(subsystem: "io.github.uphy.Chirami", category: "DisplayPanel")
 
@@ -17,8 +18,10 @@ class DisplayPanel: NotePanel {
             defer: false
         )
 
-        let baseTitle = customTitle ?? "chirami"
-        title = isReadOnly ? "🔒 \(baseTitle)" : baseTitle
+        // Read-only is shown as a titlebar lock icon (see setupReadOnlyIndicator),
+        // not as a prefix in the title text.
+        self.isReadOnly = isReadOnly
+        title = customTitle ?? "chirami"
         titlebarAppearsTransparent = true
         isMovableByWindowBackground = true
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
