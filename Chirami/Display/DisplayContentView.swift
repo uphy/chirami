@@ -6,6 +6,8 @@ struct DisplayContentView: View {
     @ObservedObject var model: DisplayContentModel
     let isReadOnly: Bool
     let theme: String?
+    /// Background opacity; applied to the background only so text stays opaque.
+    var backgroundAlpha: Double = 1
 
     var body: some View {
         ZStack {
@@ -14,7 +16,8 @@ struct DisplayContentView: View {
             DisplayWebViewRepresentable(
                 model: model,
                 isReadOnly: isReadOnly,
-                theme: theme
+                theme: theme,
+                backgroundAlpha: backgroundAlpha
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
@@ -28,6 +31,7 @@ private struct DisplayWebViewRepresentable: NSViewRepresentable {
     @ObservedObject var model: DisplayContentModel
     let isReadOnly: Bool
     let theme: String?
+    let backgroundAlpha: Double
 
     func makeNSView(context: Context) -> NoteWebView {
         let view = NoteWebView(frame: .zero)
@@ -47,5 +51,6 @@ private struct DisplayWebViewRepresentable: NSViewRepresentable {
     func updateNSView(_ nsView: NoteWebView, context: Context) {
         nsView.setContent(model.text)
         nsView.setThemeAttribute(theme)
+        nsView.setBackgroundAlpha(backgroundAlpha)
     }
 }

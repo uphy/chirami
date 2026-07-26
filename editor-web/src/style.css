@@ -9,8 +9,11 @@ html, body, #editor {
   height: 100%;
 }
 
+/* Background transparency is applied here (not via NSWindow alphaValue) so the
+   note background can be translucent while the text stays fully opaque.
+   Swift sets --chirami-bg-alpha (a percentage) from the note's `transparency`. */
 html, body {
-  background: var(--chirami-bg);
+  background: color-mix(in srgb, var(--chirami-bg) var(--chirami-bg-alpha, 100%), transparent);
   color: var(--chirami-text);
   font-family: var(--chirami-font);
   font-size: var(--chirami-font-size);
@@ -18,7 +21,7 @@ html, body {
 
 .cm-editor {
   height: 100%;
-  background-color: var(--chirami-bg);
+  background-color: transparent;
 }
 
 .cm-editor.cm-focused {

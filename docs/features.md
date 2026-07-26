@@ -40,7 +40,7 @@ Chirami renders Markdown in an Obsidian-style Live Preview: the block containing
 
 **Theme** — Configured per note in config.yaml (`theme: yellow/blue/green/pink/purple/gray`). Themes are defined via CSS custom properties — see [CSS Theming](css-theming.md) for customization.
 
-**Transparency** — Configured per note in config.yaml (`transparency: 0.0–1.0`).
+**Transparency** — Configured per note in config.yaml (`transparency: 0.0–1.0`). Only the note background is translucent; text, widgets and the title bar contents stay fully opaque so the note remains readable over any window behind it.
 
 **Pin** — All notes show a pin button (📌) at the right end of the title bar. It is revealed on title bar hover while the note is unpinned, and stays visible while pinned. While pinned, the note stays visible even when focus moves to another window. Unpinned notes hide automatically when they lose focus. Pin state is persisted in state.yaml across restarts. Default: `cursor` notes start unpinned, `fixed` notes start pinned. Shortcut: **Cmd+Option+P**.
 

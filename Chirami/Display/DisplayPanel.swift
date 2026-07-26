@@ -27,8 +27,11 @@ class DisplayPanel: NotePanel {
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         level = alwaysOnTop ? .floating : .normal
         isRestorable = false
-        backgroundColor = NoteWindowController.defaultPanelBackground
-        alphaValue = transparency
+        // Transparency applies to the background only, so the note text stays
+        // opaque; the window's alpha is reserved for the show/hide fade.
+        isOpaque = false
+        backgroundColor = NoteWindowController.defaultPanelBackground.withAlphaComponent(transparency)
+        alphaValue = 1
 
         standardWindowButton(.miniaturizeButton)?.isHidden = true
         standardWindowButton(.zoomButton)?.isHidden = true
