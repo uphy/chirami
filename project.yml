@@ -9,13 +9,16 @@ options:
     macOS: "14.0"
   createIntermediateGroups: true
 
+# Dependabot only rewrites Package.swift / Package.resolved, so these
+# requirements have to be kept in sync with Package.swift by hand. Letting them
+# drift means `swift build` and the Xcode project resolve different versions.
 packages:
   HotKey:
     url: https://github.com/soffes/HotKey
     from: "0.2.0"
   Yams:
     url: https://github.com/jpsim/Yams
-    from: "5.0.0"
+    from: "6.2.2"
 
 targets:
   Chirami:
