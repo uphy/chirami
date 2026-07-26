@@ -25,7 +25,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # No step here pushes to this repo; the release is published with
           # GITHUB_TOKEN and the tap with a GitHub App token.
@@ -53,17 +53,17 @@ jobs:
       # this workflow was rewritten to remove. The caches those actions provide
       # are restored explicitly below.
       - name: Set up mise
-        uses: jdx/mise-action@c37c93293d6b742fc901e1406b8f764f6fb19dac # v2.4.4
+        uses: jdx/mise-action@9e7f7633ff6f6d6048a9418a68d48f288f50eb14 # v4.2.3
 
       - name: Cache npm downloads
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.npm
           key: npm-${{ runner.os }}-${{ hashFiles('editor-web/package-lock.json') }}
           restore-keys: npm-${{ runner.os }}-
 
       - name: Cache Go modules and build cache
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ~/.cache/go-build
@@ -72,7 +72,7 @@ jobs:
           restore-keys: go-${{ runner.os }}-
 
       - name: Cache SPM dependencies
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .build
           # Package.resolved is committed, so this key actually varies. Package.swift
@@ -217,7 +217,7 @@ jobs:
       # published first, so a tap failure left `brew upgrade` pinned to the old
       # version with a shipped release nobody could install.
       - name: Create draft GitHub Release
-        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
+        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2
         with:
           draft: true
           generate_release_notes: true
@@ -229,7 +229,7 @@ jobs:
       - name: Generate GitHub App token
         id: app-token
         if: ${{ !contains(steps.version.outputs.value, '-') }}
-        uses: actions/create-github-app-token@d72941d797fd3113feb6b93fd0dec494b13a2547 # v1.12.0
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
           app-id: ${{ secrets.HOMEBREW_TAP_APP_ID }}
           private-key: ${{ secrets.HOMEBREW_TAP_PRIVATE_KEY }}
