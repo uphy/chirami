@@ -33,7 +33,7 @@
     "@types/react-dom": "^19.2.3",
     "@types/turndown": "^5",
     "esbuild": "^0.28",
-    "eslint": "^9.39.5",
+    "eslint": "^10.8.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "globals": "^17.7.0",
     "typescript": "^5",
