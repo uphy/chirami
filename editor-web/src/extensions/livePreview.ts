@@ -25,9 +25,15 @@ const LINK_MARK_NODES = INLINE_LINK_MARK_NODES;
 
 const HIDDEN_DECORATION = Decoration.replace({ inclusive: false });
 const CLICKABLE_LINK = Decoration.mark({ class: "cm-clickable-link" });
+// Fixed-width box around an ordered list marker ("1. "). Width comes from
+// --list-gutter on the line, set alongside the cm-list-item decoration.
+const ORDERED_MARKER = Decoration.mark({ class: "cm-ordered-marker" });
 
 const LIST_MARK_RE   = /^[-*+](?=[ \t])/;
+// Ordered list marker: "1." / "1)" followed by whitespace.
+const ORDERED_MARK_RE = /^\d{1,9}[.)](?=[ \t])/;
 const TASK_MARK_RE   = /^ \[([ xX])\](?=[ \t])/;
+const HEADING_NODE_RE = /^(ATXHeading|SetextHeading)[1-6]$/;
 const BQ_PREFIX_RE   = /^(>\s?)+/;
 const GUTTER_EM      = 1.0;
 // Task items use a wider gutter: 16px checkbox + ~10px gap (design gap: 10).
@@ -322,6 +328,18 @@ class LivePreviewPlugin {
             return; // Continue into children so CodeMark is still processed
           }
 
+          // Heading lines get a level class so CSS can add vertical breathing
+          // room. Without it a heading sits flush against the surrounding text
+          // and the hierarchy depends on the author leaving blank lines.
+          if (HEADING_NODE_RE.test(node.name)) {
+            const level = Number(node.name.slice(-1));
+            const headingLine = view.state.doc.lineAt(node.from);
+            decorations.push(
+              Decoration.line({ class: `cm-heading cm-heading-${level}` }).range(headingLine.from)
+            );
+            return; // continue into children so HeaderMark is still processed
+          }
+
           if (node.name === "HeaderMark") {
             const headingParent = node.node.parent;
             const hSpanFrom = headingParent?.from ?? node.from;
@@ -350,10 +368,11 @@ class LivePreviewPlugin {
             const lineText = itemLine.text;
             const textFromNode = lineText.slice(nodeOffset);
             const match = LIST_MARK_RE.exec(textFromNode);
-            if (!match) return;
+            const orderedMatch = match ? null : ORDERED_MARK_RE.exec(textFromNode);
+            if (!match && !orderedMatch) return;
 
             const afterMark = textFromNode.slice(1);
-            const taskMatch = TASK_MARK_RE.exec(afterMark);
+            const taskMatch = match ? TASK_MARK_RE.exec(afterMark) : null;
 
             const onCursorLine = itemLine.number === cursorLine;
             const tabSize = view.state.tabSize;
@@ -368,26 +387,35 @@ class LivePreviewPlugin {
             for (const c of indentText) depth += c === "\t" ? tabSize : 1;
 
             const effectiveGutterEm = taskMatch ? TASK_GUTTER_EM : GUTTER_EM;
-            const totalEm = depth * 0.5 + effectiveGutterEm;
+            // Bullets/tasks replace the marker with a fixed-width widget, so the
+            // gutter is a constant em value. Ordered items keep their number
+            // visible, so the gutter is sized in `ch` to the marker's own width
+            // ("10." needs more room than "1.").
+            const gutter = orderedMatch
+              ? `${orderedMatch[0].length + 1}ch`
+              : `${effectiveGutterEm}em`;
+            const totalIndent = `calc(${depth * 0.5}em + ${gutter})`;
 
             // Use node.from (not itemLine.from) as the base so positions are correct
             // both inside and outside blockquotes.
             let prefixTo: number;
             if (taskMatch) {
               prefixTo = node.from + 1 + taskMatch[0].length + 1;
+            } else if (orderedMatch) {
+              prefixTo = node.from + orderedMatch[0].length + 1;
             } else {
               prefixTo = node.from + 2;
             }
 
-            // Cursor lines: --list-gutter = totalEm so the raw prefix starts at 0em
-            // (predictable tab stops). Other positions: effectiveGutterEm so rendered text aligns normally.
+            // Cursor lines: --list-gutter = the full indent so the raw prefix starts at 0
+            // (predictable tab stops). Other positions: the marker gutter so rendered text aligns normally.
             const cursorInPrefix = onCursorLine && cursorPos >= itemLine.from && cursorPos < prefixTo;
-            const cssGutter = cursorInPrefix ? totalEm : effectiveGutterEm;
+            const cssGutter = cursorInPrefix ? totalIndent : gutter;
             if (firstVisitForLine) {
               decorations.push(
                 Decoration.line({
                   class: "cm-list-item",
-                  attributes: { style: `--list-indent: ${totalEm}em; --list-gutter: ${cssGutter}em` },
+                  attributes: { style: `--list-indent: ${totalIndent}; --list-gutter: ${cssGutter}` },
                 }).range(itemLine.from)
               );
             }
@@ -414,6 +442,12 @@ class LivePreviewPlugin {
                 decorations.push(
                   Decoration.widget({ widget: new CheckboxWidget(checked, innerPos), side: -1 })
                     .range(prefixTo)
+                );
+              } else if (orderedMatch) {
+                // Keep the number as text, but box it into exactly one gutter
+                // width so wrapped lines line up with the item text.
+                decorations.push(
+                  ORDERED_MARKER.range(node.from, prefixTo)
                 );
               } else {
                 decorations.push(

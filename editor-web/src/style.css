@@ -62,6 +62,24 @@ body ::selection {
   overflow-anchor: none;
 }
 
+/* Headings: give each level breathing room so the hierarchy is readable even
+   when the author did not leave blank lines around the heading. Padding (not
+   margin) keeps CodeMirror's line height measurement straightforward. */
+.cm-editor .cm-line.cm-heading {
+  padding-top: 0.5em;
+  padding-bottom: 0.15em;
+}
+
+.cm-editor .cm-line.cm-heading-1,
+.cm-editor .cm-line.cm-heading-2 {
+  padding-top: 0.65em;
+}
+
+/* No extra gap when the heading is the very first line of the note. */
+.cm-editor .cm-line.cm-heading:first-child {
+  padding-top: 0;
+}
+
 /* Inline formatting (heading sizes/weights and strikethrough handled by markdownStyle in editor.ts) */
 .cm-editor .tok-emphasis { font-style: italic; }
 .cm-editor .tok-strong { font-weight: 700; }
@@ -186,9 +204,25 @@ body ::selection {
 .cm-editor .cm-line.cm-list-item {
   padding-left: calc(var(--list-indent) + 6px);
   text-indent: calc(-1 * var(--list-gutter));
-  line-height: 1.5;
-  padding-top: 4px;
-  padding-bottom: 4px;
+  /* Same line-height as body text (.cm-scroller) so wrapped list lines keep the
+     document's vertical rhythm; the padding provides the item separation. */
+  padding-top: 2px;
+  padding-bottom: 2px;
+}
+
+/* Ordered list marker ("1." / "1)").
+   The number must stay visible, so instead of the BulletWidget replacement it is
+   wrapped in a fixed-width inline-block that is exactly --list-gutter wide. That
+   makes the text after the marker start at the gutter edge, so wrapped lines
+   (pulled left by text-indent) align with the item text just like bullets. */
+.cm-ordered-marker {
+  display: inline-block;
+  width: var(--list-gutter);
+  text-indent: 0;
+  /* Number colour comes from .tok-list; dim it like the bullet widget so the
+     markers do not compete with the item text. */
+  opacity: 0.65;
+  line-height: inherit;
 }
 
 
