@@ -253,6 +253,31 @@ jobs:
             exit 1
           fi
 
+          # The cask names paths *inside* the bundle — `binary` above all. Nothing
+          # else here would catch one that points at a path this build does not
+          # ship, because the sed below only rewrites version and sha256: the tap
+          # is updated, the release goes out, and `brew install` either fails or
+          # links `chirami` to the wrong executable. v0.0.8 shipped exactly that
+          # way. Check every such path against the .app just verified above.
+          app_root="${GITHUB_WORKSPACE}/build/Chirami.app"
+          checked=0
+          while IFS= read -r artifact; do
+            rel="${artifact#*/Chirami.app/}"
+            if [ ! -e "$app_root/$rel" ]; then
+              echo "::error::${cask} references Chirami.app/${rel}, which v${VERSION} does not ship"
+              exit 1
+            fi
+            echo "ok        cask artifact Chirami.app/${rel}"
+            checked=$((checked + 1))
+          done < <(grep -oE '"#\{appdir\}/Chirami\.app/[^"]+"' "$cask" | tr -d '"' || true)
+
+          # A pattern that silently matches nothing would turn this whole check
+          # into a no-op, which is worse than not having it.
+          if [ "$checked" -eq 0 ]; then
+            echo "::error::no bundle paths found in ${cask} — did it stop using #{appdir}, or has the pattern gone stale?"
+            exit 1
+          fi
+
           sed -i '' \
             -e "s/version \"[^\"]*\"/version \"${VERSION}\"/" \
             -e "s/sha256 \"[^\"]*\"/sha256 \"${SHA256}\"/" \

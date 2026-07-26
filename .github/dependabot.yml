@@ -46,6 +46,18 @@ updates:
     commit-message:
       prefix: chore
       prefix-development: chore
+    ignore:
+      # TypeScript 7 (the native port) cannot be installed here: typescript-eslint
+      # 8.x peer-requires `typescript@">=4.8.4 <6.1.0"`, so `npm ci` aborts with
+      # ERESOLVE before a single check can run. The typescript group below is not
+      # enough on its own — Dependabot opens a group PR as soon as *one* member
+      # has an update available, and typescript-eslint has no TypeScript 7
+      # release to move to yet, so the compiler goes up alone and the PR is dead
+      # on arrival. Drop this entry once typescript-eslint widens its peer range;
+      # the group then handles the coordinated bump.
+      - dependency-name: typescript
+        update-types:
+          - version-update:semver-major
     # Groups are matched top-down: the first matching group wins, so the
     # coupled families must be declared before the catch-all.
     groups:
