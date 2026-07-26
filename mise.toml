@@ -1,3 +1,7 @@
 [tools]
+go = "1.26.5"
+# Node 24 is required: editor-web/package-lock.json is written by npm 11, which
+# only ships with Node 24. Node 22's npm 10 rejects the lockfile.
+node = "24.18.0"
 swiftlint = "0.63.2"
 xcodegen = "2.44.1"

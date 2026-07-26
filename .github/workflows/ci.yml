@@ -1,58 +1,158 @@
 name: CI
 
+# No `paths` / `paths-ignore` filter on purpose:
+#   1. A path-filtered workflow never reports a conclusion when it is skipped,
+#      so any PR touching only excluded paths would sit forever on
+#      "Expected - Waiting for status to be reported" once these jobs are
+#      configured as required status checks.
+#   2. The previous allowlist was already stale - project.yml, cmd/**,
+#      mise.toml, Chirami/Resources/** and .github/workflows/** were all
+#      uncovered, so changes there shipped without any CI at all.
+# `concurrency` below plus the dependency caches keep the wasted minutes low.
 on:
   pull_request:
-    paths:
-      - '**/*.swift'
-      - '.swiftlint.yml'
-      - 'Package.swift'
-      - 'Package.resolved'
-      - 'editor-web/**'
+  # Two independently green PRs can still break main once merged, so validate
+  # the merge result as well.
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  # Superseded PR pushes are cancelled; main builds always run to completion.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   lint:
+    name: SwiftLint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: jdx/mise-action@v2
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: jdx/mise-action@c37c93293d6b742fc901e1406b8f764f6fb19dac # v2.4.4
+        with:
+          install_args: swiftlint
       - name: Run SwiftLint
         run: mise run lint
 
   typecheck-editor:
+    name: Editor (lint / typecheck / test)
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: editor-web
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      # Node comes from mise.toml so the local and CI toolchains cannot drift.
+      - uses: jdx/mise-action@c37c93293d6b742fc901e1406b8f764f6fb19dac # v2.4.4
         with:
-          # npm 11 (bundled with Node 24) — the committed package-lock.json is
-          # only installable by npm 11; Node 22's npm 10 rejects it.
-          node-version: 24
-          cache: npm
-          cache-dependency-path: editor-web/package-lock.json
+          install_args: node
+
+      - name: Cache npm downloads
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/.npm
+          key: npm-${{ runner.os }}-${{ hashFiles('editor-web/package-lock.json') }}
+          restore-keys: npm-${{ runner.os }}-
+
       - name: Install dependencies
         run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+
       - name: Run typecheck
         run: npm run typecheck
+
       - name: Run tests
         run: npm run test
 
+  build-cli:
+    name: Go CLI
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cmd/chirami
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - uses: jdx/mise-action@c37c93293d6b742fc901e1406b8f764f6fb19dac # v2.4.4
+        with:
+          install_args: go
+
+      - name: Cache Go modules and build cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: go-${{ runner.os }}-${{ hashFiles('cmd/chirami/go.sum') }}
+          restore-keys: go-${{ runner.os }}-
+
+      - name: Verify go.mod / go.sum are tidy
+        run: go mod tidy -diff
+
+      - name: Build
+        run: go build ./...
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test
+        run: go test ./...
+
   test-and-build:
+    name: Swift test / release build
     runs-on: macos-15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - uses: jdx/mise-action@c37c93293d6b742fc901e1406b8f764f6fb19dac # v2.4.4
+        with:
+          install_args: node
+
+      - name: Cache npm downloads
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/.npm
+          key: npm-${{ runner.os }}-${{ hashFiles('editor-web/package-lock.json') }}
+          restore-keys: npm-${{ runner.os }}-
+
+      # Chirami/Resources/editor is a declared `.copy()` resource in
+      # Package.swift but its contents are generated and gitignored. Without
+      # this step swift build only emits an "Invalid Resource" warning and
+      # happily produces a binary with no editor at all.
+      - name: Build editor bundle
+        working-directory: editor-web
+        run: |
+          npm ci
+          npm run build
 
       - name: Cache SPM dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: .build
-          key: spm-${{ runner.os }}-${{ hashFiles('Package.resolved') }}
+          # Package.resolved is committed, so this key actually varies. Package.swift
+          # is included as a fallback so the key never collapses to a bare prefix if
+          # the resolved file is ever missing.
+          key: spm-${{ runner.os }}-${{ hashFiles('Package.resolved', 'Package.swift') }}
           restore-keys: spm-${{ runner.os }}-
+
+      - name: Verify Package.resolved is up to date
+        run: |
+          swift package resolve
+          git diff --exit-code -- Package.resolved
 
       - name: Run tests
         run: swift test
 
       - name: Build release
-        run: swift build -c release
+        run: |
+          set -o pipefail
+          swift build -c release 2>&1 | tee "$RUNNER_TEMP/build.log"
+          if grep -q 'Invalid Resource' "$RUNNER_TEMP/build.log"; then
+            echo "::error::swift build reported an Invalid Resource warning - a declared resource is missing from the bundle"
+            exit 1
+          fi
