@@ -47,7 +47,10 @@ struct DirectoryWatcherTests {
         defer { try? FileManager.default.removeItem(at: dir) }
 
         let recorder = ChangeRecorder()
-        let watcher = DirectoryWatcher(url: dir, debounceInterval: 0.1) {
+        // The debounce window has to stay far wider than the gap between events: on a loaded
+        // CI runner a 10ms sleep can overshoot by an order of magnitude, and any gap that
+        // exceeds the window splits the burst into two callbacks.
+        let watcher = DirectoryWatcher(url: dir, debounceInterval: 1.0) {
             recorder.record()
         }
         #expect(watcher.start())
@@ -56,11 +59,11 @@ struct DirectoryWatcherTests {
         // Fire several rapid changes without waiting for the debounce window to elapse.
         for i in 0..<5 {
             try createFile(at: dir.appendingPathComponent("burst-\(i).md"))
-            try await Task.sleep(nanoseconds: 10_000_000) // 10ms between events, well under the 100ms debounce
+            try await Task.sleep(nanoseconds: 10_000_000) // 10ms between events, well under the 1s debounce
         }
 
         // Give the debounce window a generous margin to settle after the last event.
-        try await Task.sleep(nanoseconds: 500_000_000)
+        try await Task.sleep(nanoseconds: 2_000_000_000)
 
         #expect(recorder.count == 1)
     }
@@ -95,17 +98,18 @@ struct DirectoryWatcherTests {
         defer { try? FileManager.default.removeItem(at: dir) }
 
         let recorder = ChangeRecorder()
-        let watcher = DirectoryWatcher(url: dir, debounceInterval: 0.2) {
+        // Wide enough that a slow runner cannot let the debounce fire before stop() lands.
+        let watcher = DirectoryWatcher(url: dir, debounceInterval: 2.0) {
             recorder.record()
         }
         #expect(watcher.start())
 
         try createFile(at: dir.appendingPathComponent("a.md"))
-        // Stop well before the 200ms debounce window elapses.
-        try await Task.sleep(nanoseconds: 50_000_000)
+        // Stop well before the 2s debounce window elapses.
+        try await Task.sleep(nanoseconds: 100_000_000)
         watcher.stop()
 
-        try await Task.sleep(nanoseconds: 400_000_000)
+        try await Task.sleep(nanoseconds: 2_500_000_000)
 
         #expect(recorder.count == 0)
     }

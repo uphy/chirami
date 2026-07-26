@@ -13,8 +13,18 @@ class DirectoryWatcher {
     private let url: URL
     private let debounceInterval: TimeInterval
     private let onChange: () -> Void
+
+    /// Guards `isActive` and `pendingWorkItem`, which are touched both by the caller
+    /// (start/stop) and by the DispatchSource event handler on a background queue.
+    private let lock = NSLock()
     private var isActive = false
     private var pendingWorkItem: DispatchWorkItem?
+
+    private var isRunning: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return isActive
+    }
 
     /// - Parameters:
     ///   - url: The directory to watch.
@@ -40,7 +50,9 @@ class DirectoryWatcher {
             return false
         }
         fileDescriptor = fd
+        lock.lock()
         isActive = true
+        lock.unlock()
 
         let source = DispatchSource.makeFileSystemObjectSource(
             fileDescriptor: fd,
@@ -67,10 +79,16 @@ class DirectoryWatcher {
 
     /// Cancels the watcher and any pending debounced notification.
     func stop() {
-        guard isActive || source != nil else { return }
+        lock.lock()
+        let wasActive = isActive
         isActive = false
-        pendingWorkItem?.cancel()
+        let pending = pendingWorkItem
         pendingWorkItem = nil
+        lock.unlock()
+
+        guard wasActive || source != nil else { return }
+
+        pending?.cancel()
         source?.cancel()
         source = nil
         fileDescriptor = -1
@@ -80,13 +98,20 @@ class DirectoryWatcher {
     private func scheduleDebouncedNotification() {
         Self.logger.debug("Directory event received: \(self.url.path, privacy: .public)")
 
-        pendingWorkItem?.cancel()
-
         let workItem = DispatchWorkItem { [weak self] in
-            guard let self = self, self.isActive else { return }
+            guard let self = self, self.isRunning else { return }
             self.onChange()
         }
+
+        lock.lock()
+        // An event already in flight when stop() ran must not re-arm the timer.
+        guard isActive else {
+            lock.unlock()
+            return
+        }
+        pendingWorkItem?.cancel()
         pendingWorkItem = workItem
+        lock.unlock()
 
         DispatchQueue.main.asyncAfter(deadline: .now() + debounceInterval, execute: workItem)
     }
