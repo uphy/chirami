@@ -5,70 +5,120 @@ set -euo pipefail
 
 version="${APP_VERSION:-0.0.0-dev}"
 
-# .app バンドル構成
-app_dir="build/Chirami.app/Contents"
+# Must match project.yml `PRODUCT_BUNDLE_IDENTIFIER` and the os_log subsystem.
+bundle_id="io.github.uphy.Chirami"
+# Matches Package.swift `platforms: [.macOS(.v14)]` (the SPM build is what
+# produces the binary shipped in this bundle, not the Xcode project).
+deployment_target="14.0"
+
+app_root="build/Chirami.app"
+app_dir="$app_root/Contents"
+
+editor_src="Chirami/Resources/editor"
+menu_icon_src="Chirami/Resources/Assets.xcassets/MenuBarIcon.imageset"
+app_icon_src="Chirami/Resources/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png"
+
+fail() {
+  echo "error: $*" >&2
+  exit 1
+}
+
+# Every input below is required at runtime. Skipping a missing one (as this task
+# used to do) produces a .app that launches but has no Live Preview, no CLI and
+# no icons — a failure mode that only shows up after the release is published.
+require_file() {
+  [ -f "$1" ] || fail "missing required file: $1${2:+ — $2}"
+}
+
+require_file ".build/release/Chirami" "run: mise run build:swift"
+require_file "build/chirami-bin" "run: mise run build:go"
+require_file "$editor_src/index.html" "run: mise run build:editor"
+require_file "$editor_src/bundle.js" "run: mise run build:editor"
+require_file "$editor_src/bundle.css" "run: mise run build:editor"
+require_file "Chirami/Resources/chirami-default.css"
+require_file "$menu_icon_src/MenuBarIcon.png"
+require_file "$menu_icon_src/MenuBarIcon@2x.png"
+require_file "$app_icon_src"
+require_file "Chirami/Info.plist"
+
+# Start from a clean bundle so stale files from a previous build never ship.
+rm -rf "$app_root"
 mkdir -p "$app_dir/MacOS" "$app_dir/Resources"
 
-cp .build/release/Chirami "$app_dir/MacOS/Chirami"
+cp ".build/release/Chirami" "$app_dir/MacOS/Chirami"
 
 # Go CLI バイナリをバンドルに同梱
 # Use chirami_bin to avoid case-insensitive FS conflict with the Swift binary "Chirami"
 cp build/chirami-bin "$app_dir/MacOS/chirami_bin"
+chmod +x "$app_dir/MacOS/Chirami" "$app_dir/MacOS/chirami_bin"
 
-# Editor web files (CodeMirror bundle)
-if [ -d "Chirami/Resources/editor" ]; then
-  rm -rf "$app_dir/Resources/editor"
-  cp -r Chirami/Resources/editor "$app_dir/Resources/editor"
-  echo "Editor: web files copied"
-fi
-
-# Color scheme definitions
-if [ -f "Chirami/Resources/color_schemes.yaml" ]; then
-  cp Chirami/Resources/color_schemes.yaml "$app_dir/Resources/color_schemes.yaml"
-fi
+# Editor web files (CodeMirror bundle), loaded via
+# Bundle.main.url(forResource: "index", withExtension: "html", subdirectory: "editor")
+cp -R "$editor_src" "$app_dir/Resources/editor"
+# Source maps are dev-only and dwarf the rest of the bundle (~33MB).
+rm -f "$app_dir/Resources/editor/bundle.js.map"
+echo "Editor: web files copied"
 
 # Built-in theme CSS (loaded via Bundle.main at runtime)
-if [ -f "Chirami/Resources/chirami-default.css" ]; then
-  cp Chirami/Resources/chirami-default.css "$app_dir/Resources/chirami-default.css"
-  echo "CSS: chirami-default.css copied"
-fi
+cp Chirami/Resources/chirami-default.css "$app_dir/Resources/chirami-default.css"
+echo "CSS: chirami-default.css copied"
 
 # Menu bar icon
-menu_icon_src="Chirami/Resources/Assets.xcassets/MenuBarIcon.imageset"
-if [ -d "$menu_icon_src" ]; then
-  cp "$menu_icon_src/MenuBarIcon.png"    "$app_dir/Resources/MenuBarIcon.png"
-  cp "$menu_icon_src/MenuBarIcon@2x.png" "$app_dir/Resources/MenuBarIcon@2x.png"
-  echo "Icon: MenuBarIcon copied"
-fi
+cp "$menu_icon_src/MenuBarIcon.png"    "$app_dir/Resources/MenuBarIcon.png"
+cp "$menu_icon_src/MenuBarIcon@2x.png" "$app_dir/Resources/MenuBarIcon@2x.png"
+echo "Icon: MenuBarIcon copied"
 
 # アイコン (icns) 生成
-src_png="Chirami/Resources/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png"
-if [ -f "$src_png" ]; then
-  iconset_dir="$(mktemp -d)/AppIcon.iconset"
-  mkdir -p "$iconset_dir"
-  sips -z 16   16   "$src_png" --out "$iconset_dir/icon_16x16.png"    > /dev/null
-  sips -z 32   32   "$src_png" --out "$iconset_dir/icon_16x16@2x.png" > /dev/null
-  sips -z 32   32   "$src_png" --out "$iconset_dir/icon_32x32.png"    > /dev/null
-  sips -z 64   64   "$src_png" --out "$iconset_dir/icon_32x32@2x.png" > /dev/null
-  sips -z 128  128  "$src_png" --out "$iconset_dir/icon_128x128.png"   > /dev/null
-  sips -z 256  256  "$src_png" --out "$iconset_dir/icon_128x128@2x.png" > /dev/null
-  sips -z 256  256  "$src_png" --out "$iconset_dir/icon_256x256.png"   > /dev/null
-  sips -z 512  512  "$src_png" --out "$iconset_dir/icon_256x256@2x.png" > /dev/null
-  sips -z 512  512  "$src_png" --out "$iconset_dir/icon_512x512.png"   > /dev/null
-  cp "$src_png"                     "$iconset_dir/icon_512x512@2x.png"
-  iconutil -c icns "$iconset_dir" -o "$app_dir/Resources/AppIcon.icns"
-  rm -rf "$(dirname "$iconset_dir")"
-  echo "Icon: AppIcon.icns generated"
-fi
+iconset_parent="$(mktemp -d)"
+trap 'rm -rf "$iconset_parent"' EXIT
+iconset_dir="$iconset_parent/AppIcon.iconset"
+mkdir -p "$iconset_dir"
+sips -z 16   16   "$app_icon_src" --out "$iconset_dir/icon_16x16.png"      > /dev/null
+sips -z 32   32   "$app_icon_src" --out "$iconset_dir/icon_16x16@2x.png"   > /dev/null
+sips -z 32   32   "$app_icon_src" --out "$iconset_dir/icon_32x32.png"      > /dev/null
+sips -z 64   64   "$app_icon_src" --out "$iconset_dir/icon_32x32@2x.png"   > /dev/null
+sips -z 128  128  "$app_icon_src" --out "$iconset_dir/icon_128x128.png"    > /dev/null
+sips -z 256  256  "$app_icon_src" --out "$iconset_dir/icon_128x128@2x.png" > /dev/null
+sips -z 256  256  "$app_icon_src" --out "$iconset_dir/icon_256x256.png"    > /dev/null
+sips -z 512  512  "$app_icon_src" --out "$iconset_dir/icon_256x256@2x.png" > /dev/null
+sips -z 512  512  "$app_icon_src" --out "$iconset_dir/icon_512x512.png"    > /dev/null
+cp "$app_icon_src"                      "$iconset_dir/icon_512x512@2x.png"
+iconutil -c icns "$iconset_dir" -o "$app_dir/Resources/AppIcon.icns"
+echo "Icon: AppIcon.icns generated"
 
 # Info.plist の Xcode 変数を実値に置換
 sed \
   -e 's/$(DEVELOPMENT_LANGUAGE)/en/' \
   -e 's/$(EXECUTABLE_NAME)/Chirami/' \
-  -e 's/$(PRODUCT_BUNDLE_IDENTIFIER)/com.uphy.Chirami/' \
+  -e "s/\$(PRODUCT_BUNDLE_IDENTIFIER)/$bundle_id/" \
+  -e "s/\$(MACOSX_DEPLOYMENT_TARGET)/$deployment_target/" \
   -e "s/\$(MARKETING_VERSION)/$version/" \
   -e "s/\$(CURRENT_PROJECT_VERSION)/$version/" \
-  -e 's/$(MACOSX_DEPLOYMENT_TARGET)/14.0/' \
   Chirami/Info.plist > "$app_dir/Info.plist"
 
-echo "Built build/Chirami.app (version: $version)"
+# CFBundleIconFile is injected here rather than declared in Chirami/Info.plist
+# because the two build paths supply the icon differently: Xcode compiles
+# Assets.xcassets and injects CFBundleIconName, while this SPM-based bundle ships
+# a generated AppIcon.icns. `plutil -replace` inserts the key when it is absent.
+/usr/bin/plutil -replace CFBundleIconFile -string "AppIcon" "$app_dir/Info.plist"
+/usr/bin/plutil -lint "$app_dir/Info.plist" > /dev/null
+
+if grep -q '\$(' "$app_dir/Info.plist"; then
+  fail "unsubstituted Xcode variable left in $app_dir/Info.plist"
+fi
+
+# Assert the assembled bundle, not just the inputs.
+for required in \
+  "$app_dir/MacOS/Chirami" \
+  "$app_dir/MacOS/chirami_bin" \
+  "$app_dir/Resources/editor/index.html" \
+  "$app_dir/Resources/editor/bundle.js" \
+  "$app_dir/Resources/editor/bundle.css" \
+  "$app_dir/Resources/chirami-default.css" \
+  "$app_dir/Resources/AppIcon.icns" \
+  "$app_dir/Resources/MenuBarIcon.png" \
+  "$app_dir/Info.plist"; do
+  [ -s "$required" ] || fail "bundle is incomplete: $required is missing or empty"
+done
+
+echo "Built $app_root (version: $version, bundle id: $bundle_id)"

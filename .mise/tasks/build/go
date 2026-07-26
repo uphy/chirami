@@ -1,7 +1,20 @@
 #!/usr/bin/env bash
 #MISE description="Go CLI ビルド"
-#MISE sources=["cmd/chirami/**/*.go", "cmd/chirami/go.mod"]
+#MISE sources=["cmd/chirami/**/*.go", "cmd/chirami/go.mod", "cmd/chirami/go.sum"]
+#MISE outputs=["build/chirami-bin"]
 set -euo pipefail
 
+# Build against the committed go.sum. The previous `rm -f go.sum && go mod tidy`
+# re-resolved dependencies on every build, so a release could silently pick up
+# different module versions than the ones reviewed. `-mod=readonly` makes the
+# build fail loudly when go.mod/go.sum are stale instead of rewriting them.
+goarch="${GOARCH:-arm64}"
+
 mkdir -p build
-(cd cmd/chirami && rm -f go.sum && go mod tidy && GOOS=darwin GOARCH=arm64 go build -o ../../build/chirami-bin .)
+(
+  cd cmd/chirami
+  GOOS=darwin GOARCH="$goarch" CGO_ENABLED=0 \
+    go build -mod=readonly -trimpath -o ../../build/chirami-bin .
+)
+
+echo "Go: build/chirami-bin built (darwin/$goarch)"

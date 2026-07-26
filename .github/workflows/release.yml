@@ -5,91 +5,286 @@ on:
     tags:
       - 'v*'
 
+# Least privilege: nothing but read access by default. The one job that needs to
+# publish a release opts into `contents: write` explicitly. The homebrew-tap push
+# uses a separate GitHub App token, not GITHUB_TOKEN.
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   release:
     runs-on: macos-15
-    steps:
-      - uses: actions/checkout@v4
+    permissions:
+      contents: write
+    env:
+      EXPECTED_BUNDLE_ID: io.github.uphy.Chirami
 
-      - name: Cache SPM dependencies
-        uses: actions/cache@v4
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
-          path: .build
-          key: spm-${{ runner.os }}-${{ hashFiles('Package.resolved') }}
-          restore-keys: spm-${{ runner.os }}-
+          # No step here pushes to this repo; the release is published with
+          # GITHUB_TOKEN and the tap with a GitHub App token.
+          persist-credentials: false
 
       - name: Extract version from tag
         id: version
-        run: echo "value=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          if ! printf '%s' "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.-]+)?$'; then
+            echo "::error::tag '${GITHUB_REF_NAME}' is not of the form vMAJOR.MINOR.PATCH"
+            exit 1
+          fi
+          {
+            echo "value=${version}"
+            echo "zip=Chirami-${version}-macOS.zip"
+          } >> "$GITHUB_OUTPUT"
 
-      - name: Run tests
+      # --- toolchain -------------------------------------------------------
+      # Every tool comes from mise.toml — swiftlint, xcodegen, node and go — so
+      # that the release toolchain cannot drift from the one developers and CI
+      # use. Deliberately no setup-node/setup-go here: pinning `node-version: 24`
+      # in this file would reintroduce exactly the two-places-to-update drift
+      # this workflow was rewritten to remove. The caches those actions provide
+      # are restored explicitly below.
+      - name: Set up mise
+        uses: jdx/mise-action@c37c93293d6b742fc901e1406b8f764f6fb19dac # v2.4.4
+
+      - name: Cache npm downloads
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/.npm
+          key: npm-${{ runner.os }}-${{ hashFiles('editor-web/package-lock.json') }}
+          restore-keys: npm-${{ runner.os }}-
+
+      - name: Cache Go modules and build cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: go-${{ runner.os }}-${{ hashFiles('cmd/chirami/go.sum') }}
+          restore-keys: go-${{ runner.os }}-
+
+      - name: Cache SPM dependencies
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: .build
+          # Package.resolved is committed, so this key actually varies. Package.swift
+          # is included as a fallback so the key never collapses to a bare prefix if
+          # the resolved file is ever missing.
+          key: spm-${{ runner.os }}-${{ hashFiles('Package.resolved', 'Package.swift') }}
+          restore-keys: spm-${{ runner.os }}-
+
+      - name: Install editor-web dependencies
+        working-directory: editor-web
+        run: npm ci
+
+      # --- quality gates ---------------------------------------------------
+      # A tag push is the last chance to catch a regression; run the same checks
+      # CI runs on pull requests before anything is published.
+      - name: Lint Swift
+        run: mise run lint
+
+      - name: Lint editor-web
+        working-directory: editor-web
+        run: npm run lint
+
+      - name: Typecheck editor-web
+        working-directory: editor-web
+        run: npm run typecheck
+
+      - name: Test editor-web
+        working-directory: editor-web
+        run: npm run test
+
+      - name: Test Swift
         run: swift test
 
-      - name: Build release binary
-        run: swift build -c release
+      # --- build -----------------------------------------------------------
+      # `mise run build` is the single source of truth for how a .app is
+      # assembled (see .mise/tasks/build/_default). Do not reimplement the
+      # bundle layout here — the previous hand-rolled version drifted and
+      # shipped a .app with no editor bundle, no CLI and no icons.
+      - name: Build Chirami.app
+        env:
+          APP_VERSION: ${{ steps.version.outputs.value }}
+        run: mise run build
 
-      - name: Create .app bundle
+      - name: Verify .app bundle
+        env:
+          EXPECTED_VERSION: ${{ steps.version.outputs.value }}
         run: |
-          version="${{ steps.version.outputs.value }}"
-          app_dir="build/Chirami.app/Contents"
-          mkdir -p "$app_dir/MacOS" "$app_dir/Resources"
+          set -uo pipefail
+          contents="build/Chirami.app/Contents"
+          status=0
 
-          cp .build/release/Chirami "$app_dir/MacOS/Chirami"
+          fail() {
+            echo "::error::$*"
+            status=1
+          }
 
-          sed \
-            -e 's/$(DEVELOPMENT_LANGUAGE)/en/' \
-            -e 's/$(EXECUTABLE_NAME)/Chirami/' \
-            -e 's/$(PRODUCT_BUNDLE_IDENTIFIER)/io.github.uphy.Chirami/' \
-            -e "s/\$(MARKETING_VERSION)/$version/" \
-            -e "s/\$(CURRENT_PROJECT_VERSION)/$version/" \
-            -e 's/$(MACOSX_DEPLOYMENT_TARGET)/14.0/' \
-            Chirami/Info.plist > "$app_dir/Info.plist"
+          check_file() {
+            if [ -s "$1" ]; then
+              echo "ok        $1"
+            else
+              fail "missing or empty: $1"
+            fi
+          }
+
+          check_exec() {
+            check_file "$1"
+            if [ -s "$1" ] && [ ! -x "$1" ]; then
+              fail "not executable: $1"
+            fi
+          }
+
+          check_plist() {
+            actual="$(/usr/bin/plutil -extract "$1" raw -o - "$contents/Info.plist" 2>/dev/null)"
+            if [ "$actual" = "$2" ]; then
+              echo "ok        Info.plist $1 = $actual"
+            else
+              fail "Info.plist $1: expected '$2', got '${actual:-<missing>}'"
+            fi
+          }
+
+          check_exec "$contents/MacOS/Chirami"
+          check_exec "$contents/MacOS/chirami_bin"
+          check_file "$contents/Resources/editor/index.html"
+          check_file "$contents/Resources/editor/bundle.js"
+          check_file "$contents/Resources/editor/bundle.css"
+          check_file "$contents/Resources/chirami-default.css"
+          check_file "$contents/Resources/AppIcon.icns"
+          check_file "$contents/Resources/MenuBarIcon.png"
+          check_file "$contents/Resources/MenuBarIcon@2x.png"
+          check_file "$contents/Info.plist"
+
+          check_plist CFBundleIdentifier "$EXPECTED_BUNDLE_ID"
+          check_plist CFBundleExecutable "Chirami"
+          check_plist CFBundleShortVersionString "$EXPECTED_VERSION"
+          check_plist CFBundleVersion "$EXPECTED_VERSION"
+          check_plist CFBundleIconFile "AppIcon"
+
+          # A stub/empty bundle.js still passes an existence check; the real
+          # CodeMirror bundle is megabytes.
+          bundle_bytes="$(/usr/bin/stat -f%z "$contents/Resources/editor/bundle.js" 2>/dev/null || echo 0)"
+          if [ "$bundle_bytes" -lt 500000 ]; then
+            fail "editor bundle.js is only ${bundle_bytes} bytes — the editor build likely did not run"
+          else
+            echo "ok        bundle.js is ${bundle_bytes} bytes"
+          fi
+
+          # Both binaries must be built for the same architecture, otherwise the
+          # bundled CLI cannot run on a machine that runs the app.
+          app_arch="$(lipo -archs "$contents/MacOS/Chirami")"
+          cli_arch="$(lipo -archs "$contents/MacOS/chirami_bin")"
+          if [ "$app_arch" != "$cli_arch" ]; then
+            fail "architecture mismatch: Chirami=$app_arch chirami_bin=$cli_arch"
+          else
+            echo "ok        architecture $app_arch"
+          fi
+
+          if ! "$contents/MacOS/chirami_bin" --help > /dev/null; then
+            fail "bundled CLI failed to run: chirami_bin --help"
+          else
+            echo "ok        chirami_bin --help"
+          fi
+
+          exit "$status"
 
       - name: Create zip archive
-        run: |
-          version="${{ steps.version.outputs.value }}"
-          ditto -c -k --keepParent build/Chirami.app "Chirami-${version}-macOS.zip"
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          generate_release_notes: true
-          files: Chirami-*.zip
+        env:
+          ZIP_NAME: ${{ steps.version.outputs.zip }}
+        run: ditto -c -k --keepParent build/Chirami.app "$ZIP_NAME"
 
       - name: Compute sha256 of zip
         id: sha256
+        env:
+          ZIP_NAME: ${{ steps.version.outputs.zip }}
         run: |
-          version="${{ steps.version.outputs.value }}"
-          echo "value=$(shasum -a 256 "Chirami-${version}-macOS.zip" | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+          set -euo pipefail
+          echo "value=$(shasum -a 256 "$ZIP_NAME" | awk '{print $1}')" >> "$GITHUB_OUTPUT"
 
+      # --- publish ---------------------------------------------------------
+      # The release is created as a draft first, the tap is updated next, and the
+      # release is only flipped to published at the very end. That way a failing
+      # tap update leaves nothing user-visible behind: previously the release was
+      # published first, so a tap failure left `brew upgrade` pinned to the old
+      # version with a shipped release nobody could install.
+      - name: Create draft GitHub Release
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
+        with:
+          draft: true
+          generate_release_notes: true
+          files: ${{ steps.version.outputs.zip }}
+          fail_on_unmatched_files: true
+
+      # A pre-release tag ships a GitHub Release but must not move the cask that
+      # every `brew install chirami` user follows.
       - name: Generate GitHub App token
         id: app-token
-        uses: actions/create-github-app-token@v1
+        if: ${{ !contains(steps.version.outputs.value, '-') }}
+        uses: actions/create-github-app-token@d72941d797fd3113feb6b93fd0dec494b13a2547 # v1.12.0
         with:
           app-id: ${{ secrets.HOMEBREW_TAP_APP_ID }}
           private-key: ${{ secrets.HOMEBREW_TAP_PRIVATE_KEY }}
           repositories: homebrew-tap
 
       - name: Update homebrew-tap
+        if: ${{ !contains(steps.version.outputs.value, '-') }}
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          VERSION: ${{ steps.version.outputs.value }}
+          SHA256: ${{ steps.sha256.outputs.value }}
         run: |
-          version="${{ steps.version.outputs.value }}"
-          sha="${{ steps.sha256.outputs.value }}"
+          set -euo pipefail
+          cask="Casks/chirami.rb"
 
-          git clone "https://x-access-token:${GH_TOKEN}@github.com/uphy/homebrew-tap.git" homebrew-tap
+          git clone --depth 1 "https://x-access-token:${GH_TOKEN}@github.com/uphy/homebrew-tap.git" homebrew-tap
           cd homebrew-tap
 
+          if [ ! -f "$cask" ]; then
+            echo "::error::${cask} not found in uphy/homebrew-tap"
+            exit 1
+          fi
+
           sed -i '' \
-            -e "s/version \"[^\"]*\"/version \"${version}\"/" \
-            -e "s/sha256 \"[^\"]*\"/sha256 \"${sha}\"/" \
-            Casks/chirami.rb
+            -e "s/version \"[^\"]*\"/version \"${VERSION}\"/" \
+            -e "s/sha256 \"[^\"]*\"/sha256 \"${SHA256}\"/" \
+            "$cask"
+
+          # sed silently no-ops when the pattern does not match; assert instead.
+          grep -q "version \"${VERSION}\"" "$cask" || {
+            echo "::error::failed to set version in ${cask}"; exit 1; }
+          grep -q "sha256 \"${SHA256}\"" "$cask" || {
+            echo "::error::failed to set sha256 in ${cask}"; exit 1; }
+
+          if git diff --quiet; then
+            echo "${cask} is already up to date for v${VERSION}"
+            exit 0
+          fi
 
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add Casks/chirami.rb
-          git commit -m "chore: update chirami to v${version}"
+          git add "$cask"
+          git commit -m "chore: update chirami to v${VERSION}"
           git push
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          VERSION: ${{ steps.version.outputs.value }}
+        run: |
+          set -euo pipefail
+          # A pre-release tag (v1.2.3-rc.1) must not become the "latest" release
+          # that `brew` and the download button point at.
+          case "$VERSION" in
+            *-*) gh release edit "$GITHUB_REF_NAME" --draft=false --prerelease --latest=false ;;
+            *)   gh release edit "$GITHUB_REF_NAME" --draft=false --latest ;;
+          esac
