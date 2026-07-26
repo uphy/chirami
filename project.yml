@@ -2,8 +2,11 @@ name: Chirami
 
 options:
   bundleIdPrefix: io.github.uphy
+  # Must match Package.swift `platforms: [.macOS(.v14)]`. The SPM build produces
+  # the binary that actually ships, so the Xcode project follows it rather than
+  # setting a stricter target that is never exercised by a release.
   deploymentTarget:
-    macOS: "14.2"
+    macOS: "14.0"
   createIntermediateGroups: true
 
 packages:
@@ -35,6 +38,11 @@ targets:
       properties:
         CFBundleDisplayName: Chirami
         CFBundleName: Chirami
+        # Without these, xcodegen falls back to its defaults (1.0 / 1) and every
+        # build — including released .app bundles — reports itself as version 1.0.
+        # `mise run build` substitutes both from APP_VERSION.
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         LSMinimumSystemVersion: "$(MACOSX_DEPLOYMENT_TARGET)"
         LSUIElement: true
         NSHumanReadableCopyright: "Copyright © 2024 uphy"
@@ -49,8 +57,14 @@ targets:
     settings:
       base:
         SWIFT_VERSION: "5.9"
-        MACOSX_DEPLOYMENT_TARGET: "14.2"
+        MACOSX_DEPLOYMENT_TARGET: "14.0"
         PRODUCT_BUNDLE_IDENTIFIER: io.github.uphy.Chirami
+        # Chirami/Info.plist references these as $(MARKETING_VERSION) and
+        # $(CURRENT_PROJECT_VERSION). Xcode builds are for development only, so
+        # they stay at a dev placeholder; `mise run build` substitutes the real
+        # release version from APP_VERSION.
+        MARKETING_VERSION: "0.0.0"
+        CURRENT_PROJECT_VERSION: "0.0.0"
         ENABLE_HARDENED_RUNTIME: YES
         CODE_SIGN_ENTITLEMENTS: Chirami/Chirami.entitlements
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
