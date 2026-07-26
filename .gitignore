@@ -14,9 +14,13 @@ DerivedData/
 .kiro/settings/
 .mise/cache/
 CLAUDE.local.md
+.claude/settings.local.json
 node_modules/
 docs/.vitepress/dist/
 docs/.vitepress/cache/
+# Screenshots from `/chirami-verify` runs: local review artifacts that can
+# capture whatever else is on screen, so they must never be committed.
+docs/ui-review/
 Chirami/Resources/editor/bundle.js
 Chirami/Resources/editor/bundle.js.map
 Chirami/Resources/editor/bundle.css
