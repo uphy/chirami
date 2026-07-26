@@ -4,9 +4,9 @@ Chirami GUI interaction helper.
 
 All operations use CGEvent so no focus switches occur between steps.
 Usage:
-    # Rendering checks (focus-free: write the .md file first, then reload):
+    # Write the test .md file first, then reload: this re-reads the file AND
+    # leaves the note as the key window, so interaction works straight after.
     python3 chirami_interact.py reload <output.png>            # hide+show Test, capture
-    # Interaction checks (need key window; Chirami is activated first):
     python3 chirami_interact.py click <px> <py> <output.png>   # click at -o capture pixel
     python3 chirami_interact.py show_test <output.png>
     python3 chirami_interact.py paste_and_capture <text> <output.png>
@@ -64,8 +64,16 @@ def post_click(x, y):
     time.sleep(0.05)
 
 
-def get_window(name):
-    windows = CGWindowListCopyWindowInfo(kCGWindowListOptionAll, kCGNullWindowID)
+def get_window(name, on_screen_only=True):
+    """Look up a Chirami window by title.
+
+    Defaults to the on-screen list. The full list also reports hidden windows,
+    and `screencapture -l` happily captures those — so state checks built on it
+    silently produce stale screenshots of a note that is not actually visible.
+    Pass on_screen_only=False only when you deliberately want hidden windows.
+    """
+    option = kCGWindowListOptionOnScreenOnly if on_screen_only else kCGWindowListOptionAll
+    windows = CGWindowListCopyWindowInfo(option, kCGNullWindowID)
     for w in windows:
         if "Chirami" in str(w.get("kCGWindowOwnerName", "")) and w.get("kCGWindowName") == name:
             return w
@@ -92,19 +100,29 @@ def set_clipboard(text):
 
 # --- Focus & activation ---
 #
-# IMPORTANT: option+0 (and other config hotkeys) are GLOBAL hotkeys and fire
-# regardless of focus, so showing/hiding the note always works. But synthetic
-# CLICKS and LOCAL key input (Cmd+V, Tab, checkbox clicks, Cmd+F, typing "/")
-# only reach the editor when the Chirami window is the KEY window. Activate it
-# first. Activation is unreliable when a terminal/multiplexer holds focus
-# (frontmost stays e.g. "cmux"): the Popen+short-delay form below catches the
-# brief window before focus is reclaimed; act_key / act_paste / act_click
-# re-activate before EACH action and you can call them in a retry loop.
+# Use show_and_focus(): toggling a hidden note into view is what grants the key
+# window, and local key input works from that moment on.
+#
+# NoteWindowController.show() calls NSApp.activate + makeKeyAndOrderFront, and
+# toggle() branches on the current state:
+#
+#     hidden        -> show()   => visible AND key; Cmd+V / Tab / clicks land
+#     visible & key -> hide()
+#
+# So a single option+0 press from the hidden state is all that is needed. Do
+# NOT press again "to take focus" — the note is already key, and the second
+# press hides it.
+#
+# The osascript / System Events / NSRunningApplication activation routes do
+# NOT work: macOS 14+ refuses to let a background LSUIElement app pull focus,
+# and `frontmost_app()` keeps reporting the terminal even while the panel is
+# key. Judge success by whether input actually landed (check the note file),
+# never by frontmost_app().
 
 
 def activate():
-    """Bring Chirami frontmost. Non-blocking; pair with a short sleep then act
-    immediately (before the terminal reclaims focus)."""
+    """Deprecated: kept for compatibility. macOS 14+ ignores this for a
+    background LSUIElement app — use show_and_focus() instead."""
     subprocess.Popen(["osascript", "-e", 'tell application "Chirami" to activate'])
     time.sleep(0.18)
 
@@ -125,12 +143,11 @@ def move_mouse(x, y):
     time.sleep(0.08)
 
 
-# --- Activate-aware actions (use these for interaction; they need key window) ---
+# --- Interaction actions (call show_and_focus() first; they need a key window) ---
 
 def act_key(key_code, flags=0):
-    activate()
     post_key(key_code, flags)
-    time.sleep(0.2)
+    time.sleep(0.4)
 
 
 def act_paste(text):
@@ -141,7 +158,6 @@ def act_paste(text):
 def click_px(window_name, px, py):
     """Click at pixel (px, py) of the -o capture of the named window.
     The capture is bounds x 2x, so divide by 2 to get screen points."""
-    activate()
     w = get_window(window_name)
     b = w["kCGWindowBounds"]
     x = b["X"] + px / 2
@@ -154,16 +170,26 @@ def click_px(window_name, px, py):
 
 # --- Focus-free reload (preferred for rendering checks) ---
 
-def reload_window(name, output_path=None):
-    """Hide (if visible) then show via option+0 so the file is re-read.
-    Uses only the global hotkey, so it needs NO key-window focus. This is the
-    reliable path for RENDERING checks: write the test .md file, then reload."""
-    w = get_window(name)
-    if w:
-        post_key(29, kCGEventFlagMaskAlternate)  # hide
-        time.sleep(0.6)
-    post_key(29, kCGEventFlagMaskAlternate)      # show -> reload
-    time.sleep(0.9)
+def hide_window(name="Test"):
+    """Press option+0 until the note is off screen."""
+    for _ in range(4):
+        if not get_window(name):
+            return
+        post_key(29, kCGEventFlagMaskAlternate)
+        time.sleep(0.7)
+    raise RuntimeError(f"could not hide the {name} window")
+
+
+def show_and_focus(name="Test", output_path=None):
+    """Hide then show via option+0 so the file is re-read AND the note becomes
+    the key window. Write the test .md file first, then call this.
+
+    One show press is enough for both: show() does makeKeyAndOrderFront, so
+    local key input (Cmd+V, Tab, Cmd+F) reaches the editor right away.
+    """
+    hide_window(name)
+    post_key(29, kCGEventFlagMaskAlternate)      # show -> reload + key window
+    time.sleep(1.0)
     w = get_window(name)
     if not w:
         print(f"ERROR: {name} window not found after reload", file=sys.stderr)
@@ -172,6 +198,10 @@ def reload_window(name, output_path=None):
         capture(w["kCGWindowNumber"], output_path)
         print(f"Captured to {output_path}")
     return w
+
+
+# Older name kept so existing call sites keep working.
+reload_window = show_and_focus
 
 
 # --- High-level actions ---

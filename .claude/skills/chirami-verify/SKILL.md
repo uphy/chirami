@@ -33,22 +33,26 @@ mise run -f apply     # キャッシュ無効ビルド
 
 config.yaml が変更されている場合は `cat ~/.config/chirami/config.yaml` で確認する。
 
-## 3. 確認の2系統：レンダリング（focus不要）と操作（key window必須）
+## 3. レンダリングも操作も「隠してから1回出す」で足りる
 
-検証には性質の異なる2系統がある。**まずレンダリング系で確認し、操作系は本当に必要なときだけ使う**。
+レンダリング確認（表示が正しいか）と操作確認（クリック・Cmd+V・Tab・Cmd+F など）は、どちらも同じ入口から始める。ファイルを直書きしてから **ノートを隠し、`option+0` を1回押して出す**。これで再読込と key window の獲得が同時に起きる。
 
-- **レンダリング確認** … 表示が正しいかの確認。`option+0` は**グローバルホットキー**なので focus に関係なく効く。ファイルを直書きして hide→show で再読込すれば良い（セクション4）。**これが最も確実**。
-- **操作確認** … クリック・ローカルキー入力（Cmd+V, Tab, チェックボックス, Cmd+F, `/` 入力 など）。これらは **Chirami が key window でないと届かない**。`activate()` で前面化してから送る。
+`option+0` は Carbon のグローバルホットキーなので focus に関係なく届き、`NoteWindowController.toggle()` が状態で分岐する：
 
-> **key window の壁:** option+0 で表示してもウィンドウは key にならない（frontmost はターミナル等のまま）。合成クリック・ローカルキーが無言で失われたら、まずこれを疑う。ターミナル/マルチプレクサ（例 `cmux`）がフォーカスを保持し続けると activate が通らないことがある（→ セクション3.1 のフォールバック）。
+| 押す前の状態 | 起きること |
+|-------------|-----------|
+| 非表示 | `show()` → `NSApp.activate` + `makeKeyAndOrderFront` = **表示 かつ key window** |
+| 表示中 & key | `hide()` |
+
+つまり非表示から1回押せば操作系も通る。**「focus を取るためにもう1回押す」ことはしない** — すでに key なので隠れてしまう。
 
 ```bash
 SCRIPT=.claude/skills/chirami-verify/scripts/chirami_interact.py
 
-# レンダリング: 直書き済みファイルを再読込してキャプチャ（focus不要・最優先）
+# 直書き済みファイルを再読込 + key window 化してキャプチャ
 python3 $SCRIPT reload /tmp/out.png
 
-# 操作: -o キャプチャのピクセル(px,py)をクリック（activate込み）
+# 続けて操作できる: -o キャプチャのピクセル(px,py)をクリック
 python3 $SCRIPT click 110 400 /tmp/out.png
 
 # 表示のみ / 追記ペースト（後者は既存内容に追記する点に注意 → セクション4）
@@ -69,44 +73,47 @@ screen_y = bounds["Y"] + pixel_y / 2
 
 クリック先は「`-o` キャプチャ画像の何 px か」を Read で見て決め、`click <px> <py>` か `click_px()` に渡す。
 
-### 3.1 操作系のフォーカス確保とフォールバック
+### 3.1 やってはいけない前面化と、成否の判定方法
 
-`activate()` は `osascript ... to activate` を Popen（非ブロッキング）で投げ ~0.18s 待つ。`act_key` / `act_paste` / `click_px` は**各アクション前に activate** するので、リトライループで複数回試すと通りやすい。
+**`frontmost_app()` を成否の判定に使わない。** Chirami は LSUIElement + `.nonactivatingPanel` なので、パネルが key window でもアプリは frontmost にならず、`frontmost_app()` はターミナル（`ghostty` など）を返し続ける。これを見て「前面化に失敗した」と判断すると、実際には通っている操作を諦めることになる。
+
+以下の前面化ルートは **すべて効かない**。macOS 14+ がバックグラウンドアプリのフォーカス奪取を拒否するため。試して時間を溶かさない。
+
+- `osascript -e 'tell application "Chirami" to activate'`（= `activate()`）
+- `tell application "System Events" to set frontmost of process "Chirami" to true`
+- `NSRunningApplication.activateWithOptions_(NSApplicationActivateIgnoringOtherApps)`
+- ウィンドウ上への合成クリック単体
+
+判定は **実際に入力が入ったか** で行う。ノートのファイルを読めば分かる：
 
 ```python
-import sys, time
-sys.path.insert(0, ".claude/skills/chirami-verify/scripts")
-from chirami_interact import act_paste, frontmost_app
-# 通らない時は数回試す（毎回 activate される）
-for _ in range(3):
-    act_paste("text")
-print(frontmost_app())   # "Chirami" でなければ前面化に失敗している
+type_marker = "<PROBE>"
+act_paste(type_marker)
+assert type_marker in open("/tmp/chirami-test.md").read()
 ```
 
-`frontmost_app()` が常に "Chirami" にならず操作系が一切通らない場合のフォールバック（無理に送らない）：
+### 3.2 状態判定は必ず OnScreenOnly で行う
 
-1. 数回リトライ（上記）。ユーザーがターミナルを操作中だと原理的に奪えないことがある。
-2. **ロジックはログで確認**：`log stream --predicate 'subsystem == "io.github.uphy.Chirami"' --level debug` で bridge メッセージ（例: 検索パネル開閉、reload）を観測し、画面操作なしで挙動を裏取りする。
-3. それでも画面確認が要るなら、ユーザーに「該当ノートをクリックして前面化／`/` などを入力」してもらう。
+`get_window()` は既定で `kCGWindowListOptionOnScreenOnly` を使う。`kCGWindowListOptionAll` は**隠れたウィンドウも返し**、`screencapture -l` はそれを平然とキャプチャする。全件リストで hide/show を判定すると押下回数が1つずれ、**非表示ノートの古い内容を撮って「正常に見える」** という最悪の誤検証になる。
 
 > ⚠️ **Esc を汎用 dismiss に使わない。** Esc はノートを閉じる。さらに 2 発目の Esc が背後のアプリ（Claude Code を動かすターミナル）に抜けて**セッションを中断**させ得る。パネルを閉じたいときは `×` ボタンのクリックなど対象を特定した操作で。
 
 ### カスタム操作（スクリプトを直接書く場合）
 
-操作系は `activate()` で前面化してから送る。`act_key` / `act_paste` / `click_px` は内部で activate するのでそれらを優先する。
+`show_and_focus()` で「再読込 + key window」まで済ませてから操作を送る。
 
 ```python
 import sys
 sys.path.insert(0, ".claude/skills/chirami-verify/scripts")
 from chirami_interact import (
-    reload_window, click_px, act_key, act_paste, capture, get_window,
+    show_and_focus, click_px, act_key, act_paste, capture, get_window,
 )
-import Quartz
 
-# 1) まずファイル直書き → reload で表示（focus不要）
-reload_window("Test")
+# 1) ファイル直書き → 隠して1回出す（再読込 + key window）
+open("/tmp/chirami-test.md", "w").write("- [ ] タスク\n")
+show_and_focus("Test")
 
-# 2) 操作（各 act_* / click_px が前面化してから送る）
+# 2) 操作（この時点でローカルキーもクリックも届く）
 click_px("Test", 110, 400)                 # -o 画像の px をクリック
 act_key(36, 0)                             # Return
 act_paste("テキスト")                       # Cmd+V でペースト
@@ -115,6 +122,8 @@ act_paste("テキスト")                       # Cmd+V でペースト
 w = get_window("Test")
 capture(w["kCGWindowNumber"], "/tmp/out.png")
 ```
+
+内容を差し替えて何度も確認する場合は、その都度 `show_and_focus()` からやり直す。編集がファイルへ反映されるまで数百 ms かかるので、`content()` を読む前に 0.5〜1.0s 待つ。
 
 ### キーループの注意事項
 
@@ -167,7 +176,7 @@ cat > "$TEST_MD" <<'EOF'
 **太字** *斜体*
 EOF
 
-# 直書き済みファイルを hide→show で再読込してキャプチャ（focus不要）
+# 直書き済みファイルを hide→show で再読込してキャプチャ
 python3 .claude/skills/chirami-verify/scripts/chirami_interact.py reload /tmp/out.png
 ```
 
@@ -177,8 +186,9 @@ python3 .claude/skills/chirami-verify/scripts/chirami_interact.py reload /tmp/ou
 
 ## 5. 確認フローの基本パターン
 
-1. 必要に応じて `mise run apply` でビルド・再起動（再起動で focus 状態はリセットされる）
-2. **まずレンダリングの確認**（focus不要・最優先）→ セクション 4（ファイル直書き＋`reload`）
-3. 操作・挙動の確認が必要なときだけ操作系へ → セクション 3（`activate` 必須）。通らなければセクション 3.1 のフォールバック
-4. Read ツールで結果を視覚確認
-5. 必要に応じて追加操作して再確認
+1. 必要に応じて `mise run apply` でビルド・再起動
+2. テストファイルを直書きし、隠して1回出す（`reload` / `show_and_focus`）→ 再読込 + key window
+3. Read ツールでキャプチャを視覚確認
+4. 操作の確認は同じ状態のまま続けて送る（クリック・Cmd+V・Tab・Cmd+F）
+5. 入力が入ったかは**ノートのファイルを読んで**判定する（`frontmost_app()` では判定しない）
+6. 内容を差し替えるときは 2 に戻る
