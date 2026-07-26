@@ -242,6 +242,23 @@ body ::selection {
 .cm-code-block-line .tok-meta      { color: #795e26; }
 .cm-code-block-line .tok-invalid   { color: #cd3131; }
 
+/* Dark mode — VS Code Dark+ equivalents. The Light+ palette above is built from
+   dark, heavily saturated colours that sink into a dark code block background. */
+@media (prefers-color-scheme: dark) {
+  .cm-code-block-line .tok-keyword   { color: #569cd6; }
+  .cm-code-block-line .tok-string    { color: #ce9178; }
+  .cm-code-block-line .tok-string2   { color: #d16969; }
+  .cm-code-block-line .tok-number    { color: #b5cea8; }
+  .cm-code-block-line .tok-comment   { color: #6a9955; }
+  .cm-code-block-line .tok-typeName  { color: #4ec9b0; }
+  .cm-code-block-line .tok-className { color: #4ec9b0; }
+  .cm-code-block-line .tok-propertyName { color: #dcdcaa; }
+  .cm-code-block-line .tok-atom,
+  .cm-code-block-line .tok-bool      { color: #569cd6; }
+  .cm-code-block-line .tok-meta      { color: #dcdcaa; }
+  .cm-code-block-line .tok-invalid   { color: #f44747; }
+}
+
 /* Inside code block lines, reset the per-span inline-code styles */
 .cm-code-block-line .chirami-inline-code {
   background: none;
@@ -267,9 +284,11 @@ body ::selection {
   flex-shrink: 0;
 }
 
+/* Checked state uses the note's accent colour rather than the system
+   AccentColor, which is a fixed blue that clashes with themed notes. */
 .cm-editor input[type="checkbox"]:checked {
-  background: AccentColor;
-  border-color: AccentColor;
+  background: var(--chirami-accent);
+  border-color: var(--chirami-accent);
 }
 
 /* Checkmark sized to match SVG path M3 8l3.5 3.5L13 5 at 60% of 16px (9.6px rendered).
@@ -281,7 +300,9 @@ body ::selection {
   top: 50%;
   width: 3px;
   height: 6px;
-  border: 1.5px solid white;
+  /* Checkmark drawn in the note background colour so it stays legible against
+     any accent colour (light accents in dark themes included). */
+  border: 1.5px solid var(--chirami-bg);
   border-top: none;
   border-left: none;
   transform: translate(-50%, -60%) rotate(45deg);
@@ -752,13 +773,16 @@ body ::selection {
 }
 
 /* Search match highlighting — derive from theme variables so matches read well
-   across all themes instead of the default raw yellow. */
-.cm-searchMatch {
+   across all themes instead of the default raw yellow.
+   The `.cm-editor` prefix is required: @codemirror/search declares its defaults
+   in a baseTheme, which compiles to `.<editor-class> .cm-searchMatch` and wins
+   on specificity over a bare `.cm-searchMatch` rule. */
+.cm-editor .cm-searchMatch {
   background-color: color-mix(in srgb, var(--chirami-accent) 28%, transparent);
   border-radius: 2px;
 }
 
-.cm-searchMatch-selected {
+.cm-editor .cm-searchMatch-selected {
   background-color: color-mix(in srgb, var(--chirami-accent) 55%, transparent);
 }
 
