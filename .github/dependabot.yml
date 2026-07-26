@@ -1,0 +1,128 @@
+# Dependabot configuration.
+#
+# This is a solo-maintained repository, so the goal is "a small, predictable
+# batch of PRs once a month" rather than "the newest possible dependency at
+# all times":
+#
+#   - interval: monthly for every ecosystem. Weekly would produce more PRs
+#     than a single maintainer can review; security advisories are delivered
+#     by Dependabot security updates regardless of this schedule.
+#   - Aggressive grouping. Minor/patch bumps are collapsed into one PR per
+#     ecosystem. Tightly coupled package families (@codemirror/*, react*) are
+#     grouped across *all* update types because they must be upgraded
+#     together or the build breaks.
+#   - Standalone majors. A major bump outside those families gets its own PR
+#     so the breaking change can be reviewed on its own.
+#   - Low open-pull-requests-limit so stalled PRs cannot snowball.
+version: 2
+
+updates:
+  # ---------------------------------------------------------------- Actions
+  # Workflows pin actions to commit SHAs (with a `# vX.Y.Z` comment).
+  # Dependabot understands that convention: it bumps the SHA and rewrites the
+  # version comment, so pinning does not freeze us on an old release.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+      time: '09:00'
+      timezone: Asia/Tokyo
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: ci
+    groups:
+      github-actions:
+        patterns:
+          - '*'
+
+  # ------------------------------------------------------------- editor-web
+  - package-ecosystem: npm
+    directory: /editor-web
+    schedule:
+      interval: monthly
+      time: '09:00'
+      timezone: Asia/Tokyo
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: chore
+      prefix-development: chore
+    # Groups are matched top-down: the first matching group wins, so the
+    # coupled families must be declared before the catch-all.
+    groups:
+      # @codemirror/* and @lezer/* share internal APIs; bumping one without
+      # the others yields duplicate-package runtime errors.
+      codemirror:
+        patterns:
+          - '@codemirror/*'
+          - '@lezer/*'
+      # react and react-dom must always match, and the @types follow them.
+      react:
+        patterns:
+          - react
+          - react-dom
+          - '@types/react'
+          - '@types/react-dom'
+      # Everything else: one PR for all non-breaking bumps, individual PRs
+      # for majors.
+      editor-web-minor-patch:
+        patterns:
+          - '*'
+        update-types:
+          - minor
+          - patch
+
+  # ------------------------------------------------------------------- docs
+  - package-ecosystem: npm
+    directory: /docs
+    schedule:
+      interval: monthly
+      time: '09:00'
+      timezone: Asia/Tokyo
+    open-pull-requests-limit: 2
+    commit-message:
+      prefix: chore
+      prefix-development: chore
+    groups:
+      docs-minor-patch:
+        patterns:
+          - '*'
+        update-types:
+          - minor
+          - patch
+
+  # --------------------------------------------------------------- Go (CLI)
+  - package-ecosystem: gomod
+    directory: /cmd/chirami
+    schedule:
+      interval: monthly
+      time: '09:00'
+      timezone: Asia/Tokyo
+    open-pull-requests-limit: 2
+    commit-message:
+      prefix: chore
+    groups:
+      go-minor-patch:
+        patterns:
+          - '*'
+        update-types:
+          - minor
+          - patch
+
+  # -------------------------------------------------------- Swift (SwiftPM)
+  # Requires Package.resolved to be committed at the repository root.
+  - package-ecosystem: swift
+    directory: /
+    schedule:
+      interval: monthly
+      time: '09:00'
+      timezone: Asia/Tokyo
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: chore
+    groups:
+      swift-minor-patch:
+        patterns:
+          - '*'
+        update-types:
+          - minor
+          - patch

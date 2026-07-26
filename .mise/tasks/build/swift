@@ -1,7 +1,20 @@
 #!/usr/bin/env bash
 #MISE description="Swift ビルド"
-#MISE depends=["lint-fix"]
+#MISE depends=["lint"]
+#MISE wait_for=["build:editor"]
 #MISE sources=["Chirami/**/*.swift", "Package.swift"]
+#MISE outputs=[".build/release/Chirami"]
 set -euo pipefail
+
+# `lint` (read-only) instead of `lint-fix`: a build must never rewrite sources.
+# `swiftlint --fix` on CI would silently mutate the checkout and hide violations
+# that never get committed. Run `mise run lint-fix` explicitly when you want the
+# autocorrections applied.
+#
+# `wait_for` (not `depends`) on build:editor: SPM declares `Resources/editor` as
+# a bundled resource, so `swift build` warns and drops it when the JS bundle has
+# not been produced yet. `wait_for` orders the two whenever both run as part of
+# `mise run build`, without forcing a full editor rebuild for a plain
+# `mise run build:swift`.
 
 swift build -c release

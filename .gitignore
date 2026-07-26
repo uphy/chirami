@@ -4,7 +4,9 @@ xcuserdata/
 .build/
 /build/
 DerivedData/
-Package.resolved
+# Package.resolved is intentionally tracked: Chirami is an app, not a library,
+# so the SPM lockfile must be committed for reproducible builds and for the
+# CI cache key (hashFiles) to actually vary.
 .swiftpm/
 *.xccheckout
 *.moved-aside

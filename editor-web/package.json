@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "build": "npm run typecheck && esbuild src/main.ts --bundle --minify --sourcemap --loader:.tsx=tsx --jsx=automatic --outfile=../Chirami/Resources/editor/bundle.js && esbuild src/style.css --bundle --minify --loader:.woff=file --loader:.woff2=file --outfile=../Chirami/Resources/editor/bundle.css && node scripts/copy-html.js",
@@ -27,11 +28,16 @@
     "yaml": "^2.9.0"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.5",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@types/turndown": "^5",
     "esbuild": "^0.21",
+    "eslint": "^9.39.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.7.0",
     "typescript": "^5",
+    "typescript-eslint": "^8.65.0",
     "vitest": "^4.1.8"
   }
 }
