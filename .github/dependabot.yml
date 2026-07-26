@@ -62,6 +62,15 @@ updates:
           - react-dom
           - '@types/react'
           - '@types/react-dom'
+      # @eslint/js is released in lockstep with eslint and peer-requires the
+      # matching major, so a standalone @eslint/js bump leaves the pair
+      # mismatched. The plugins ride along because their peer ranges are what
+      # gate an eslint major.
+      eslint:
+        patterns:
+          - eslint
+          - '@eslint/*'
+          - eslint-plugin-*
       # typescript-eslint declares a peer range that pins the TypeScript major
       # (e.g. `>=4.8.4 <6.1.0`), so a standalone TypeScript major PR cannot even
       # get through `npm ci`. Move the compiler and its ESLint integration
