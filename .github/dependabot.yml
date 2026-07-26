@@ -62,6 +62,24 @@ updates:
           - react-dom
           - '@types/react'
           - '@types/react-dom'
+      # @eslint/js is released in lockstep with eslint and peer-requires the
+      # matching major, so a standalone @eslint/js bump leaves the pair
+      # mismatched. The plugins ride along because their peer ranges are what
+      # gate an eslint major.
+      eslint:
+        patterns:
+          - eslint
+          - '@eslint/*'
+          - eslint-plugin-*
+      # typescript-eslint declares a peer range that pins the TypeScript major
+      # (e.g. `>=4.8.4 <6.1.0`), so a standalone TypeScript major PR cannot even
+      # get through `npm ci`. Move the compiler and its ESLint integration
+      # together.
+      typescript:
+        patterns:
+          - typescript
+          - typescript-eslint
+          - '@typescript-eslint/*'
       # Everything else: one PR for all non-breaking bumps, individual PRs
       # for majors.
       editor-web-minor-patch:
@@ -119,6 +137,16 @@ updates:
     open-pull-requests-limit: 3
     commit-message:
       prefix: chore
+    ignore:
+      # swift-testing switched from a 0.x line to tags that track the Swift
+      # release train (6.x). Dependabot reads that as a major bump, but the 6.x
+      # manifests require a newer tools version than this package declares, so
+      # the resulting PR cannot resolve at all. Stay on the 0.x line; the
+      # dependency goes away entirely once the test target can use the copy of
+      # Swift Testing bundled with the toolchain.
+      - dependency-name: github.com/swiftlang/swift-testing
+        update-types:
+          - version-update:semver-major
     groups:
       swift-minor-patch:
         patterns:
