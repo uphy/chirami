@@ -17,10 +17,10 @@
     "@codemirror/search": "^6",
     "@codemirror/state": "^6",
     "@codemirror/view": "^6",
-    "@excalidraw/excalidraw": "^0.18.0",
+    "@excalidraw/excalidraw": "^0.18.1",
     "@lezer/highlight": "^1",
     "@lezer/markdown": "^1",
-    "mermaid": "^11.14.0",
+    "mermaid": "^11.16.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "turndown": "^7",
@@ -32,12 +32,12 @@
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@types/turndown": "^5",
-    "esbuild": "^0.21",
+    "esbuild": "^0.28",
     "eslint": "^9.39.5",
     "eslint-plugin-react-hooks": "^7.1.1",
     "globals": "^17.7.0",
     "typescript": "^5",
     "typescript-eslint": "^8.65.0",
-    "vitest": "^4.1.8"
+    "vitest": "^4.1.10"
   }
 }
