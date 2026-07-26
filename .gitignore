@@ -20,3 +20,4 @@ Chirami/Resources/editor/bundle.js.map
 Chirami/Resources/editor/bundle.css
 Chirami/Resources/editor/index.html
 Chirami/Resources/editor/*.woff2
+__pycache__/
