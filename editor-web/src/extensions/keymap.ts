@@ -169,7 +169,7 @@ function toggleTaskAtCursor(view: EditorView): boolean {
     return true;
   }
 
-  let replacement: string | null = null;
+  let replacement: string;
   const listItemMatch = line.text.match(/^(\s*)([-*+])\s(.*)$/);
   if (listItemMatch) {
     const [, indent, marker, content] = listItemMatch;
