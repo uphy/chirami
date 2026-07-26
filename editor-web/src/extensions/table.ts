@@ -825,13 +825,10 @@ class TableWidget extends WidgetType {
       // A stale tableFrom can resolve into a different table whose cell
       // happens to pass the content freshness check; require the table
       // markdown to match before trusting the position.
-      let from: number | null = null;
       const node = findTableNode(state, tableFrom);
-      if (node && state.sliceDoc(node.from, node.to) === tableMarkdown) {
-        from = node.from;
-      } else {
-        from = findTableByMarkdown(state, tableMarkdown);
-      }
+      const from = node && state.sliceDoc(node.from, node.to) === tableMarkdown
+        ? node.from
+        : findTableByMarkdown(state, tableMarkdown);
       const changes = from === null
         ? null
         : computeCellCommit(state, from, row, col, value, initialValue, originalRaw, false);
