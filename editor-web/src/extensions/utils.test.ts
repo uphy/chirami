@@ -37,15 +37,15 @@ describe("parseCodeBlockInfo", () => {
   });
 
   it("ignores options with no value and unknown keys", () => {
-    expect(parseCodeBlockInfo("transcript width= depth=4 foo")).toEqual({
-      lang: "transcript",
+    expect(parseCodeBlockInfo("mermaid width= depth=4 foo")).toEqual({
+      lang: "mermaid",
       options: {},
     });
   });
 
   it("tolerates surrounding whitespace", () => {
-    expect(parseCodeBlockInfo("  transcript  width=120  ")).toEqual({
-      lang: "transcript",
+    expect(parseCodeBlockInfo("  mermaid  width=120  ")).toEqual({
+      lang: "mermaid",
       options: { width: 120 },
     });
   });

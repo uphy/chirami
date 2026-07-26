@@ -6,12 +6,12 @@ While you work, you always need something else at hand. Chirami floats it above 
 
 ## Features
 
-- **Markdown Live Preview** — Obsidian-style editing: raw Markdown at the cursor, rendered everywhere else (Mermaid diagrams, Excalidraw drawings, `transcript` blocks, Obsidian callouts, collapsible `<details>` blocks)
+- **Markdown Live Preview** — Obsidian-style editing: raw Markdown at the cursor, rendered everywhere else (Mermaid diagrams, Excalidraw drawings, Obsidian callouts, collapsible `<details>` blocks)
 - **Always-on-top floating windows** — `NSPanel`-based sticky notes that stay above all windows (tiling WM friendly)
 - **Global hotkeys** — Summon any note instantly from any application
 - **Pure `.md` files** — No metadata, no front matter. Full Obsidian / VS Code compatibility
 - **Periodic notes** — Date-based file paths with rollover delay and templates
-- **Slash command** — Type `/` at line start to insert blocks (Excalidraw diagram, Mermaid diagram, transcript block, table) via a command picker
+- **Slash command** — Type `/` at line start to insert blocks (Excalidraw diagram, Mermaid diagram, table) via a command picker
 - **Smart Paste** — Cmd+Shift+V converts URLs, HTML, and JSON to Markdown on paste
 - **Image Paste & Resize** — Cmd+V to paste images as PNG; drag the right edge to resize
 - **Window Warp** — Modifier+H/J/K/L to snap windows to a 3×3 grid
@@ -43,29 +43,7 @@ brew install --cask uphy/tap/chirami
 ```yaml
 notes:
   - path: ~/Notes/todo.md
-transcript:
-  language: ja
-  dictionary_file: ~/.config/chirami/transcript-lexicon.yaml
 ```
-
-Example transcript lexicon:
-
-```yaml
-version: 1
-terms:
-  - text: uphy
-    readings: [ユーピー, ユーピーさん]
-  - text: Chirami
-    readings: チラミ
-```
-
-The first time you record a transcript, Chirami downloads the sherpa-onnx model to `~/.local/state/chirami/models/sherpa-onnx/`.
-The selected transcript model is stored in `~/.local/state/chirami/state.yaml` and can be changed from the transcript block UI.
-
-Built-in model IDs currently include:
-
-- `sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17`
-- `sherpa-onnx-nemo-parakeet-tdt_ctc-0.6b-ja-35000-int8`
 
 Launch Chirami — it appears as a menu bar icon. Click it to toggle your notes.
 
@@ -99,16 +77,6 @@ notes:
       - key: option+s
         action: toggle
     position: cursor
-
-transcript:
-  language: ja
-  dictionary_file: ~/.config/chirami/transcript-lexicon.yaml
-  devices:
-    mic: default
-    system: all
-  labels:
-    mic: You
-    system: Others
 ```
 
 See [Configuration](docs/configuration.md) for the full field reference.
@@ -157,7 +125,6 @@ open Chirami.xcodeproj
 |---------|---------|---------|
 | [HotKey](https://github.com/soffes/HotKey) | Global hotkeys | MIT |
 | [Yams](https://github.com/jpsim/Yams) | YAML parser | MIT |
-| [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) | On-device transcription | Apache-2.0 |
 
 **JS (editor-web/)**
 

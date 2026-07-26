@@ -8,8 +8,6 @@ class AppConfig: YAMLStore<ChiramiConfig> {
 
     private let logger = Logger(subsystem: "io.github.uphy.Chirami", category: "AppConfig")
     var config: ChiramiConfig { data }
-    var transcriptConfig: TranscriptConfig { config.resolvedTranscript }
-    var legacyTranscriptModel: String? { config.transcript?.legacyModel }
     let configDirectoryURL: URL
 
     private convenience init() {
@@ -80,16 +78,6 @@ class AppConfig: YAMLStore<ChiramiConfig> {
             action: toggle
           - key: option+shift+d
             action: create
-
-    transcript:
-      engine: sherpa-onnx
-      language: auto
-      devices:
-        mic: default
-        system: all
-      labels:
-        mic: You
-        system: Others
     """
 
     private static let welcomeContent = """
@@ -117,7 +105,7 @@ class AppConfig: YAMLStore<ChiramiConfig> {
     - [ ] Unchecked task
     - [x] Checked task
 
-    Type `/` at the start of a line to insert Mermaid diagrams, Excalidraw drawings, transcript blocks, tables, and more.
+    Type `/` at the start of a line to insert Mermaid diagrams, Excalidraw drawings, tables, and more.
 
     ## Config File
 

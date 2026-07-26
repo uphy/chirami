@@ -63,33 +63,6 @@ class AppState: YAMLStore<ChiramiState> {
         }
     }
 
-    func updateTranscriptDeviceCache(lastMic: String?, lastSystemSource: String?) {
-        update { state in
-            if let lastMic {
-                state.lastMic = lastMic
-            }
-            if let lastSystemSource {
-                state.lastSystemSource = lastSystemSource
-            }
-        }
-    }
-
-    func setTranscriptModel(_ identifier: String) {
-        update { state in
-            state.transcriptModel = identifier
-        }
-    }
-
-    func migrateTranscriptModelIfNeeded(legacyModel: String?) {
-        guard data.transcriptModel == nil else { return }
-        guard let legacyModel, !legacyModel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-        guard (try? SherpaOnnxModelStore.shared.resolvedCatalogModel(for: legacyModel)) != nil else { return }
-        update { state in
-            guard state.transcriptModel == nil else { return }
-            state.transcriptModel = legacyModel
-        }
-    }
-
     // MARK: - Folding State
 
     func foldingState(for notePath: String) -> FoldingState {

@@ -12,7 +12,7 @@ class DisplayContentModel: ObservableObject {
     let isReadOnly: Bool
     nonisolated(unsafe) var savedCursorLocation: Int = 0
     nonisolated(unsafe) var savedScrollOffset: CGPoint = .zero
-    var getEditorContext: ((ContextRequestOptions?, @escaping (Result<String, Error>) -> Void) -> Void)?
+    var getEditorContext: ((@escaping (Result<String, Error>) -> Void) -> Void)?
     var setWindowActive: ((Bool) -> Void)?
     private var lastSavedContent: String
 

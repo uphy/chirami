@@ -21,36 +21,6 @@ final class NoteWebViewBridge: NSObject, WKScriptMessageHandler {
     var onSearchPanelVisibleChanged: ((Bool) -> Void)?
     var onPluginStateRequest: ((_ pluginId: String) -> Void)?
     var onPluginStateChanged: ((_ pluginId: String, _ stateJson: String) -> Void)?
-    /// JS -> Swift transcript dispatch target. Weak: the coordinator is owned by
-    /// the window controller; a strong reference here would form a retain cycle
-    /// (WebView -> Bridge -> Coordinator -> sink -> WebView).
-    weak var transcriptEventHandler: TranscriptEventHandler?
-
-    /// Dispatches a decoded transcript message to the handler, or logs a warning
-    /// when no handler is wired so missing wiring never fails silently.
-    private func dispatchTranscript(_ name: String, _ call: (TranscriptEventHandler) -> Void) {
-        guard let handler = transcriptEventHandler else {
-            logger.warning("\(name, privacy: .public) received but no transcriptEventHandler is wired")
-            return
-        }
-        call(handler)
-    }
-
-    private func decodeBody<T: Decodable>(_ body: [String: Any], as type: T.Type) -> T? {
-        guard JSONSerialization.isValidJSONObject(body),
-              let data = try? JSONSerialization.data(withJSONObject: body),
-              let decoded = try? JSONDecoder().decode(T.self, from: data) else {
-            return nil
-        }
-        return decoded
-    }
-
-    private func decodeRange(_ body: [String: Any]) -> TranscriptBlockRange? {
-        guard let range = body["range"] as? [String: Any] else {
-            return nil
-        }
-        return decodeBody(range, as: TranscriptBlockRange.self)
-    }
 
     nonisolated func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
         MainActor.assumeIsolated {
@@ -108,64 +78,6 @@ final class NoteWebViewBridge: NSObject, WKScriptMessageHandler {
                 if let pluginId = body["pluginId"] as? String,
                    let stateJson = body["stateJson"] as? String {
                     onPluginStateChanged?(pluginId, stateJson)
-                }
-            case "transcriptRecordStart":
-                if let message: TranscriptRecordStartMessage = decodeBody(body, as: TranscriptRecordStartMessage.self) {
-                    dispatchTranscript(type) { $0.transcriptRecordStart(message) }
-                } else {
-                    logger.warning("transcriptRecordStart payload could not be decoded")
-                }
-            case "transcriptRecordStop":
-                if let range = decodeRange(body) {
-                    dispatchTranscript(type) { $0.transcriptRecordStop(range) }
-                } else {
-                    logger.warning("transcriptRecordStop payload could not be decoded")
-                }
-            case "transcriptRecordClear":
-                if let range = decodeRange(body) {
-                    dispatchTranscript(type) { $0.transcriptRecordClear(range) }
-                } else {
-                    logger.warning("transcriptRecordClear payload could not be decoded")
-                }
-            case "transcriptLevelMonitorStart":
-                if let message: TranscriptLevelMonitorStartMessage = decodeBody(body, as: TranscriptLevelMonitorStartMessage.self) {
-                    dispatchTranscript(type) { $0.transcriptLevelMonitorStart(message) }
-                } else {
-                    logger.warning("transcriptLevelMonitorStart payload could not be decoded")
-                }
-            case "transcriptLevelMonitorStop":
-                if let range = decodeRange(body) {
-                    dispatchTranscript(type) { $0.transcriptLevelMonitorStop(range) }
-                } else {
-                    logger.warning("transcriptLevelMonitorStop payload could not be decoded")
-                }
-            case "transcriptDevicesRequest":
-                if let request: TranscriptDevicesRequestMessage = decodeBody(body, as: TranscriptDevicesRequestMessage.self) {
-                    logger.info("transcriptDevicesRequest source=\(request.source.rawValue, privacy: .public) blockFrom=\(request.range.blockFrom)")
-                    dispatchTranscript(type) { $0.transcriptDevicesRequest(request) }
-                } else {
-                    logger.warning("transcriptDevicesRequest payload could not be decoded")
-                }
-            case "transcriptDeviceSelect":
-                if let selection: TranscriptDeviceSelectionMessage = decodeBody(body, as: TranscriptDeviceSelectionMessage.self) {
-                    logger.info("transcriptDeviceSelect source=\(selection.source.rawValue, privacy: .public) value=\(selection.value, privacy: .public) blockFrom=\(selection.range.blockFrom)")
-                    dispatchTranscript(type) { $0.transcriptDeviceSelect(selection) }
-                } else {
-                    logger.warning("transcriptDeviceSelect payload could not be decoded")
-                }
-            case "transcriptModelRequest":
-                if let request: TranscriptModelRequestMessage = decodeBody(body, as: TranscriptModelRequestMessage.self) {
-                    logger.info("transcriptModelRequest blockFrom=\(request.range.blockFrom)")
-                    dispatchTranscript(type) { $0.transcriptModelRequest(request) }
-                } else {
-                    logger.warning("transcriptModelRequest payload could not be decoded")
-                }
-            case "transcriptModelSelect":
-                if let selection: TranscriptModelSelectionMessage = decodeBody(body, as: TranscriptModelSelectionMessage.self) {
-                    logger.info("transcriptModelSelect value=\(selection.value, privacy: .public) blockFrom=\(selection.range.blockFrom)")
-                    dispatchTranscript(type) { $0.transcriptModelSelect(selection) }
-                } else {
-                    logger.warning("transcriptModelSelect payload could not be decoded")
                 }
             case "log":
                 let level = body["level"] as? String ?? "info"

@@ -1,103 +1,4 @@
 // Swift -> JS API and JS -> Swift message types
-export interface TranscriptBlockRange {
-  blockFrom: number;
-  blockTo: number;
-}
-
-export type TranscriptSource = "mic" | "system";
-export type TranscriptStatus = "Idle" | "Recording" | "Paused" | "Processing" | "Completed" | "Error";
-
-export interface TranscriptDeviceOption {
-  value: string;
-  label: string;
-  detail?: string;
-  active?: boolean;
-}
-
-export interface TranscriptDeviceSnapshot {
-  value: string;
-  label: string;
-}
-
-export interface TranscriptModelMetadata {
-  detail?: string;
-  kindLabel?: string;
-  configuredLanguage?: string;
-  supportedLanguages?: string[];
-  installed?: boolean;
-  installedSizeBytes?: number;
-}
-
-export interface TranscriptDownloadProgress {
-  fractionCompleted: number;
-  receivedBytes: number;
-  totalBytes: number;
-  stage: "Downloading" | "Installing" | "Preparing";
-}
-
-export interface TranscriptChunkPayload {
-  range: TranscriptBlockRange;
-  source: TranscriptSource;
-  timestamp: number;
-  text: string;
-}
-
-export interface TranscriptPreviewPayload {
-  range: TranscriptBlockRange;
-  source: TranscriptSource;
-  timestamp: number;
-  text: string;
-}
-
-export interface TranscriptStatePayload {
-  range: TranscriptBlockRange;
-  status: TranscriptStatus;
-  modelLabel: string;
-  micDeviceLabel: string;
-  systemDeviceLabel: string;
-}
-
-export interface TranscriptLevelPayload {
-  range: TranscriptBlockRange;
-  source: TranscriptSource;
-  level: number;
-}
-
-export interface TranscriptDevicesListPayload {
-  range: TranscriptBlockRange;
-  source: TranscriptSource;
-  devices: TranscriptDeviceOption[];
-  selectedValue?: string;
-}
-
-export interface TranscriptModelStatePayload {
-  range: TranscriptBlockRange;
-  modelLabel: string;
-  selectedValue: string;
-  models: TranscriptDeviceOption[];
-  metadata?: TranscriptModelMetadata;
-}
-
-export interface TranscriptModelDownloadProgressPayload {
-  range: TranscriptBlockRange;
-  modelLabel: string;
-  progress: TranscriptDownloadProgress;
-}
-
-export interface TranscriptErrorPayload {
-  range: TranscriptBlockRange;
-  message: string;
-}
-
-export interface EditorTranscriptContextOptions {
-  mode: "full" | "last" | "seconds";
-  value?: number;
-}
-
-export interface EditorContextOptions {
-  transcript?: EditorTranscriptContextOptions;
-}
-
 type SwiftToJsApi = {
   setContent: (text: string) => void;
   focus: () => void;
@@ -110,16 +11,7 @@ type SwiftToJsApi = {
   insertText: (text: string) => void;
   setNotePath: (path: string) => void;
   applyFolding: (lines: number[]) => void;
-  getEditorContext: (options?: EditorContextOptions) => string;
-  transcriptClearBlock: (range: TranscriptBlockRange) => void;
-  transcriptChunk: (payload: TranscriptChunkPayload) => void;
-  transcriptPreviewUpdate: (payload: TranscriptPreviewPayload) => void;
-  transcriptStateChanged: (payload: TranscriptStatePayload) => void;
-  transcriptLevelUpdate: (payload: TranscriptLevelPayload) => void;
-  transcriptDevicesList: (payload: TranscriptDevicesListPayload) => void;
-  transcriptModelState: (payload: TranscriptModelStatePayload) => void;
-  transcriptModelDownloadProgress: (payload: TranscriptModelDownloadProgressPayload) => void;
-  transcriptError: (payload: TranscriptErrorPayload) => void;
+  getEditorContext: () => string;
 };
 
 type JsToSwiftMessage =
@@ -136,16 +28,7 @@ type JsToSwiftMessage =
   | { type: "overlayVisible"; visible: boolean }
   | { type: "searchPanelVisible"; visible: boolean }
   | { type: "pluginStateRequest"; pluginId: string }
-  | { type: "pluginStateChanged"; pluginId: string; stateJson: string }
-  | { type: "transcriptRecordStart"; range: TranscriptBlockRange; micDevice: TranscriptDeviceSnapshot; systemDevice: TranscriptDeviceSnapshot }
-  | { type: "transcriptRecordStop"; range: TranscriptBlockRange }
-  | { type: "transcriptRecordClear"; range: TranscriptBlockRange }
-  | { type: "transcriptLevelMonitorStart"; range: TranscriptBlockRange; micDevice: TranscriptDeviceSnapshot; systemDevice: TranscriptDeviceSnapshot }
-  | { type: "transcriptLevelMonitorStop"; range: TranscriptBlockRange }
-  | { type: "transcriptDevicesRequest"; range: TranscriptBlockRange; source: TranscriptSource }
-  | { type: "transcriptDeviceSelect"; range: TranscriptBlockRange; source: TranscriptSource; value: string; label: string }
-  | { type: "transcriptModelRequest"; range: TranscriptBlockRange }
-  | { type: "transcriptModelSelect"; range: TranscriptBlockRange; value: string };
+  | { type: "pluginStateChanged"; pluginId: string; stateJson: string };
 
 declare global {
   interface Window {

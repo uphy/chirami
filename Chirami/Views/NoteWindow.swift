@@ -34,10 +34,6 @@ class NoteWindowController: NSWindowController, NSWindowDelegate, EditorContextP
     private var pendingFadeIn: Bool = false
     /// Safety timer that forces fade-in if the WebView never signals readiness.
     private var fadeInTimeoutTask: Task<Void, Never>?
-    /// Transcript domain logic for this window. Strong `let`: the coordinator
-    /// is referenced only weakly everywhere else (model, bridge, sink), so this
-    /// is the single reference keeping it alive.
-    private let transcriptCoordinator = TranscriptCoordinator()
     nonisolated(unsafe) private var warpEventMonitor: Any?
     nonisolated(unsafe) private var shortcutEventMonitor: Any?
 
@@ -414,13 +410,13 @@ class NoteWindowController: NSWindowController, NSWindowDelegate, EditorContextP
         WindowManager.shared.noteWindowDidBecomeKey(self)
     }
 
-    func getEditorContext(options: ContextRequestOptions? = nil, completion: @escaping (Result<String, Error>) -> Void) {
+    func getEditorContext(completion: @escaping (Result<String, Error>) -> Void) {
         guard let getter = contentModel.getEditorContext else {
             completion(.failure(NSError(domain: "ContextHandler", code: -1,
                 userInfo: [NSLocalizedDescriptionKey: "editor not ready"])))
             return
         }
-        getter(options, completion)
+        getter(completion)
     }
 
     func windowDidResignKey(_ notification: Notification) {
@@ -431,7 +427,6 @@ class NoteWindowController: NSWindowController, NSWindowDelegate, EditorContextP
     }
 
     func windowWillClose(_ notification: Notification) {
-        transcriptCoordinator.stopAllLevelMonitors()
         directoryWatcher?.stop()
         guard let window = window else { return }
         noteStore.saveWindowState(
@@ -802,10 +797,6 @@ class NoteWindowController: NSWindowController, NSWindowDelegate, EditorContextP
             noteStore.writeContent("", to: note)
         }
 
-        // The old document's level monitors are keyed by its block positions;
-        // the new WebView can never send levelMonitorStop for them, so stop them here.
-        transcriptCoordinator.stopAllLevelMonitors()
-
         contentModel = NoteContentModel(note: note)
         wireContentModel()
         let rootView = NoteContentView(model: contentModel, noteId: note.id, onTogglePin: { [weak self] in self?.togglePinAction() })
@@ -940,9 +931,8 @@ class NoteWindowController: NSWindowController, NSWindowDelegate, EditorContextP
 
     /// Wires the current content model to this controller. Must be called
     /// whenever `contentModel` is (re)created (init and navigation reload) so
-    /// the transcript coordinator and readiness callback are never left unset.
+    /// the readiness callback is never left unset.
     private func wireContentModel() {
-        contentModel.transcriptCoordinator = transcriptCoordinator
         contentModel.onWebViewReady = { [weak self] in
             self?.handleWebViewReady()
         }
@@ -964,7 +954,7 @@ class NoteContentModel: ObservableObject {
     /// is hidden so the search bar does not linger on the next show.
     var closeSearchPanel: (() -> Void)?
     var setWindowActive: ((Bool) -> Void)?
-    var getEditorContext: ((ContextRequestOptions?, @escaping (Result<String, Error>) -> Void) -> Void)?
+    var getEditorContext: ((@escaping (Result<String, Error>) -> Void) -> Void)?
     /// Fires once after the WebView is ready and its panel background matches the theme.
     /// The window controller uses this to defer the initial fade-in and avoid a yellow flash.
     var onWebViewReady: (() -> Void)?
@@ -972,10 +962,6 @@ class NoteContentModel: ObservableObject {
     var notePath: String?
     /// Folded line numbers to apply on next WebView update (cleared after applying).
     var pendingFoldedLines: [Int]?
-    /// Transcript domain coordinator owned by the window controller. Weak: the
-    /// controller owns both this model and the coordinator; this reference only
-    /// lets the Representable reach the coordinator when wiring the WebView.
-    weak var transcriptCoordinator: TranscriptCoordinator?
     private var note: Note
     private let imagePasteService = ImagePasteService()
     private let logger = Logger(subsystem: "io.github.uphy.Chirami", category: "NoteContentModel")

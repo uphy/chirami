@@ -340,23 +340,10 @@ let activeCellEdit: CellEditSession | null = null;
 // consumed synchronously right after dispatch returns.
 let pendingOpenWrap: { tableFrom: number; wrap: HTMLElement | null } | null = null;
 
-let cellEditEndCallback: (() => void) | null = null;
-
-export function isTableCellEditActive(): boolean {
-  return activeCellEdit !== null;
-}
-
-// main.ts uses this to flush doc mutations (e.g. transcript chunks) deferred
-// while a cell edit session was active.
-export function setTableCellEditEndCallback(callback: () => void): void {
-  cellEditEndCallback = callback;
-}
-
 function closeSession(session: CellEditSession): void {
   session.closed = true;
   session.controller.abort();
   if (activeCellEdit === session) activeCellEdit = null;
-  cellEditEndCallback?.();
 }
 
 function restoreRendered(session: CellEditSession): void {
@@ -833,9 +820,6 @@ class TableWidget extends WidgetType {
       window.requestAnimationFrame(() => view.focus());
       return;
     }
-    // Scheduled before closeSession: its end callback schedules the deferred
-    // transcript flush, and same-delay timers run FIFO — the rescue must
-    // resolve the table before that flush shifts the doc.
     window.setTimeout(() => {
       const state = view.state;
       // A stale tableFrom can resolve into a different table whose cell

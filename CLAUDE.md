@@ -114,13 +114,6 @@ Live Preview is implemented with WKWebView + CodeMirror 6.
 - `editor-web/src/extensions/excalidrawShared.ts` — 共有型・パース関数
 - `Chirami/Config/ExcalidrawLibraryStore.swift` — 外部ライブラリの読み込みとユーザーアイテムとのマージ
 
-### Transcript Block
-
-` ```transcript ` コードブロックで会議の書き起こしを埋め込む（ブロック外はウィジェット、ブロック内は生 Markdown）。設定・使い方は [docs/configuration.md](docs/configuration.md#transcript) を参照。
-
-- 出力は `[YYYY-MM-DD HH:MM:SS] You: ...` / `Others: ...` 形式の plain Markdown（安定した契約。編集時は維持する）
-- sherpa-onnx モデルは初回記録時に `~/.local/state/chirami/models/sherpa-onnx/` へダウンロード。macOS 14.2 以上が必要
-
 ### Wiki Links
 
 `[[Page]]` / `[[Page|Alias]]` / `[[Page#Heading]]` 形式の Obsidian 風リンク。挙動・設定（open コマンド、トークン、vault、ノート単位上書き）は [docs/configuration.md](docs/configuration.md#wiki-links) を参照。

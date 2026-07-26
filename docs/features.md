@@ -52,7 +52,6 @@ Chirami renders Markdown in an Obsidian-style Live Preview: the block containing
 
 - `/excalidraw` — Insert an Excalidraw diagram block and open the editor overlay immediately
 - `/mermaid` — Insert a Mermaid code block with a starter template
-- `/transcript` — Insert a transcript block
 - `/details` — Insert a collapsible `<details>` block with the summary text selected
 - `/table` — Insert a 2×2 Markdown table template
 

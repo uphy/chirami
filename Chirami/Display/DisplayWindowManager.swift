@@ -113,13 +113,13 @@ class DisplayWindowController: NSObject, NSWindowDelegate, EditorContextProvider
 
     // MARK: - EditorContextProvider
 
-    func getEditorContext(options: ContextRequestOptions? = nil, completion: @escaping (Result<String, Error>) -> Void) {
+    func getEditorContext(completion: @escaping (Result<String, Error>) -> Void) {
         guard let getter = contentModel.getEditorContext else {
             completion(.failure(NSError(domain: "ContextHandler", code: -1,
                 userInfo: [NSLocalizedDescriptionKey: "editor not ready"])))
             return
         }
-        getter(options, completion)
+        getter(completion)
     }
 
     // MARK: - NSWindowDelegate

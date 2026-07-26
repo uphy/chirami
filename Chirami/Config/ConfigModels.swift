@@ -118,121 +118,6 @@ struct WikiLinkConfig: Codable, Equatable {
     var vault: String?
 }
 
-struct TranscriptDeviceConfig: Codable, Equatable {
-    var mic: String
-    var system: String
-
-    enum CodingKeys: String, CodingKey {
-        case mic
-        case system
-    }
-
-    init(mic: String = "default", system: String = "all") {
-        self.mic = mic
-        self.system = system
-    }
-
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        mic = try container.decodeIfPresent(String.self, forKey: .mic) ?? "default"
-        let rawSystem = try container.decodeIfPresent(String.self, forKey: .system) ?? "all"
-        system = rawSystem == "auto" ? "all" : rawSystem
-    }
-}
-
-struct TranscriptLabelConfig: Codable, Equatable {
-    var mic: String
-    var system: String
-
-    enum CodingKeys: String, CodingKey {
-        case mic
-        case system
-    }
-
-    init(mic: String = "You", system: String = "Others") {
-        self.mic = mic
-        self.system = system
-    }
-
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        mic = try container.decodeIfPresent(String.self, forKey: .mic) ?? "You"
-        system = try container.decodeIfPresent(String.self, forKey: .system) ?? "Others"
-    }
-}
-
-struct TranscriptConfig: Codable, Equatable {
-    var engine: String
-    var language: String
-    var devices: TranscriptDeviceConfig
-    var labels: TranscriptLabelConfig
-    var dictionaryFile: String?
-    var legacyModel: String?
-
-    enum CodingKeys: String, CodingKey {
-        case engine
-        case model
-        case language
-        case devices
-        case labels
-        case dictionaryFile = "dictionary_file"
-    }
-
-    init(
-        engine: String = "sherpa-onnx",
-        language: String = "auto",
-        devices: TranscriptDeviceConfig = TranscriptDeviceConfig(),
-        labels: TranscriptLabelConfig = TranscriptLabelConfig(),
-        dictionaryFile: String? = nil,
-        legacyModel: String? = nil
-    ) {
-        self.engine = engine
-        self.language = language
-        self.devices = devices
-        self.labels = labels
-        self.dictionaryFile = dictionaryFile
-        self.legacyModel = legacyModel
-    }
-
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        engine = try container.decodeIfPresent(String.self, forKey: .engine) ?? "sherpa-onnx"
-        language = try container.decodeIfPresent(String.self, forKey: .language) ?? "auto"
-        devices = try container.decodeIfPresent(TranscriptDeviceConfig.self, forKey: .devices) ?? TranscriptDeviceConfig()
-        labels = try container.decodeIfPresent(TranscriptLabelConfig.self, forKey: .labels) ?? TranscriptLabelConfig()
-        dictionaryFile = try container.decodeIfPresent(String.self, forKey: .dictionaryFile)
-        legacyModel = try container.decodeIfPresent(String.self, forKey: .model)
-    }
-
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(engine, forKey: .engine)
-        try container.encode(language, forKey: .language)
-        try container.encode(devices, forKey: .devices)
-        try container.encode(labels, forKey: .labels)
-        try container.encodeIfPresent(dictionaryFile, forKey: .dictionaryFile)
-        if let legacyModel {
-            try container.encode(legacyModel, forKey: .model)
-        }
-    }
-
-    func resolvedDictionaryFile(configDirectory: URL) -> URL? {
-        guard let dictionaryFile else {
-            return nil
-        }
-        let trimmed = dictionaryFile.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else {
-            return nil
-        }
-
-        let expanded = (trimmed as NSString).expandingTildeInPath
-        if expanded.hasPrefix("/") {
-            return URL(fileURLWithPath: expanded).standardizedFileURL
-        }
-        return configDirectory.appendingPathComponent(expanded).standardizedFileURL
-    }
-}
-
 struct ChiramiConfig: Codable {
     var appearance: AppearanceConfig?
     var hotkeys: [HotkeyBinding]?
@@ -246,11 +131,10 @@ struct ChiramiConfig: Codable {
     var warpModifier: String?
     var warpMargin: WarpMarginConfig?
     var excalidraw: ExcalidrawConfig?
-    var transcript: TranscriptConfig?
     var wikilink: WikiLinkConfig?
 
     enum CodingKeys: String, CodingKey {
-        case appearance, hotkeys, notes, adhoc, karabiner, excalidraw, transcript, wikilink
+        case appearance, hotkeys, notes, adhoc, karabiner, excalidraw, wikilink
         case launchAtLogin = "launch_at_login"
         case showMenuBarIcon = "show_menu_bar_icon"
         case smartPaste = "smart_paste"
@@ -319,12 +203,6 @@ extension ChiramiConfig {
 
     var resolvedWarpMargin: ResolvedWarpMargin {
         ResolvedWarpMargin(config: warpMargin)
-    }
-}
-
-extension ChiramiConfig {
-    var resolvedTranscript: TranscriptConfig {
-        transcript ?? TranscriptConfig()
     }
 }
 #endif
@@ -642,16 +520,10 @@ struct ChiramiState: Codable {
     var windows: [String: WindowState] = [:]
     var bookmarks: [String: String] = [:]  // noteId -> Base64 bookmark data
     var foldingStates: [String: FoldingState] = [:]  // resolved file path -> FoldingState
-    var transcriptModel: String?
-    var lastMic: String?
-    var lastSystemSource: String?
 
     enum CodingKeys: String, CodingKey {
         case windows, bookmarks
         case foldingStates = "folding_states"
-        case transcriptModel = "transcript_model"
-        case lastMic = "last_mic"
-        case lastSystemSource = "last_system_source"
     }
 }
 

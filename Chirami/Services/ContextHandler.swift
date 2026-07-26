@@ -5,22 +5,7 @@ import os
 /// A window controller that can provide the current editor context.
 @MainActor
 protocol EditorContextProvider: AnyObject {
-    func getEditorContext(options: ContextRequestOptions?, completion: @escaping (Result<String, Error>) -> Void)
-}
-
-enum TranscriptContextMode: String, Codable {
-    case full
-    case last
-    case seconds
-}
-
-struct ContextTranscriptOptions: Codable {
-    let mode: TranscriptContextMode
-    let value: Int?
-}
-
-struct ContextRequestOptions: Codable {
-    let transcript: ContextTranscriptOptions?
+    func getEditorContext(completion: @escaping (Result<String, Error>) -> Void)
 }
 
 struct EditorContextPosition: Codable {
@@ -34,52 +19,10 @@ struct EditorContextSelection: Codable {
     let to: EditorContextPosition
 }
 
-struct EditorTranscriptContext: Codable {
-    let text: String
-    let truncated: Bool
-    var dictionaryFile: String?
-    var lexiconTerms: [TranscriptLexiconTerm]?
-
-    enum CodingKeys: String, CodingKey {
-        case text
-        case truncated
-        case dictionaryFile = "dictionary_file"
-        case lexiconTerms = "lexicon_terms"
-    }
-}
-
 struct EditorContextPayload: Codable {
     let file: String
     let selection: EditorContextSelection
     let cursor: EditorContextPosition
-    var transcript: EditorTranscriptContext?
-}
-
-func enrichEditorContextJSON(
-    _ json: String,
-    options: ContextRequestOptions?,
-    transcriptConfig: TranscriptConfig,
-    configDirectory: URL
-) throws -> String {
-    guard options?.transcript != nil else {
-        return json
-    }
-
-    let data = Data(json.utf8)
-    var payload = try JSONDecoder().decode(EditorContextPayload.self, from: data)
-    guard payload.transcript != nil else {
-        return json
-    }
-
-    if let dictionaryURL = transcriptConfig.resolvedDictionaryFile(configDirectory: configDirectory) {
-        payload.transcript?.dictionaryFile = dictionaryURL.path
-        if let loaded = try? TranscriptLexicon.load(from: dictionaryURL) {
-            payload.transcript?.lexiconTerms = loaded.terms
-        }
-    }
-
-    let encoded = try JSONEncoder().encode(payload)
-    return String(decoding: encoded, as: UTF8.self)
 }
 
 /// Handles chirami://context URI requests.
@@ -105,26 +48,10 @@ final class ContextHandler {
             return
         }
 
-        let options = parseOptions(from: components.queryItems ?? [])
-
-        controller.getEditorContext(options: options) { [weak self] result in
+        controller.getEditorContext { [weak self] result in
             switch result {
             case .success(let json):
-                guard let self else {
-                    return
-                }
-                do {
-                    let enrichedJSON = try enrichEditorContextJSON(
-                        json,
-                        options: options,
-                        transcriptConfig: AppConfig.shared.transcriptConfig,
-                        configDirectory: AppConfig.shared.configDirectoryURL
-                    )
-                    self.writeToPipe(pipePath, message: "CONTEXT:\(enrichedJSON)\n")
-                } catch {
-                    self.logger.error("failed to enrich context JSON: \(error.localizedDescription, privacy: .public)")
-                    self.writeToPipe(pipePath, message: "CONTEXT:\(json)\n")
-                }
+                self?.writeToPipe(pipePath, message: "CONTEXT:\(json)\n")
             case .failure(let error):
                 self?.logger.error("getEditorContext failed: \(error.localizedDescription, privacy: .public)")
                 self?.writeToPipe(pipePath, message: "NO_FOCUS\n")
@@ -151,33 +78,5 @@ final class ContextHandler {
 
     private func isValidCallbackPipe(_ path: String) -> Bool {
         path.hasPrefix("/tmp/") || path.hasPrefix(NSTemporaryDirectory())
-    }
-
-    private func parseOptions(from queryItems: [URLQueryItem]) -> ContextRequestOptions? {
-        guard let modeValue = queryItems.first(where: { $0.name == "transcript_mode" })?.value,
-              let mode = TranscriptContextMode(rawValue: modeValue)
-        else {
-            return nil
-        }
-
-        let value = queryItems
-            .first(where: { $0.name == "transcript_value" })?
-            .value
-            .flatMap(Int.init)
-
-        switch mode {
-        case .full:
-            return ContextRequestOptions(
-                transcript: ContextTranscriptOptions(mode: .full, value: nil)
-            )
-        case .last, .seconds:
-            guard let value, value > 0 else {
-                logger.error("context URI missing valid transcript_value for mode=\(mode.rawValue, privacy: .public)")
-                return nil
-            }
-            return ContextRequestOptions(
-                transcript: ContextTranscriptOptions(mode: mode, value: value)
-            )
-        }
     }
 }
