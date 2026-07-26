@@ -2,6 +2,7 @@ import ServiceManagement
 import SwiftUI
 import Combine
 import os
+import Carbon.HIToolbox.Events
 
 @main
 struct ChiramiApp: App {
@@ -36,6 +37,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private let hotkeyService = GlobalHotkeyService()
     private let karabinerService = KarabinerService.shared
     private var cancellables = Set<AnyCancellable>()
+
+    override init() {
+        super.init()
+        PipeIO.configureProcessWideSignalHandling()
+        NSAppleEventManager.shared().setEventHandler(
+            self,
+            andSelector: #selector(handleGetURLEvent(_:withReplyEvent:)),
+            forEventClass: AEEventClass(kInternetEventClass),
+            andEventID: AEEventID(kAEGetURL)
+        )
+    }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Apply appearance mode from config
@@ -108,7 +120,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applyAppearance() {
-        switch AppConfig.shared.config.appearance ?? .auto {
+        switch AppConfig.shared.config.appearance?.mode ?? .auto {
         case .auto:
             NSApp.appearance = nil
         case .light:
@@ -120,30 +132,46 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func registerAllHotkeys() {
         hotkeyService.unregisterAll()
-        if let globalKey = AppConfig.shared.config.hotkey {
-            hotkeyService.register(id: "global:toggleAll", keyString: globalKey) { [weak self] in
+        let config = AppConfig.shared.config
+        for (index, binding) in (config.hotkeys ?? []).enumerated() {
+            guard binding.action == .toggle else {
+                logger.warning("unsupported global hotkey action: \(binding.action.rawValue, privacy: .public)")
+                continue
+            }
+            hotkeyService.register(id: "global:\(index)", keyString: binding.key) { [weak self] in
                 Task { @MainActor in
                     self?.windowManager.toggleAllWindows()
                 }
             }
         }
         for note in noteStore.notes {
-            guard let keyString = note.hotkey else { continue }
-            let noteId = note.id
-            hotkeyService.register(id: "note:\(noteId)", keyString: keyString) { [weak self] in
-                Task { @MainActor in
-                    self?.windowManager.toggleWindow(for: noteId)
+            for (index, binding) in note.hotkeys.enumerated() {
+                let noteId = note.id
+                hotkeyService.register(id: "note:\(noteId):\(index)", keyString: binding.key) { [weak self] in
+                    Task { @MainActor in
+                        switch binding.action {
+                        case .toggle:
+                            self?.windowManager.toggleWindow(for: noteId)
+                        case .create:
+                            self?.windowManager.createWindow(for: noteId)
+                        }
+                    }
                 }
             }
         }
         // Register profile hotkeys for Ad-hoc Notes
-        if let profiles = AppConfig.shared.config.adhoc?.profiles {
+        if let profiles = config.adhoc?.profiles {
             for (name, profile) in profiles {
-                guard let keyString = profile.hotkey else { continue }
-                let profileName = name
-                hotkeyService.register(id: "adhoc-profile:\(profileName)", keyString: keyString) {
-                    Task { @MainActor in
-                        DisplayWindowManager.shared.toggleProfile(profileName)
+                for (index, binding) in profile.hotkeys.enumerated() {
+                    guard binding.action == .toggle else {
+                        logger.warning("unsupported adhoc hotkey action for profile '\(name, privacy: .public)': \(binding.action.rawValue, privacy: .public)")
+                        continue
+                    }
+                    let profileName = name
+                    hotkeyService.register(id: "adhoc-profile:\(profileName):\(index)", keyString: binding.key) {
+                        Task { @MainActor in
+                            DisplayWindowManager.shared.toggleProfile(profileName)
+                        }
                     }
                 }
             }
@@ -152,6 +180,20 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func application(_ application: NSApplication, open urls: [URL]) {
         logger.debug("application(_:open:) called with \(urls.count, privacy: .public) URL(s)")
+        routeIncomingURLs(urls)
+    }
+
+    @objc private func handleGetURLEvent(_ event: NSAppleEventDescriptor, withReplyEvent _: NSAppleEventDescriptor) {
+        guard let urlString = event.paramDescriptor(forKeyword: AEKeyword(keyDirectObject))?.stringValue,
+              let url = URL(string: urlString) else {
+            logger.error("Failed to decode kAEGetURL Apple Event")
+            return
+        }
+        logger.debug("handleGetURLEvent received URL: \(url.absoluteString, privacy: .public)")
+        routeIncomingURLs([url])
+    }
+
+    private func routeIncomingURLs(_ urls: [URL]) {
         for url in urls {
             logger.debug("URL: \(url.absoluteString, privacy: .public)")
             guard url.scheme == "chirami" else { continue }

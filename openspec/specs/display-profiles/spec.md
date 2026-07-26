@@ -2,7 +2,7 @@
 
 ### Requirement: Profile definition in config.yaml
 
-config.yaml の `adhoc.profiles` セクションで Ad-hoc Note の名前付き設定プリセット（profile）を定義できる。各 profile は title, color, transparency, fontSize, position, hotkey を持つ。すべてのフィールドはオプショナルで、未指定時はハードコードデフォルトで解決される。
+config.yaml の `adhoc.profiles` セクションで Ad-hoc Note の名前付き設定プリセット（profile）を定義できる。各 profile は title, color, transparency, fontSize, position, hotkeys を持つ。すべてのフィールドはオプショナルで、未指定時はハードコードデフォルトで解決される。
 
 #### Scenario: Profile with all fields specified
 
@@ -16,7 +16,9 @@ config.yaml の `adhoc.profiles` セクションで Ad-hoc Note の名前付き�
         transparency: 0.85
         font_size: 13
         position: cursor
-        hotkey: cmd+shift+n
+        hotkeys:
+          - key: cmd+shift+n
+            action: toggle
   ```
 - **THEN** `notify` profile の全設定が定義通りに解決される
 
@@ -124,23 +126,23 @@ config.yaml の `adhoc.profiles` セクションで Ad-hoc Note の名前付き�
 - **WHEN** id `s1` の Ad-hoc Note が表示中に `chirami display --id s1 --wait "New content"` を実行
 - **THEN** 既存ウィンドウが差し替えられ、新しい Ad-hoc Note がユーザーに閉じられるまで CLI がブロックする。差し替えで閉じられた旧ウィンドウは FIFO への通知を行わない
 
-### Requirement: Profile hotkey toggles all Ad-hoc Notes
+### Requirement: Profile hotkeys toggle all Ad-hoc Notes
 
-profile に hotkey が設定されている場合、そのホットキーで profile に属する全 Ad-hoc Note の表示/非表示を一括トグルする。
+profile に `hotkeys` が設定されている場合、その `toggle` hotkey で profile に属する全 Ad-hoc Note の表示/非表示を一括トグルする。
 
 #### Scenario: Toggle profile windows
 
-- **WHEN** `notify` profile に hotkey `cmd+shift+n` が設定されており、notify profile で 2 つの Ad-hoc Note が表示中
+- **WHEN** `notify` profile に `hotkeys: [{ key: cmd+shift+n, action: toggle }]` が設定されており、notify profile で 2 つの Ad-hoc Note が表示中
 - **THEN** `cmd+shift+n` を押すと 2 つのウィンドウが同時に非表示になり、再度押すと同時に表示される
 
 #### Scenario: No Ad-hoc Notes for profile
 
-- **WHEN** `notify` profile に hotkey が設定されているが、notify profile の Ad-hoc Note が 1 つも存在しない
+- **WHEN** `notify` profile に `toggle` hotkey が設定されているが、notify profile の Ad-hoc Note が 1 つも存在しない
 - **THEN** ホットキーを押しても何も起きない
 
 #### Scenario: Toggle with mixed visibility
 
-- **WHEN** `notify` profile で 3 つの Ad-hoc Note が存在し、2 つが表示中・1 つが非表示の状態で hotkey を押す
+- **WHEN** `notify` profile で 3 つの Ad-hoc Note が存在し、2 つが表示中・1 つが非表示の状態で `toggle` hotkey を押す
 - **THEN** 全ウィンドウが非表示になる（一部でも表示中なら全非表示にする。全非表示の場合のみ全表示にする）
 
 ### Requirement: Window state persistence for id-based Ad-hoc Notes

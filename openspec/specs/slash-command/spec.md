@@ -62,6 +62,15 @@
 - **WHEN** ユーザーがコマンドピッカーで `/tldraw` を選択する
 - **THEN** `\`\`\`tldraw\n\`\`\`` ブロックが挿入され、直ちに tldraw オーバーレイエディタが開く
 
+### Requirement: Excalidraw ブロックの挿入とオーバーレイ起動
+
+`/excalidraw` コマンドを選択すると、Excalidraw コードブロックを挿入してすぐにオーバーレイエディタを開かなければならない（SHALL）。
+
+#### Scenario: Excalidraw コマンドの実行
+
+- **WHEN** ユーザーがコマンドピッカーで `/excalidraw` を選択する
+- **THEN** `\`\`\`excalidraw\n\`\`\`` ブロックが挿入され、直ちに Excalidraw オーバーレイエディタが開く
+
 ### Requirement: mermaid ブロックの挿入
 
 `/mermaid` コマンドを選択すると、mermaid コードブロックを挿入してカーソルをブロック内に配置しなければならない（SHALL）。

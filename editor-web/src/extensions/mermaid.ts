@@ -1,48 +1,281 @@
 import { syntaxTree } from "@codemirror/language";
-import { Range } from "@codemirror/state";
+import { EditorState, Range } from "@codemirror/state";
 import {
   Decoration,
   DecorationSet,
   EditorView,
-  ViewPlugin,
-  ViewUpdate,
   WidgetType,
 } from "@codemirror/view";
 import mermaid from "mermaid";
-import { cursorLineNumber, nodeContainsCursorLine, shouldRebuild } from "./utils";
+import { CodeBlockSizeOptions, applySizeOptions, cursorLineFromState, makeDecorationField, parseCodeBlockInfo, sizeOptionsEq } from "./utils";
 
+// ---------------------------------------------------------------------------
+// Theme handling
+//
+// Mermaid bakes colors into the rendered SVG, so it cannot follow the note
+// theme via CSS alone. Instead we resolve the actual --chirami-* custom
+// property values (computed through a probe element so color-mix() etc. are
+// flattened to concrete colors), feed them to mermaid's "base" theme as
+// themeVariables, and re-render live diagrams whenever the theme changes
+// (OS light/dark switch or per-note data-chirami-theme attribute).
+// ---------------------------------------------------------------------------
+
+interface RGBA {
+  r: number;
+  g: number;
+  b: number;
+  a: number;
+}
+
+/** Parses computed color strings: "rgb(...)", "rgba(...)", "color(srgb ...)". */
+function parseColor(value: string): RGBA | null {
+  const rgbMatch = value.match(/^rgba?\((.+)\)$/);
+  if (rgbMatch) {
+    const parts = rgbMatch[1].split(/[,\s/]+/).filter((p) => p.length > 0);
+    if (parts.length < 3) return null;
+    const nums = parts.map((p) =>
+      p.endsWith("%") ? (parseFloat(p) / 100) * 255 : parseFloat(p),
+    );
+    if (nums.some((n) => Number.isNaN(n))) return null;
+    const a = parts.length >= 4
+      ? (parts[3].endsWith("%") ? parseFloat(parts[3]) / 100 : parseFloat(parts[3]))
+      : 1;
+    return { r: nums[0], g: nums[1], b: nums[2], a };
+  }
+  const srgbMatch = value.match(
+    /^color\(srgb\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)(?:\s*\/\s*([\d.]+%?))?\)$/,
+  );
+  if (srgbMatch) {
+    const a = srgbMatch[4] === undefined
+      ? 1
+      : srgbMatch[4].endsWith("%")
+        ? parseFloat(srgbMatch[4]) / 100
+        : parseFloat(srgbMatch[4]);
+    return {
+      r: parseFloat(srgbMatch[1]) * 255,
+      g: parseFloat(srgbMatch[2]) * 255,
+      b: parseFloat(srgbMatch[3]) * 255,
+      a,
+    };
+  }
+  return null;
+}
+
+/** Composites a possibly translucent color over an opaque background. */
+function flattenOver(color: RGBA, background: RGBA): RGBA {
+  if (color.a >= 1) return color;
+  const blend = (c: number, b: number) => c * color.a + b * (1 - color.a);
+  return {
+    r: blend(color.r, background.r),
+    g: blend(color.g, background.g),
+    b: blend(color.b, background.b),
+    a: 1,
+  };
+}
+
+function toHex(color: RGBA): string {
+  const channel = (n: number) =>
+    Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, "0");
+  return `#${channel(color.r)}${channel(color.g)}${channel(color.b)}`;
+}
+
+function relativeLuminance(color: RGBA): number {
+  return (0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b) / 255;
+}
+
+interface ResolvedTheme {
+  isDark: boolean;
+  bg: string;
+  text: string;
+  accent: string;
+  muted: string;
+  surface: string;
+  surfaceStrong: string;
+  fontFamily: string;
+}
+
+/**
+ * Resolves the note theme colors from CSS custom properties.
+ * Uses a probe element so that color-mix() / var() chains are computed
+ * to concrete color values by the engine.
+ */
+function resolveTheme(): ResolvedTheme | null {
+  if (typeof document === "undefined" || !document.body) return null;
+
+  const probe = document.createElement("div");
+  probe.style.display = "none";
+  document.body.appendChild(probe);
+  try {
+    const resolve = (varName: string): RGBA | null => {
+      probe.style.color = `var(${varName})`;
+      return parseColor(getComputedStyle(probe).color);
+    };
+
+    const bg = resolve("--chirami-bg");
+    const text = resolve("--chirami-text");
+    if (!bg || !text) return null;
+    const accent = resolve("--chirami-accent") ?? text;
+    const muted = resolve("--chirami-muted") ?? text;
+    const surface = resolve("--chirami-surface") ?? bg;
+    const surfaceStrong = resolve("--chirami-surface-strong") ?? surface;
+
+    probe.style.fontFamily = "var(--chirami-font)";
+    const fontFamily = getComputedStyle(probe).fontFamily || "sans-serif";
+
+    const opaqueBg = flattenOver(bg, { r: 255, g: 255, b: 255, a: 1 });
+    return {
+      isDark: relativeLuminance(opaqueBg) < 0.5,
+      bg: toHex(opaqueBg),
+      text: toHex(flattenOver(text, opaqueBg)),
+      accent: toHex(flattenOver(accent, opaqueBg)),
+      muted: toHex(flattenOver(muted, opaqueBg)),
+      surface: toHex(flattenOver(surface, opaqueBg)),
+      surfaceStrong: toHex(flattenOver(surfaceStrong, opaqueBg)),
+      fontFamily,
+    };
+  } finally {
+    probe.remove();
+  }
+}
+
+let appliedThemeKey = "";
+
+/** Re-initializes mermaid when the resolved note theme has changed. */
+function syncMermaidTheme(): boolean {
+  const theme = resolveTheme();
+  if (!theme) return false;
+  const key = JSON.stringify(theme);
+  if (key === appliedThemeKey) return false;
+  appliedThemeKey = key;
+
+  mermaid.initialize({
+    startOnLoad: false,
+    theme: "base",
+    themeVariables: {
+      darkMode: theme.isDark,
+      background: theme.bg,
+      fontFamily: theme.fontFamily,
+      // Nodes
+      primaryColor: theme.surface,
+      primaryTextColor: theme.text,
+      primaryBorderColor: theme.muted,
+      secondaryColor: theme.surfaceStrong,
+      secondaryTextColor: theme.text,
+      tertiaryColor: theme.bg,
+      tertiaryTextColor: theme.text,
+      // Text and lines
+      textColor: theme.text,
+      lineColor: theme.muted,
+      // Edge labels / notes / clusters
+      edgeLabelBackground: theme.bg,
+      noteBkgColor: theme.surfaceStrong,
+      noteTextColor: theme.text,
+      noteBorderColor: theme.muted,
+      clusterBkg: theme.surfaceStrong,
+      clusterBorder: theme.muted,
+      titleColor: theme.accent,
+    },
+  });
+  return true;
+}
+
+// Initial configuration (overridden by syncMermaidTheme before each render).
 mermaid.initialize({ startOnLoad: false, theme: "neutral" });
 
-const mermaidHideMark = Decoration.mark({ class: "cm-mermaid-raw" });
+/** Live diagram containers, re-rendered when the theme changes. */
+const liveDiagrams = new Map<HTMLElement, { code: string; view: EditorView }>();
+
+function renderDiagram(container: HTMLElement, code: string, view: EditorView): void {
+  syncMermaidTheme();
+  // mermaid.render() requires a unique id for internal element creation
+  const id = `mermaid-widget-${crypto.randomUUID()}`;
+  mermaid
+    .render(id, code)
+    .then(({ svg }) => {
+      if (container.isConnected || liveDiagrams.has(container)) {
+        container.innerHTML = svg;
+        view.requestMeasure();
+      }
+    })
+    .catch((err: Error) => {
+      if (container.isConnected || liveDiagrams.has(container)) {
+        container.textContent = err.message;
+        container.className = "cm-mermaid-error";
+        view.requestMeasure();
+      }
+    });
+}
+
+function rerenderLiveDiagrams(): void {
+  if (!syncMermaidTheme()) return;
+  for (const [container, { code, view }] of liveDiagrams) {
+    renderDiagram(container, code, view);
+  }
+}
+
+if (typeof document !== "undefined" && typeof window !== "undefined") {
+  // OS light/dark appearance switch
+  window
+    .matchMedia("(prefers-color-scheme: dark)")
+    .addEventListener("change", rerenderLiveDiagrams);
+  // Per-note theme injected from Swift (data-chirami-theme on <html>)
+  new MutationObserver(rerenderLiveDiagrams).observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ["data-chirami-theme"],
+  });
+}
 
 class MermaidWidget extends WidgetType {
-  constructor(private code: string) {
+  constructor(
+    private code: string,
+    private readonly blockFrom: number,
+    private readonly sizeOptions: CodeBlockSizeOptions = {},
+  ) {
     super();
   }
 
   eq(other: MermaidWidget): boolean {
-    return other.code === this.code;
+    // blockFrom is compared so the widget is rebuilt when the block moves;
+    // otherwise the source-edit button would dispatch to a stale position.
+    return (
+      other.code === this.code &&
+      other.blockFrom === this.blockFrom &&
+      sizeOptionsEq(other.sizeOptions, this.sizeOptions)
+    );
   }
 
-  toDOM(): HTMLElement {
+  toDOM(view: EditorView): HTMLElement {
+    // Two layers: the outer wrap anchors the hover button; the inner container
+    // owns overflow and holds the rendered SVG (re-rendered on theme changes).
+    const wrap = document.createElement("div");
+    wrap.className = "cm-mermaid-widget";
+
     const container = document.createElement("div");
     container.className = "cm-mermaid-container";
+    applySizeOptions(container, this.sizeOptions);
+    wrap.appendChild(container);
 
-    // mermaid.render() requires a unique id for internal element creation
-    const id = `mermaid-widget-${crypto.randomUUID()}`;
-    mermaid
-      .render(id, this.code)
-      .then(({ svg }) => {
-        if (container.isConnected) container.innerHTML = svg;
-      })
-      .catch((err: Error) => {
-        if (container.isConnected) {
-          container.textContent = err.message;
-          container.className = "cm-mermaid-error";
-        }
-      });
+    const sourceBtn = document.createElement("button");
+    sourceBtn.className = "cm-source-edit-btn";
+    sourceBtn.textContent = "</>";
+    sourceBtn.title = "Edit as Markdown";
+    sourceBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      // Move the cursor into the block so it reverts to raw Markdown.
+      view.dispatch({ selection: { anchor: this.blockFrom } });
+      view.focus();
+    });
+    wrap.appendChild(sourceBtn);
 
-    return container;
+    liveDiagrams.set(container, { code: this.code, view });
+    renderDiagram(container, this.code, view);
+
+    return wrap;
+  }
+
+  destroy(dom: HTMLElement): void {
+    const container = dom.querySelector(".cm-mermaid-container");
+    if (container instanceof HTMLElement) liveDiagrams.delete(container);
   }
 
   ignoreEvent(): boolean {
@@ -50,67 +283,41 @@ class MermaidWidget extends WidgetType {
   }
 }
 
-class MermaidPlugin {
-  decorations: DecorationSet;
+function buildMermaidDecorations(state: EditorState): DecorationSet {
+  const cursorLine = cursorLineFromState(state);
+  const decorations: Range<Decoration>[] = [];
 
-  constructor(view: EditorView) {
-    this.decorations = this.build(view);
-  }
+  syntaxTree(state).iterate({
+    enter: (node) => {
+      if (node.name !== "FencedCode") return;
 
-  update(update: ViewUpdate) {
-    if (shouldRebuild(update)) {
-      this.decorations = this.build(update.view);
-    }
-  }
+      const codeInfoNode = node.node.getChild("CodeInfo");
+      if (!codeInfoNode) return false;
+      const { lang, options: sizeOptions } = parseCodeBlockInfo(
+        state.sliceDoc(codeInfoNode.from, codeInfoNode.to)
+      );
+      if (lang !== "mermaid") return false;
 
-  private build(view: EditorView): DecorationSet {
-    const cursorLine = cursorLineNumber(view);
-    const decorations: Range<Decoration>[] = [];
+      const startLine = state.doc.lineAt(node.from);
+      const endLine = state.doc.lineAt(node.to);
+      if (cursorLine >= startLine.number && cursorLine <= endLine.number) return false;
 
-    for (const { from, to } of view.visibleRanges) {
-      syntaxTree(view.state).iterate({
-        from,
-        to,
-        enter: (node) => {
-          if (node.name !== "FencedCode") return;
+      const codeTextNode = node.node.getChild("CodeText");
+      const code = codeTextNode
+        ? state.sliceDoc(codeTextNode.from, codeTextNode.to).trim()
+        : "";
 
-          const codeInfoNode = node.node.getChild("CodeInfo");
-          if (!codeInfoNode) return false;
-          const lang = view.state
-            .sliceDoc(codeInfoNode.from, codeInfoNode.to)
-            .trim()
-            .toLowerCase();
-          if (lang !== "mermaid") return false;
+      decorations.push(
+        Decoration.replace({
+          widget: new MermaidWidget(code, startLine.from, sizeOptions),
+        }).range(startLine.from, endLine.to),
+      );
 
-          if (nodeContainsCursorLine(view, node.from, node.to, cursorLine)) return false;
+      return false;
+    },
+  });
 
-          const startLine = view.state.doc.lineAt(node.from);
-          const endLine = view.state.doc.lineAt(node.to);
-
-          const codeTextNode = node.node.getChild("CodeText");
-          const code = codeTextNode
-            ? view.state.sliceDoc(codeTextNode.from, codeTextNode.to).trim()
-            : "";
-
-          decorations.push(
-            Decoration.widget({
-              widget: new MermaidWidget(code),
-              side: -1,
-            }).range(startLine.from),
-          );
-          decorations.push(mermaidHideMark.range(startLine.from, endLine.to));
-
-          return false;
-        },
-      });
-    }
-
-    return decorations.length > 0
-      ? Decoration.set(decorations, true)
-      : Decoration.none;
-  }
+  return decorations.length > 0 ? Decoration.set(decorations) : Decoration.none;
 }
 
-export const mermaidExtension = ViewPlugin.fromClass(MermaidPlugin, {
-  decorations: (v) => v.decorations,
-});
+export const mermaidExtension = makeDecorationField(buildMermaidDecorations);

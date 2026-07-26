@@ -1,0 +1,180 @@
+/* chirami-default.css — built-in theme definitions for Chirami
+ *
+ * Defines the public --chirami-* CSS variables for light and dark modes.
+ * The default (no theme attribute) is the yellow theme.
+ * Per-note themes are applied via [data-chirami-theme="<name>"].
+ *
+ * Public API variables:
+ *   --chirami-bg              Note background color
+ *   --chirami-text            Primary text color
+ *   --chirami-accent          Interactive / emphasis color
+ *   --chirami-link            Hyperlink text color
+ *   --chirami-muted           Secondary text color
+ *   --chirami-border          Standard border color
+ *   --chirami-surface         Embedded widget surface
+ *   --chirami-surface-strong  Stronger embedded surface
+ *   --chirami-surface-raised  Raised controls / popovers
+ *   --chirami-code            Inline code text color
+ *   --chirami-code-bg         Inline code background color
+ *   --chirami-selection       Text selection color
+ *   --chirami-danger          Danger / destructive color
+ *   --chirami-warning         Warning color
+ *   --chirami-overlay         Modal overlay color
+ *   --chirami-font            Font family
+ *   --chirami-font-size       Font size
+ */
+
+/* Default theme: yellow */
+:root {
+  --chirami-bg: rgb(255, 245, 184);
+  --chirami-text: rgb(115, 97, 26);
+  --chirami-accent: rgb(140, 94, 26);
+  --chirami-link: rgb(36, 98, 191);
+  --chirami-code: rgb(51, 184, 71);
+  --chirami-muted: color-mix(in srgb, var(--chirami-text) 74%, var(--chirami-bg) 26%);
+  --chirami-border: color-mix(in srgb, var(--chirami-text) 16%, transparent);
+  --chirami-surface: color-mix(in srgb, var(--chirami-bg) 96%, white 4%);
+  --chirami-surface-strong: color-mix(in srgb, var(--chirami-bg) 91%, var(--chirami-text) 9%);
+  --chirami-surface-raised: color-mix(in srgb, var(--chirami-bg) 98%, white 2%);
+  --chirami-code-bg: color-mix(in srgb, var(--chirami-text) 8%, transparent);
+  --chirami-selection: color-mix(in srgb, var(--chirami-accent) 28%, white 12%);
+  --chirami-danger: color-mix(in srgb, #d92d20 78%, var(--chirami-text) 22%);
+  --chirami-warning: color-mix(in srgb, #d28b00 84%, var(--chirami-text) 16%);
+  --chirami-overlay: rgba(0, 0, 0, 0.28);
+  --chirami-font: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+  --chirami-font-size: 14px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --chirami-bg: rgb(77, 71, 38);
+    --chirami-text: rgb(235, 224, 166);
+    --chirami-accent: rgb(242, 204, 115);
+    --chirami-link: rgb(133, 184, 255);
+    --chirami-code: rgb(56, 181, 77);
+    --chirami-muted: color-mix(in srgb, var(--chirami-text) 82%, var(--chirami-bg) 18%);
+    --chirami-border: color-mix(in srgb, var(--chirami-text) 24%, transparent);
+    --chirami-surface: color-mix(in srgb, var(--chirami-bg) 80%, var(--chirami-text) 20%);
+    --chirami-surface-strong: color-mix(in srgb, var(--chirami-bg) 72%, var(--chirami-text) 28%);
+    --chirami-surface-raised: color-mix(in srgb, var(--chirami-bg) 64%, var(--chirami-text) 36%);
+    --chirami-code-bg: color-mix(in srgb, var(--chirami-text) 12%, transparent);
+    --chirami-selection: color-mix(in srgb, var(--chirami-accent) 42%, black 12%);
+    --chirami-danger: color-mix(in srgb, #ff6b5e 72%, var(--chirami-text) 28%);
+    --chirami-warning: color-mix(in srgb, #ffd85c 84%, var(--chirami-text) 16%);
+    --chirami-overlay: rgba(0, 0, 0, 0.4);
+  }
+}
+
+/* yellow */
+[data-chirami-theme="yellow"] {
+  --chirami-bg: rgb(255, 245, 184);
+  --chirami-text: rgb(115, 97, 26);
+  --chirami-accent: rgb(140, 94, 26);
+  --chirami-link: rgb(36, 98, 191);
+  --chirami-code: rgb(51, 184, 71);
+}
+
+@media (prefers-color-scheme: dark) {
+  [data-chirami-theme="yellow"] {
+    --chirami-bg: rgb(77, 71, 38);
+    --chirami-text: rgb(235, 224, 166);
+    --chirami-accent: rgb(242, 204, 115);
+    --chirami-link: rgb(133, 184, 255);
+    --chirami-code: rgb(56, 181, 77);
+  }
+}
+
+/* blue */
+[data-chirami-theme="blue"] {
+  --chirami-bg: rgb(184, 224, 255);
+  --chirami-text: rgb(31, 64, 115);
+  --chirami-accent: rgb(33, 56, 140);
+  --chirami-link: rgb(0, 85, 212);
+  --chirami-code: rgb(26, 115, 204);
+}
+
+@media (prefers-color-scheme: dark) {
+  [data-chirami-theme="blue"] {
+    --chirami-bg: rgb(38, 56, 77);
+    --chirami-text: rgb(179, 209, 242);
+    --chirami-accent: rgb(153, 204, 255);
+    --chirami-link: rgb(110, 178, 255);
+    --chirami-code: rgb(77, 191, 242);
+  }
+}
+
+/* green */
+[data-chirami-theme="green"] {
+  --chirami-bg: rgb(194, 245, 194);
+  --chirami-text: rgb(38, 89, 38);
+  --chirami-accent: rgb(20, 89, 79);
+  --chirami-link: rgb(21, 94, 186);
+  --chirami-code: rgb(26, 133, 64);
+}
+
+@media (prefers-color-scheme: dark) {
+  [data-chirami-theme="green"] {
+    --chirami-bg: rgb(38, 71, 38);
+    --chirami-text: rgb(179, 235, 179);
+    --chirami-accent: rgb(115, 217, 194);
+    --chirami-link: rgb(126, 183, 255);
+    --chirami-code: rgb(89, 224, 140);
+  }
+}
+
+/* pink */
+[data-chirami-theme="pink"] {
+  --chirami-bg: rgb(255, 194, 214);
+  --chirami-text: rgb(128, 38, 56);
+  --chirami-accent: rgb(153, 38, 74);
+  --chirami-link: rgb(34, 84, 184);
+  --chirami-code: rgb(204, 38, 89);
+}
+
+@media (prefers-color-scheme: dark) {
+  [data-chirami-theme="pink"] {
+    --chirami-bg: rgb(77, 46, 56);
+    --chirami-text: rgb(242, 184, 199);
+    --chirami-accent: rgb(255, 153, 176);
+    --chirami-link: rgb(140, 186, 255);
+    --chirami-code: rgb(250, 140, 179);
+  }
+}
+
+/* purple */
+[data-chirami-theme="purple"] {
+  --chirami-bg: rgb(224, 194, 255);
+  --chirami-text: rgb(77, 38, 115);
+  --chirami-accent: rgb(94, 38, 140);
+  --chirami-link: rgb(41, 76, 204);
+  --chirami-code: rgb(115, 38, 191);
+}
+
+@media (prefers-color-scheme: dark) {
+  [data-chirami-theme="purple"] {
+    --chirami-bg: rgb(56, 46, 77);
+    --chirami-text: rgb(217, 191, 242);
+    --chirami-accent: rgb(199, 163, 255);
+    --chirami-link: rgb(150, 180, 255);
+    --chirami-code: rgb(184, 140, 250);
+  }
+}
+
+/* gray */
+[data-chirami-theme="gray"] {
+  --chirami-bg: rgb(224, 224, 224);
+  --chirami-text: rgb(64, 64, 64);
+  --chirami-accent: rgb(56, 66, 89);
+  --chirami-link: rgb(25, 92, 184);
+  --chirami-code: rgb(51, 102, 140);
+}
+
+@media (prefers-color-scheme: dark) {
+  [data-chirami-theme="gray"] {
+    --chirami-bg: rgb(64, 64, 64);
+    --chirami-text: rgb(209, 209, 209);
+    --chirami-accent: rgb(171, 186, 209);
+    --chirami-link: rgb(122, 170, 255);
+    --chirami-code: rgb(140, 191, 217);
+  }
+}

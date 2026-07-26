@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+#MISE description="Start VitePress docs dev server (http://localhost:5173)"
+set -euo pipefail
+
+cd "$(git rev-parse --show-toplevel)/docs"
+
+if [ ! -d node_modules ]; then
+  npm install
+fi
+
+npm run docs:dev

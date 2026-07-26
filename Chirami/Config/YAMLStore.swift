@@ -22,6 +22,11 @@ class YAMLStore<T: Codable>: ObservableObject {
     private var reloadWorkItem: DispatchWorkItem?
     private var isWriting = false
 
+    /// True when the on-disk file exists but could not be decoded.
+    /// While set, `save()` is refused so the (possibly user-edited) file
+    /// is never silently overwritten with in-memory defaults.
+    private(set) var loadFailed = false
+
     init(directory: URL, fileName: String, label: String, defaultValue: T, watchForChanges: Bool = false) {
         self.fileURL = directory.appendingPathComponent(fileName)
         self.label = label
@@ -47,18 +52,31 @@ class YAMLStore<T: Codable>: ObservableObject {
     }
 
     func load() {
+        guard FileManager.default.fileExists(atPath: fileURL.path) else {
+            // Missing file is a fresh start, not a failure
+            loadFailed = false
+            return
+        }
         guard let raw = try? Data(contentsOf: fileURL),
               let yaml = String(data: raw, encoding: .utf8) else {
+            loadFailed = true
+            logger.error("\(self.label, privacy: .public) load error: file could not be read as UTF-8 text: \(self.fileURL.path, privacy: .public)")
             return
         }
         do {
             data = try YAMLDecoder().decode(T.self, from: yaml)
+            loadFailed = false
         } catch {
+            loadFailed = true
             logger.error("\(self.label, privacy: .public) load error: \(error, privacy: .public)")
         }
     }
 
     func save() {
+        guard !loadFailed else {
+            logger.error("\(self.label, privacy: .public) save refused: last load failed, refusing to overwrite \(self.fileURL.path, privacy: .public) with in-memory defaults")
+            return
+        }
         isWriting = true
         do {
             let yaml = try YAMLEncoder().encode(data)

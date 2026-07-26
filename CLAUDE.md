@@ -95,26 +95,49 @@ Live Preview is implemented with WKWebView + CodeMirror 6.
 | CodeMirror 6 | Live Preview editor engine |
 | mermaid | Mermaid diagram rendering |
 | turndown | HTML → Markdown conversion (Smart Paste) |
+| @excalidraw/excalidraw | Excalidraw diagram editor |
+
+> 各ブロック機能のユーザー向け挙動・config の詳細は `docs/` を正とする。ここには docs に無い開発固有情報（データ保存方式・ブリッジ機構・関連ファイル）だけを置く。
+
+### Excalidraw Block
+
+` ```excalidraw ` コードブロックで Excalidraw ダイアグラムを埋め込む。挙動・ライブラリ設定は [docs/features.md](docs/features.md) / [docs/configuration.md](docs/configuration.md#excalidraw) を参照。
+
+- ダイアグラムデータ（JSON）はコードブロック内にインライン保存（`.md` は plain text のまま）
+- ユーザー保存のライブラリアイテムは `~/.local/state/chirami/plugins/excalidraw.json` に永続化（`PluginStateStore` 経由）
+- プラグイン状態ブリッジ: ライブラリ状態は `pluginStateRequest` / `pluginStateChanged` で JS ↔ Swift 交換。`requestPluginState("excalidraw")` のレスポンスは `{ userItems: LibraryItem[], externalItems: LibraryItem[] }` 形式
+
+関連ファイル:
+
+- `editor-web/src/excalidraw-overlay.tsx` — React オーバーレイコンポーネント
+- `editor-web/src/extensions/excalidraw.ts` — CodeMirror プラグイン（プレビュー・ウィジェット）
+- `editor-web/src/extensions/excalidrawShared.ts` — 共有型・パース関数
+- `Chirami/Config/ExcalidrawLibraryStore.swift` — 外部ライブラリの読み込みとユーザーアイテムとのマージ
+
+### Wiki Links
+
+`[[Page]]` / `[[Page|Alias]]` / `[[Page#Heading]]` 形式の Obsidian 風リンク。挙動・設定（open コマンド、トークン、vault、ノート単位上書き）は [docs/configuration.md](docs/configuration.md#wiki-links) を参照。
+
+- クリック / `Cmd+Enter` で `openWikiLink` を Swift へ送る。パス解決とアプリ起動は `WikiLinkResolver`（ファイルシステムを見られる Swift 側。JS では不可）が担う
+- 第一段はファイル単位の解決（`#heading` / `^block` の行ジャンプ・`![[embed]]` は非対応）
+
+関連ファイル:
+
+- `editor-web/src/extensions/wikilink.ts` — WikiLink lezer パーサー・ターゲット抽出
+- `editor-web/src/extensions/livePreview.ts` / `inlineMarkdown.ts` — レンダリング
+- `Chirami/Services/WikiLinkResolver.swift` — パス解決・コマンド実行
+- `Chirami/Config/ConfigModels.swift` — `WikiLinkConfig` / `CommandTemplate`
 
 ## Logging Rules
-
-- `NSLog` / `print` are prohibited. Always use `os.Logger`
-- subsystem: `"io.github.uphy.Chirami"` (consistent across all loggers)
-- category: match to the class or file name
-- Dynamic values (paths, errors, URLs): specify `privacy: .public`
-
-### Logger Definition
-
-- Define as an instance property or `static let` (for enums) within the class
 
 ### Log Level Guidelines
 
 | Situation | Level |
 |-----------|-------|
-| Debug info (URL received, process started, etc.) | `.debug` |
-| Successful completion (N items deleted, save succeeded) | `.info` |
-| Misconfiguration or missing resource | `.warning` |
-| Processing failure or error | `.error` |
+| Debug info (URL received, process started, etc.) | `debug` |
+| Successful completion (N items deleted, save succeeded) | `info` |
+| Misconfiguration or missing resource | `warn` / `.warning` |
+| Processing failure or error | `error` |
 
 ### Viewing Logs
 

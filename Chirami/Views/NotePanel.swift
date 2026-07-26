@@ -24,6 +24,11 @@ class NotePanel: NSPanel {
     private let logger = Logger(subsystem: "io.github.uphy.Chirami", category: "NotePanel")
 
     var onHideRequest: (() -> Void)?
+    var onTogglePin: (() -> Void)?
+
+    private var pinAction: (() -> Void)?
+
+    @objc private func pinButtonTapped() { pinAction?() }
 
     override var title: String {
         didSet { customTitleLabel?.stringValue = title }
@@ -39,6 +44,18 @@ class NotePanel: NSPanel {
         }
     }
 
+    func applyConfiguredAppearance() {
+        let appearance = configuredAppearance()
+        self.appearance = appearance
+        fullWidthTitlebarView()?.appearance = appearance
+        customTitleLabel?.appearance = appearance
+        [prevButton, nextButton, todayButton, pinButton].forEach { $0?.appearance = appearance }
+        contentView?.superview?.appearance = appearance
+        contentView?.needsDisplay = true
+        invalidateShadow()
+        displayIfNeeded()
+    }
+
     /// Hide the system title and add a custom centered label in the titlebar.
     func centerTitle() {
         titleVisibility = .hidden
@@ -46,12 +63,7 @@ class NotePanel: NSPanel {
         guard let closeButton = standardWindowButton(.closeButton) else { return }
         logTitlebarHierarchyIfNeeded(closeButton: closeButton)
 
-        // Walk up from the close button to find the full-width titlebar view
-        var fullWidthView: NSView = closeButton
-        while let parent = fullWidthView.superview {
-            fullWidthView = parent
-            if parent.frame.width >= frame.width - 1 { break }
-        }
+        guard let fullWidthView = fullWidthTitlebarView(startingAt: closeButton) else { return }
 
         let label = NSTextField(labelWithString: title)
         label.alignment = .center
@@ -70,26 +82,26 @@ class NotePanel: NSPanel {
         customTitleLabel = label
     }
 
-    /// Set up navigation buttons (◀ ▶ ●) in the titlebar for periodic notes.
+    /// Set up navigation buttons (◀ ▶ ●) in the titlebar for periodic/stream notes.
+    /// - Parameter isStream: when true, the "jump to current" button is labeled
+    ///   "Latest" instead of "Today" (stream-note-mode design: the Today button
+    ///   becomes Latest for stream-mode notes).
     func setupNavigationButtons(
         target: AnyObject,
         prevAction: Selector,
         nextAction: Selector,
-        todayAction: Selector
+        todayAction: Selector,
+        isStream: Bool = false
     ) {
         guard let closeButton = standardWindowButton(.closeButton) else { return }
 
-        // Walk up to full-width titlebar view
-        var fullWidthView: NSView = closeButton
-        while let parent = fullWidthView.superview {
-            fullWidthView = parent
-            if parent.frame.width >= frame.width - 1 { break }
-        }
+        guard let fullWidthView = fullWidthTitlebarView(startingAt: closeButton) else { return }
 
         let prev = makeNavButton(symbolName: "chevron.left", action: prevAction, target: target)
         let next = makeNavButton(symbolName: "chevron.right", action: nextAction, target: target)
         let latest = makeNavButton(symbolName: "forward.end.fill", action: todayAction, target: target)
         latest.isHidden = true // hidden when showing latest
+        latest.toolTip = isStream ? "Latest" : "Today"
 
         for button in [prev, next, latest] {
             fullWidthView.addSubview(button)
@@ -115,16 +127,14 @@ class NotePanel: NSPanel {
     }
 
     /// Add a pin button to the right end of the titlebar.
-    func setupPinButton(target: AnyObject, action: Selector) {
+    func setupPinButton(onToggle: @escaping () -> Void) {
+        pinAction = onToggle
+        onTogglePin = onToggle
+
         guard let closeButton = standardWindowButton(.closeButton) else { return }
+        guard let fullWidthView = fullWidthTitlebarView(startingAt: closeButton) else { return }
 
-        var fullWidthView: NSView = closeButton
-        while let parent = fullWidthView.superview {
-            fullWidthView = parent
-            if parent.frame.width >= frame.width - 1 { break }
-        }
-
-        let button = makeNavButton(symbolName: "pin", action: action, target: target)
+        let button = makeNavButton(symbolName: "pin", action: #selector(pinButtonTapped), target: self)
         fullWidthView.addSubview(button)
         NSLayoutConstraint.activate([
             button.centerYAnchor.constraint(equalTo: closeButton.centerYAnchor),
@@ -154,6 +164,31 @@ class NotePanel: NSPanel {
         return button
     }
 
+    private func configuredAppearance() -> NSAppearance? {
+        switch AppConfig.shared.config.appearance?.mode ?? .auto {
+        case .auto:
+            return nil
+        case .light:
+            return NSAppearance(named: .aqua)
+        case .dark:
+            return NSAppearance(named: .darkAqua)
+        }
+    }
+
+    private func fullWidthTitlebarView() -> NSView? {
+        guard let closeButton = standardWindowButton(.closeButton) else { return nil }
+        return fullWidthTitlebarView(startingAt: closeButton)
+    }
+
+    private func fullWidthTitlebarView(startingAt view: NSView) -> NSView? {
+        var fullWidthView: NSView = view
+        while let parent = fullWidthView.superview {
+            fullWidthView = parent
+            if parent.frame.width >= frame.width - 1 { break }
+        }
+        return fullWidthView
+    }
+
     private func logTitlebarHierarchyIfNeeded(closeButton: NSButton) {
         guard !didLogTitlebarHierarchy else { return }
         guard ProcessInfo.processInfo.environment["CHIRAMI_DEBUG_TITLEBAR"] == "1" else { return }
@@ -164,7 +199,13 @@ class NotePanel: NSPanel {
         var level = 0
         while let view = current {
             let layerColor = view.layer?.backgroundColor.map { NSColor(cgColor: $0)?.description ?? "cgColor" } ?? "nil"
-            logger.debug("[Titlebar] level=\(level) type=\(String(describing: type(of: view)), privacy: .public) frame=\(String(describing: view.frame), privacy: .public) wantsLayer=\(view.wantsLayer) layerBg=\(layerColor, privacy: .public)")
+            logger.debug(
+                """
+                [Titlebar] level=\(level) type=\(String(describing: type(of: view)), privacy: .public) \
+                frame=\(String(describing: view.frame), privacy: .public) \
+                wantsLayer=\(view.wantsLayer) layerBg=\(layerColor, privacy: .public)
+                """
+            )
             current = view.superview
             level += 1
         }
@@ -235,15 +276,21 @@ class NotePanel: NSPanel {
                 onHideRequest?()
                 return
             }
-            // ESC key (keyCode 53) with no modifiers hides the window,
-            // unless a WebView overlay is open — dispatch ESC to JS instead.
+            if event.modifierFlags.intersection(.deviceIndependentFlagsMask) == [.command, .option],
+               event.charactersIgnoringModifiers == "p" {
+                onTogglePin?()
+                return
+            }
+            // ESC key (keyCode 53) with no modifiers hides the window, unless a
+            // WebView overlay (Excalidraw) or the CodeMirror search panel is open —
+            // dispatch ESC to JS instead so it closes the overlay/panel first.
             // NOTE: do NOT call super.sendEvent for ESC; it triggers cancelOperation:/
             // performClose: which closes the panel regardless of onHideRequest.
             if event.keyCode == 53 {
                 let activeFlags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
                 if activeFlags.isEmpty {
                     if let webView = contentView?.firstDescendant(of: NoteWebView.self),
-                       webView.overlayVisible {
+                       webView.overlayVisible || webView.searchPanelVisible {
                         webView.dispatchEscapeKey()
                     } else {
                         onHideRequest?()

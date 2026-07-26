@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+#MISE description="Swift ビルド"
+#MISE depends=["lint-fix"]
+#MISE sources=["Chirami/**/*.swift", "Package.swift"]
+set -euo pipefail
+
+swift build -c release

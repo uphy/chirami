@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 
 	"github.com/spf13/cobra"
 	"github.com/uphy/chirami/cmd/chirami/internal"
@@ -29,8 +28,9 @@ func runContext(_ *cobra.Command, _ []string) error {
 	}
 	defer os.Remove(pipePath)
 
-	uri := internal.BuildURI("context", map[string]string{"callback_pipe": pipePath})
-	if err := exec.Command("open", "-g", uri).Run(); err != nil {
+	params := map[string]string{"callback_pipe": pipePath}
+
+	if err := openURI("context", params); err != nil {
 		return fmt.Errorf("failed to open chirami: %w", err)
 	}
 

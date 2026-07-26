@@ -1,5 +1,29 @@
 import AppKit
+import Foundation
 import os
+
+/// A window controller that can provide the current editor context.
+@MainActor
+protocol EditorContextProvider: AnyObject {
+    func getEditorContext(completion: @escaping (Result<String, Error>) -> Void)
+}
+
+struct EditorContextPosition: Codable {
+    let line: Int
+    let column: Int
+}
+
+struct EditorContextSelection: Codable {
+    let text: String
+    let from: EditorContextPosition
+    let to: EditorContextPosition
+}
+
+struct EditorContextPayload: Codable {
+    let file: String
+    let selection: EditorContextSelection
+    let cursor: EditorContextPosition
+}
 
 /// Handles chirami://context URI requests.
 /// Queries the last focused Registered Note's editor for its current context
@@ -19,7 +43,7 @@ final class ContextHandler {
             return
         }
 
-        guard let controller = WindowManager.shared.lastFocusedController else {
+        guard let controller = WindowManager.shared.lastFocusedEditorProvider else {
             writeToPipe(pipePath, message: "NO_FOCUS\n")
             return
         }
@@ -47,10 +71,7 @@ final class ContextHandler {
                 Darwin.close(fd)
                 return
             }
-            data.withUnsafeBytes { bytes in
-                guard let ptr = bytes.baseAddress else { return }
-                _ = write(fd, ptr, bytes.count)
-            }
+            PipeIO.write(data, to: fd, logger: self?.logger ?? Logger(subsystem: "io.github.uphy.Chirami", category: "ContextHandler"), context: "ContextHandler.writeToPipe")
             Darwin.close(fd)
         }
     }

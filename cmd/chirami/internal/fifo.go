@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"syscall"
@@ -37,15 +38,18 @@ func WaitForClosed(pipePath string) error {
 	}
 	defer f.Close()
 
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		if strings.TrimSpace(scanner.Text()) == "CLOSED" {
+	for {
+		line, readErr := readPipeLine(f)
+		if strings.TrimSpace(line) == "CLOSED" {
 			return nil
 		}
-	}
-
-	if err := scanner.Err(); err != nil {
-		return fmt.Errorf("FIFO read error: %w", err)
+		if readErr == nil {
+			continue
+		}
+		if errors.Is(readErr, io.EOF) {
+			break
+		}
+		return fmt.Errorf("FIFO read error: %w", readErr)
 	}
 
 	// EOF without CLOSED means the writer (Chirami.app) closed without sending CLOSED,
@@ -70,19 +74,26 @@ func WaitForContext(pipePath string) (ContextResult, error) {
 	}
 	defer f.Close()
 
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
+	for {
+		rawLine, readErr := readPipeLine(f)
+		line := strings.TrimSpace(rawLine)
 		if json, ok := strings.CutPrefix(line, "CONTEXT:"); ok {
 			return ContextResult{JSON: json}, nil
 		}
 		if line == "NO_FOCUS" {
 			return ContextResult{}, ErrNoFocus
 		}
-	}
-
-	if err := scanner.Err(); err != nil {
-		return ContextResult{}, fmt.Errorf("FIFO read error: %w", err)
+		if readErr == nil {
+			continue
+		}
+		if errors.Is(readErr, io.EOF) {
+			break
+		}
+		return ContextResult{}, fmt.Errorf("FIFO read error: %w", readErr)
 	}
 	return ContextResult{}, fmt.Errorf("FIFO closed unexpectedly (Chirami.app crash?)")
+}
+
+func readPipeLine(f *os.File) (string, error) {
+	return bufio.NewReader(f).ReadString('\n')
 }

@@ -12,6 +12,8 @@ title: Keyboard Shortcuts
 | Cmd+F | Open find bar |
 | Cmd+= / Cmd++ | Increase font size |
 | Cmd+- | Decrease font size |
+| Ctrl+Option+= / Ctrl+Option++ | Scale window up |
+| Ctrl+Option+- | Scale window down |
 | Cmd+V | Smart Paste |
 | Cmd+Shift+V | Plain text paste |
 | Tab (on list item) | Indent list item |
@@ -20,13 +22,23 @@ title: Keyboard Shortcuts
 | Shift+Tab (with selection) | Dedent all selected lines |
 | Enter (on list item) | Continue list with next marker |
 | Enter (on empty list item) | End list |
+| Tab / Shift+Tab (editing table cell) | Move to next / previous cell (Tab on last cell appends a row) |
+| Enter (editing table cell) | Move to cell below |
+| Escape (editing table cell) | Discard cell edit |
+| Cmd+[ | Fold block at cursor |
+| Cmd+] | Unfold block at cursor |
+| Cmd+Shift+[ | Fold all blocks |
+| Cmd+Shift+] | Unfold all blocks |
 | Cmd+Enter (on link) | Open link or bare URL at caret |
 | Option+Enter (on link) | Open link or bare URL at caret |
 | Ctrl+A | Move cursor to content start (press again for line start) |
 | ESC / Cmd+W | Close note |
+| Cmd+Option+P | Toggle pin (keep visible when focus moves away) |
 | Ctrl+Option+H / Ctrl+Option+← | Warp window left |
 | Ctrl+Option+L / Ctrl+Option+→ | Warp window right |
 | Ctrl+Option+K / Ctrl+Option+↑ | Warp window up |
 | Ctrl+Option+J / Ctrl+Option+↓ | Warp window down |
 
-Per-note and global hotkeys (configured in `config.yaml`) toggle note visibility from any application.
+The default window-warp modifier shown above is configurable via `warp_modifier` in `config.yaml`; the same modifier also applies to window scaling with `=` / `-`. Display-edge gaps are configurable via `warp_margin`.
+
+Per-note and global hotkeys (configured in `config.yaml` via `hotkeys`) can toggle note visibility from any application.

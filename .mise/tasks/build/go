@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+#MISE description="Go CLI ビルド"
+#MISE sources=["cmd/chirami/**/*.go", "cmd/chirami/go.mod"]
+set -euo pipefail
+
+mkdir -p build
+(cd cmd/chirami && rm -f go.sum && go mod tidy && GOOS=darwin GOARCH=arm64 go build -o ../../build/chirami-bin .)

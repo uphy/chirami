@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
+	"path/filepath"
 
 	"github.com/uphy/chirami/cmd/chirami/internal"
 
@@ -96,8 +96,7 @@ func runDisplay(cmd *cobra.Command, args []string, fileFlag string, waitFlag boo
 	}
 
 	// Task 6.7: launch Chirami.app via open command
-	uri := internal.BuildURI("display", params)
-	if err := exec.Command("open", "-g", uri).Run(); err != nil {
+	if err := openURI("display", params); err != nil {
 		return fmt.Errorf("failed to open chirami: %w", err)
 	}
 
@@ -121,12 +120,16 @@ func getContent(args []string, fileFlag string) (content, fileURL string, isRead
 
 	// Second priority: --file flag
 	if fileFlag != "" {
-		// Task 6.3.1: validate file existence
-		if _, statErr := os.Stat(fileFlag); statErr != nil {
+		absPath, absErr := filepath.Abs(fileFlag)
+		if absErr != nil {
+			err = fmt.Errorf("failed to resolve path: %w", absErr)
+			return
+		}
+		if _, statErr := os.Stat(absPath); statErr != nil {
 			err = fmt.Errorf("file not found: %s", fileFlag)
 			return
 		}
-		fileURL = fileFlag
+		fileURL = absPath
 		isReadOnly = false
 		return
 	}

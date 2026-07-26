@@ -21,7 +21,6 @@ struct AttachmentCleanupServiceTests {
             id: "test-\(UUID().uuidString)",
             path: path,
             title: "Test",
-            color: .yellow,
             attachmentsDir: attachmentsDir
         )
     }

@@ -2,6 +2,8 @@ import Foundation
 
 class AppState: YAMLStore<ChiramiState> {
     static let shared = AppState()
+    static let defaultStateDirectory = FileManager.realHomeDirectory
+        .appendingPathComponent(".local/state/chirami")
 
     var state: ChiramiState { data }
 
@@ -11,10 +13,14 @@ class AppState: YAMLStore<ChiramiState> {
         visible: true
     )
 
-    private init() {
-        let stateDir = FileManager.realHomeDirectory
-            .appendingPathComponent(".local/state/chirami")
-        super.init(directory: stateDir, fileName: "state.yaml", label: "State", defaultValue: ChiramiState())
+    private convenience init() {
+        self.init(directory: Self.defaultStateDirectory)
+    }
+
+    /// Designated initializer. Tests must pass a temporary directory so the
+    /// real `~/.local/state/chirami` is never touched.
+    init(directory: URL) {
+        super.init(directory: directory, fileName: "state.yaml", label: "State", defaultValue: ChiramiState())
     }
 
     func windowState(for noteId: String) -> WindowState? {

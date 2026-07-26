@@ -6,23 +6,24 @@ While you work, you always need something else at hand. Chirami floats it above 
 
 ## Features
 
-- **Markdown Live Preview** — Obsidian-style editing: raw Markdown at the cursor, rendered everywhere else (includes Mermaid diagram rendering)
+- **Markdown Live Preview** — Obsidian-style editing: raw Markdown at the cursor, rendered everywhere else (Mermaid diagrams, Excalidraw drawings, Obsidian callouts, collapsible `<details>` blocks)
 - **Always-on-top floating windows** — `NSPanel`-based sticky notes that stay above all windows (tiling WM friendly)
 - **Global hotkeys** — Summon any note instantly from any application
 - **Pure `.md` files** — No metadata, no front matter. Full Obsidian / VS Code compatibility
 - **Periodic notes** — Date-based file paths with rollover delay and templates
+- **Slash command** — Type `/` at line start to insert blocks (Excalidraw diagram, Mermaid diagram, table) via a command picker
 - **Smart Paste** — Cmd+Shift+V converts URLs, HTML, and JSON to Markdown on paste
 - **Image Paste & Resize** — Cmd+V to paste images as PNG; drag the right edge to resize
 - **Window Warp** — Modifier+H/J/K/L to snap windows to a 3×3 grid
 - **External Editor Sync** — Live file watching; edits in Obsidian or VS Code reflect instantly
-- **Per-note styling** — Background color, transparency, and font size for each note
+- **Per-note styling** — Themes and transparency configured per note; global CSS customization via `--chirami-*` variables
 - **CLI** — `chirami display` to show Markdown in a floating window from the terminal; `chirami context` to read the focused note's context as JSON for use with external tools
 
 See [Features](docs/features.md) for the full feature guide and keyboard shortcuts.
 
 ## Quick Start
 
-**Prerequisites:** macOS 14.0 (Sonoma) or later
+**Prerequisites:** macOS 14.2 or later
 
 **Install via Homebrew:**
 
@@ -56,17 +57,25 @@ Config file: **`~/.config/chirami/config.yaml`**
 notes:
   - path: ~/Notes/todo.md
     title: TODO
-    color_scheme: blue
-    hotkey: cmd+shift+t
+    theme: blue
+    hotkeys:
+      - key: option+t
+        action: toggle
 
   - path: ~/Notes/daily/{yyyy-MM-dd}.md
     title: Daily
-    color_scheme: green
-    hotkey: cmd+shift+d
+    theme: green
+    hotkeys:
+      - key: option+d
+        action: toggle
+      - key: option+shift+d
+        action: create
     rollover_delay: 2h
 
   - path: ~/Desktop/scratch.md
-    hotkey: cmd+shift+s
+    hotkeys:
+      - key: option+s
+        action: toggle
     position: cursor
 ```
 
@@ -77,12 +86,13 @@ See [Configuration](docs/configuration.md) for the full field reference.
 - [Getting Started](docs/getting-started.md) — Installation through first note display
 - [Configuration](docs/configuration.md) — Full config.yaml field reference
 - [Features](docs/features.md) — Feature guide and keyboard shortcuts
+- [CSS Theming](docs/css-theming.md) — Customize colors, fonts, and themes via CSS variables
 - [Advanced](docs/advanced.md) — Periodic Notes, Smart Paste, Images, Transient Note, Karabiner integration
 - [Product Vision](docs/product-vision.md) — Why Chirami exists
 
 ## Development
 
-**Prerequisites:** macOS 14.0 (Sonoma) or later, [mise](https://mise.jdx.dev/)
+**Prerequisites:** macOS 14.2 or later, [mise](https://mise.jdx.dev/)
 
 | Task | Command | Description |
 |------|---------|-------------|
@@ -121,6 +131,7 @@ open Chirami.xcodeproj
 | Library | Purpose | License |
 |---------|---------|---------|
 | [CodeMirror 6](https://codemirror.net/) | Live Preview editor engine | MIT |
+| [Excalidraw](https://excalidraw.com/) | Diagram editor / renderer | MIT |
 | [mermaid](https://mermaid.js.org/) | Mermaid diagram rendering | MIT |
 | [turndown](https://github.com/mixmark-io/turndown) | HTML → Markdown conversion (Smart Paste) | MIT |
 

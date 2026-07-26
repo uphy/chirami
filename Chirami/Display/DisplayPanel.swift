@@ -1,12 +1,14 @@
 import AppKit
+import os
 
 /// A floating panel for Ad-hoc Notes (CLI-initiated content display), sharing NotePanel's visual style.
 class DisplayPanel: NotePanel {
 
     private var callbackPipeFd: Int32 = -1
     var didNotifyClosed = false
+    private let logger = Logger(subsystem: "io.github.uphy.Chirami", category: "DisplayPanel")
 
-    init(callbackPipePath: String?, isReadOnly: Bool, color: NoteColorScheme = .yellow, transparency: Double = 0.9, customTitle: String? = nil, alwaysOnTop: Bool = true) {
+    init(callbackPipePath: String?, isReadOnly: Bool, transparency: Double = 0.9, customTitle: String? = nil, alwaysOnTop: Bool = true) {
         let frame = NSRect(x: 0, y: 0, width: 400, height: 500)
         super.init(
             contentRect: frame,
@@ -22,7 +24,7 @@ class DisplayPanel: NotePanel {
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         level = alwaysOnTop ? .floating : .normal
         isRestorable = false
-        backgroundColor = color.nsColor
+        backgroundColor = NoteWindowController.defaultPanelBackground
         alphaValue = transparency
 
         standardWindowButton(.miniaturizeButton)?.isHidden = true
@@ -53,13 +55,10 @@ class DisplayPanel: NotePanel {
         guard !didNotifyClosed else { return }
         didNotifyClosed = true
         let fd = callbackPipeFd
-        guard fd >= 0,
-              let data = "CLOSED\n".data(using: .utf8) else { return }
+        guard fd >= 0 else { return }
+        let data = Data("CLOSED\n".utf8)
         callbackPipeFd = -1
-        data.withUnsafeBytes { bytes in
-            guard let ptr = bytes.baseAddress else { return }
-            _ = write(fd, ptr, bytes.count)
-        }
+        PipeIO.write(data, to: fd, logger: logger, context: "DisplayPanel.notifyClosed")
         _ = Darwin.close(fd)
     }
 

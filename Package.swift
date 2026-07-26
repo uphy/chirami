@@ -23,7 +23,7 @@ let package = Package(
                 "Resources/Assets.xcassets"
             ],
             resources: [
-                .copy("Resources/color_schemes.yaml"),
+                .copy("Resources/chirami-default.css"),
                 .copy("Resources/editor")
             ]
         ),

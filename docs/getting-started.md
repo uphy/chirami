@@ -30,10 +30,12 @@ Create `~/.config/chirami/config.yaml`:
 ```yaml
 notes:
   - path: ~/Notes/todo.md
-    hotkey: cmd+shift+t
+    hotkeys:
+      - key: option+t
+        action: toggle
 ```
 
-That's it. Press `Cmd+Shift+T` to toggle the note from any application.
+That's it. Press `Option+T` to toggle the note from any application.
 
 ## Basic Usage
 
@@ -51,7 +53,7 @@ Chirami works with plain `.md` files — no metadata, no front matter. Point a n
 notes:
   - path: ~/Obsidian/Vault/Daily/todo.md
     title: TODO
-    color_scheme: blue
+    theme: blue
 ```
 
 - Chirami watches the file for external changes, so edits made in Obsidian appear instantly.

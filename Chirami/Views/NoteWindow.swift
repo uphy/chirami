@@ -7,19 +7,35 @@ import os
 
 /// Manages a single note window: position/size persistence, transparency, always-on-top.
 @MainActor
-class NoteWindowController: NSWindowController, NSWindowDelegate {
+class NoteWindowController: NSWindowController, NSWindowDelegate, EditorContextProvider {
     private(set) var note: Note
     private let noteStore = NoteStore.shared
     private let logger = Logger(subsystem: "io.github.uphy.Chirami", category: "NoteWindowController")
     private var fileWatcher: FileWatcher?
+    private var directoryWatcher: DirectoryWatcher?
     private var contentModel: NoteContentModel
     private var cancellables = Set<AnyCancellable>()
+    /// Periodic: "is showing today's file". Stream: "is showing the latest
+    /// matching file". Reused across both modes per the stream-note-mode design.
     private var isShowingToday: Bool = true
+    /// Stream only: the latest matching file as of the last directory rescan
+    /// (initial value = the file resolved at open, which is latest by
+    /// construction — see `NoteStore.resolveStreamNote`). Used by
+    /// `StreamFollow.shouldFollow` to decide whether a newly detected file
+    /// should auto-advance the display.
+    private var lastKnownStreamLatest: URL?
     private var isPinned: Bool
     private var isFadingOut: Bool = false
     private var fadeOutToken: Int = 0
+    /// True once the WebView has signalled readiness for display at least once.
+    /// Subsequent `show()` calls fade in immediately.
+    private var hasBecomeReadyOnce: Bool = false
+    /// Set when `show()` runs before the WebView is ready; the fade-in runs when ready fires.
+    private var pendingFadeIn: Bool = false
+    /// Safety timer that forces fade-in if the WebView never signals readiness.
+    private var fadeInTimeoutTask: Task<Void, Never>?
     nonisolated(unsafe) private var warpEventMonitor: Any?
-    nonisolated(unsafe) private var fontSizeEventMonitor: Any?
+    nonisolated(unsafe) private var shortcutEventMonitor: Any?
 
     var isVisible: Bool { window?.isVisible ?? false }
 
@@ -48,7 +64,7 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panel.level = note.alwaysOnTop ? .floating : .normal
         panel.alphaValue = note.transparency
-        panel.backgroundColor = note.colorScheme.nsColor
+        panel.backgroundColor = NoteWindowController.defaultPanelBackground
         panel.isRestorable = false
 
         panel.standardWindowButton(.miniaturizeButton)?.isHidden = true
@@ -58,22 +74,28 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
 
         super.init(window: panel)
         panel.delegate = self
+        wireContentModel()
         panel.onHideRequest = { [weak self] in
             self?.hide()
         }
 
-        if note.periodicInfo != nil {
+        if let info = note.periodicInfo {
             panel.setupNavigationButtons(
                 target: self,
                 prevAction: #selector(navigatePrevious),
                 nextAction: #selector(navigateNext),
-                todayAction: #selector(navigateToToday)
+                todayAction: #selector(navigateToToday),
+                isStream: info.mode == .stream
             )
             updateNavigationButtons()
+            if info.mode == .stream {
+                lastKnownStreamLatest = note.path
+            }
         }
 
-        panel.setupPinButton(target: self, action: #selector(togglePinAction))
+        panel.setupPinButton { [weak self] in self?.togglePinAction() }
         panel.updatePinState(isPinned: isPinned)
+        panel.applyConfiguredAppearance()
 
         let rootView = NoteContentView(model: contentModel, noteId: note.id, onTogglePin: { [weak self] in self?.togglePinAction() })
             .environmentObject(NoteStore.shared)
@@ -89,15 +111,6 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
                 Task { @MainActor [weak self] in
                     self?.applyNoteUpdate(updated)
                 }
-            }
-            .store(in: &cancellables)
-
-        // Monitor global font changes independently from note updates
-        AppConfig.shared.$data
-            .dropFirst()
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] config in
-                self?.contentModel.fontName = config.font
             }
             .store(in: &cancellables)
 
@@ -122,9 +135,9 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
             return event
         }
 
-        // Intercept Cmd+=/Cmd++ (font up) and Cmd+- (font down) at the NSEvent level
-        // to prevent WKWebView from generating a system beep for these key combinations.
-        fontSizeEventMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+        // Intercept window-level shortcuts at the NSEvent level to prevent WKWebView
+        // from generating a system beep for these key combinations.
+        shortcutEventMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let self, self.window?.isKeyWindow == true else { return event }
             let flags = event.modifierFlags
                 .intersection(.deviceIndependentFlagsMask)
@@ -140,6 +153,17 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
                 self.handleFontSizeChange(delta: -1)
                 return nil
             }
+            let warpFlags = AppConfig.shared.data.warpModifierFlags
+            if flags == warpFlags {
+                if chars == "=" {
+                    self.handleWindowScaleChange(scale: Self.windowScaleStep)
+                    return nil
+                }
+                if chars == "-" {
+                    self.handleWindowScaleChange(scale: 1 / Self.windowScaleStep)
+                    return nil
+                }
+            }
             return event
         }
     }
@@ -148,13 +172,25 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
         if let monitor = warpEventMonitor {
             NSEvent.removeMonitor(monitor)
         }
-        if let monitor = fontSizeEventMonitor {
+        if let monitor = shortcutEventMonitor {
             NSEvent.removeMonitor(monitor)
         }
+        fadeInTimeoutTask?.cancel()
     }
 
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError() }
+
+    /// Default panel background color matching the CSS default (yellow theme).
+    /// MUST stay in sync with `--chirami-bg` in `Chirami/Resources/chirami-default.css`.
+    /// Used as the pre-WebView panel color so the window doesn't flash a mismatched
+    /// hue before `fetchAndApplyPanelBackground` reads the computed CSS value.
+    static let defaultPanelBackground: NSColor = NSColor(name: nil) { appearance in
+        let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+        return isDark
+            ? NSColor(red: 77/255, green: 71/255, blue: 38/255, alpha: 1.0)    // --chirami-bg dark
+            : NSColor(red: 255/255, green: 245/255, blue: 184/255, alpha: 1.0) // --chirami-bg light
+    }
 
     // MARK: - Visibility
 
@@ -193,6 +229,11 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
             // Startup path: show without stealing keyboard focus.
             panel.orderFront(nil)
         } else {
+            // Activate the app before making the panel key. Without this, the
+            // WKWebView's DOM focus call is silently ignored when the host app
+            // is inactive (LSUIElement + .nonactivatingPanel), so the caret
+            // never appears until the user manually clicks the note.
+            NSApp.activate(ignoringOtherApps: true)
             // Always make key explicitly. showWindow(nil) calls orderFront (not
             // makeKeyAndOrderFront) for floating panels, so becomeKey never fires.
             panel.makeKeyAndOrderFront(nil)
@@ -200,9 +241,44 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
 
         noteStore.setVisible(true, for: note)
 
+        if hasBecomeReadyOnce {
+            performFadeIn()
+        } else {
+            // Defer fade-in until the WebView reports ready so the panel doesn't flash
+            // the default theme colour before the configured theme is applied.
+            pendingFadeIn = true
+            scheduleFadeInTimeout()
+        }
+    }
+
+    private func performFadeIn() {
+        guard let panel = window as? NotePanel else { return }
         NSAnimationContext.runAnimationGroup { context in
             context.duration = 0.2
             panel.animator().alphaValue = note.transparency
+        }
+    }
+
+    private func handleWebViewReady() {
+        hasBecomeReadyOnce = true
+        fadeInTimeoutTask?.cancel()
+        fadeInTimeoutTask = nil
+        if pendingFadeIn {
+            pendingFadeIn = false
+            performFadeIn()
+        }
+    }
+
+    /// Forces fade-in after a grace period so a broken WebView never leaves the window invisible.
+    private func scheduleFadeInTimeout() {
+        fadeInTimeoutTask?.cancel()
+        fadeInTimeoutTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: 3_000_000_000)
+            guard let self, !Task.isCancelled else { return }
+            guard self.pendingFadeIn else { return }
+            self.pendingFadeIn = false
+            self.logger.warning("WebView ready timeout; forcing fade-in")
+            self.performFadeIn()
         }
     }
 
@@ -214,9 +290,10 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
 
         let screen = screenForCursor() ?? NSScreen.main
         let visibleFrame = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1920, height: 1080)
+        let margins = currentWarpMargin()
 
         let origin = CGPoint(x: cursorLocation.x - windowSize.width / 2, y: cursorLocation.y - windowSize.height / 2)
-        let clamped = clampToScreen(origin: origin, windowSize: windowSize, visibleFrame: visibleFrame)
+        let clamped = clampToScreen(origin: origin, windowSize: windowSize, visibleFrame: visibleFrame, margins: margins)
 
         window.setFrameOrigin(clamped)
         showWindow(nil)
@@ -231,34 +308,29 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
         return NSScreen.main
     }
 
-    private func clampToScreen(origin: CGPoint, windowSize: CGSize, visibleFrame: CGRect) -> CGPoint {
-        var x = origin.x
-        var y = origin.y
-
-        if x + windowSize.width > visibleFrame.maxX {
-            x = visibleFrame.maxX - windowSize.width
-        }
-        if x < visibleFrame.minX {
-            x = visibleFrame.minX
-        }
-        if y < visibleFrame.minY {
-            y = visibleFrame.minY
-        }
-        if y + windowSize.height > visibleFrame.maxY {
-            y = visibleFrame.maxY - windowSize.height
-        }
-
-        return CGPoint(x: x, y: y)
-    }
-
     func hide() {
         guard let panel = window as? NotePanel else { return }
 
+        // Reset transient editor UI so it does not linger on the next show.
+        // closeSearchPanel is a no-op when the search panel is already closed.
+        contentModel.closeSearchPanel?()
+
         saveEditorState()
+
+        // Cancel any fade-in still waiting on WebView ready
+        pendingFadeIn = false
+        fadeInTimeoutTask?.cancel()
+        fadeInTimeoutTask = nil
 
         isFadingOut = true
         let token = fadeOutToken
         let targetTransparency = note.transparency
+        // If this panel held key status, surrender app activation after
+        // orderOut so focus returns to the previously active app. show()
+        // activates the app explicitly, and without this counterpart the
+        // user would be stuck "in Chirami" with no visible window after
+        // pressing Cmd+W / Esc / the toggle hotkey.
+        let wasKey = panel.isKeyWindow
 
         noteStore.setVisible(false, for: note)
 
@@ -271,6 +343,9 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
                 self.isFadingOut = false
                 panel.orderOut(nil)
                 panel.alphaValue = targetTransparency  // Restore for next show()
+                if wasKey {
+                    NSApp.deactivate()
+                }
             }
         })
     }
@@ -293,6 +368,7 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
             if window?.isKeyWindow == true {
                 hide()
             } else {
+                NSApp.activate(ignoringOtherApps: true)
                 window?.makeKeyAndOrderFront(nil)
             }
         } else {
@@ -304,22 +380,32 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
 
     private func applyNoteUpdate(_ updated: Note) {
         guard let panel = window as? NotePanel else { return }
-        panel.backgroundColor = updated.colorScheme.nsColor
+        let pathChanged = updated.path != note.path
+
+        note = updated
+
+        if pathChanged {
+            reloadContentForNavigation()
+            if !isFadingOut {
+                panel.alphaValue = updated.transparency
+            }
+            panel.level = updated.alwaysOnTop ? .floating : .normal
+            return
+        }
+
         // Skip alpha update during fade-out to avoid interrupting animation
         if !isFadingOut {
             panel.alphaValue = updated.transparency
         }
         panel.title = updated.title
         panel.level = updated.alwaysOnTop ? .floating : .normal
-        contentModel.fontSize = updated.fontSize
-        contentModel.colorScheme = updated.colorScheme
-        note.position = updated.position
-        note.transparency = updated.transparency  // Keep in sync for fade-in target
+        contentModel.applyNoteMetadata(updated)
     }
 
     // MARK: - NSWindowDelegate
 
     func windowDidBecomeKey(_ notification: Notification) {
+        contentModel.setWindowActive?(true)
         contentModel.focusWebView?()
         WindowManager.shared.noteWindowDidBecomeKey(self)
     }
@@ -334,12 +420,14 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
     }
 
     func windowDidResignKey(_ notification: Notification) {
+        contentModel.setWindowActive?(false)
         guard !isPinned, isVisible else { return }
         contentModel.save()
         hide()
     }
 
     func windowWillClose(_ notification: Notification) {
+        directoryWatcher?.stop()
         guard let window = window else { return }
         noteStore.saveWindowState(
             for: note,
@@ -388,6 +476,62 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
         contentModel.fontSize = CGFloat(newSize)
     }
 
+    // MARK: - Window Scaling
+
+    private static let windowScaleStep: CGFloat = 1.1
+    private static let minWindowSize = CGSize(width: 220, height: 180)
+
+    private func handleWindowScaleChange(scale: CGFloat) {
+        guard let window = window else { return }
+        let screen = screenForWindow() ?? NSScreen.main
+        guard let visibleFrame = screen?.visibleFrame else { return }
+        let margins = currentWarpMargin()
+
+        let currentSize = window.frame.size
+        guard currentSize.width > 0, currentSize.height > 0 else { return }
+
+        let availableWidth = max(Self.minWindowSize.width, visibleFrame.width - margins.left - margins.right)
+        let availableHeight = max(Self.minWindowSize.height, visibleFrame.height - margins.top - margins.bottom)
+        let minScale = max(
+            Self.minWindowSize.width / currentSize.width,
+            Self.minWindowSize.height / currentSize.height
+        )
+        let maxScale = min(
+            availableWidth / currentSize.width,
+            availableHeight / currentSize.height
+        )
+        let appliedScale: CGFloat
+        if scale >= 1 {
+            appliedScale = min(scale, maxScale)
+            guard appliedScale > 1 else { return }
+        } else {
+            appliedScale = max(scale, minScale)
+            guard appliedScale < 1 else { return }
+        }
+
+        let newSize = CGSize(
+            width: round(currentSize.width * appliedScale),
+            height: round(currentSize.height * appliedScale)
+        )
+        guard abs(newSize.width - currentSize.width) >= 1 || abs(newSize.height - currentSize.height) >= 1 else {
+            return
+        }
+
+        let center = CGPoint(x: window.frame.midX, y: window.frame.midY)
+        let origin = CGPoint(
+            x: center.x - newSize.width / 2,
+            y: center.y - newSize.height / 2
+        )
+        let clampedOrigin = clampToScreen(
+            origin: origin,
+            windowSize: newSize,
+            visibleFrame: visibleFrame,
+            margins: margins
+        )
+        let newFrame = CGRect(origin: clampedOrigin, size: newSize)
+        window.setFrame(newFrame, display: true, animate: true)
+    }
+
     // MARK: - Keyboard Warp
 
     private static let warpArrowMap: [UInt16: Character] = [123: "h", 124: "l", 125: "j", 126: "k"]
@@ -397,15 +541,28 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
         guard let window = window else { return }
         let screen = screenForWindow() ?? NSScreen.main
         guard let visibleFrame = screen?.visibleFrame else { return }
+        let margins = currentWarpMargin()
 
         let center = CGPoint(
             x: window.frame.midX,
             y: window.frame.midY
         )
-        let (col, row) = inferGridPosition(center: center, visibleFrame: visibleFrame)
+        let (col, row) = inferGridPosition(center: center, visibleFrame: visibleFrame, margins: margins)
         let (newCol, newRow) = applyMove(key: key, col: col, row: row)
-        let origin = gridOrigin(col: newCol, row: newRow, windowSize: window.frame.size, visibleFrame: visibleFrame)
-        let newFrame = CGRect(origin: origin, size: window.frame.size)
+        let origin = gridOrigin(
+            col: newCol,
+            row: newRow,
+            windowSize: window.frame.size,
+            visibleFrame: visibleFrame,
+            margins: margins
+        )
+        let clampedOrigin = clampToScreen(
+            origin: origin,
+            windowSize: window.frame.size,
+            visibleFrame: visibleFrame,
+            margins: margins
+        )
+        let newFrame = CGRect(origin: clampedOrigin, size: window.frame.size)
         window.setFrame(newFrame, display: true, animate: true)
     }
 
@@ -419,11 +576,61 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
         return NSScreen.main
     }
 
+    private func currentWarpMargin() -> ResolvedWarpMargin {
+        AppConfig.shared.data.resolvedWarpMargin
+    }
+
+    private func clampToScreen(origin: CGPoint, windowSize: CGSize, visibleFrame: CGRect, margins: ResolvedWarpMargin) -> CGPoint {
+        var x = origin.x
+        var y = origin.y
+
+        let minX = visibleFrame.minX + margins.left
+        let maxX = visibleFrame.maxX - windowSize.width - margins.right
+        let minY = visibleFrame.minY + margins.bottom
+        let maxY = visibleFrame.maxY - windowSize.height - margins.top
+
+        if windowSize.width + margins.left + margins.right >= visibleFrame.width {
+            x = visibleFrame.midX - windowSize.width / 2
+        } else {
+            x = min(max(x, minX), maxX)
+        }
+
+        if windowSize.height + margins.top + margins.bottom >= visibleFrame.height {
+            y = visibleFrame.midY - windowSize.height / 2
+        } else {
+            y = min(max(y, minY), maxY)
+        }
+
+        return CGPoint(x: x, y: y)
+    }
+
     /// Maps the window center to the nearest 3x3 grid cell using band detection.
     /// col: 0=left, 1=center, 2=right / row: 0=bottom, 1=center, 2=top (NSWindow bottom-left origin)
-    private func inferGridPosition(center: CGPoint, visibleFrame: CGRect) -> (col: Int, row: Int) {
-        let col = Int(min(2, max(0, (center.x - visibleFrame.minX) / (visibleFrame.width / 3))))
-        let row = Int(min(2, max(0, (center.y - visibleFrame.minY) / (visibleFrame.height / 3))))
+    private func inferGridPosition(
+        center: CGPoint,
+        visibleFrame: CGRect,
+        margins: ResolvedWarpMargin
+    ) -> (col: Int, row: Int) {
+        let warpBounds = CGRect(
+            x: visibleFrame.minX + margins.left,
+            y: visibleFrame.minY + margins.bottom,
+            width: max(0, visibleFrame.width - margins.left - margins.right),
+            height: max(0, visibleFrame.height - margins.top - margins.bottom)
+        )
+
+        let col: Int
+        if warpBounds.width <= 0 {
+            col = 1
+        } else {
+            col = Int(min(2, max(0, (center.x - warpBounds.minX) / (warpBounds.width / 3))))
+        }
+
+        let row: Int
+        if warpBounds.height <= 0 {
+            row = 1
+        } else {
+            row = Int(min(2, max(0, (center.y - warpBounds.minY) / (warpBounds.height / 3))))
+        }
         return (col, row)
     }
 
@@ -438,19 +645,24 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
         }
     }
 
-    /// Calculates the window origin for a grid cell, with an 8pt margin from screen edges.
-    private func gridOrigin(col: Int, row: Int, windowSize: CGSize, visibleFrame: CGRect) -> CGPoint {
-        let margin: CGFloat = 8
+    /// Calculates the window origin for a grid cell using display-edge gaps.
+    private func gridOrigin(
+        col: Int,
+        row: Int,
+        windowSize: CGSize,
+        visibleFrame: CGRect,
+        margins: ResolvedWarpMargin
+    ) -> CGPoint {
         let x: CGFloat
         switch col {
-        case 0:  x = visibleFrame.minX + margin
-        case 2:  x = visibleFrame.maxX - windowSize.width - margin
+        case 0:  x = visibleFrame.minX + margins.left
+        case 2:  x = visibleFrame.maxX - windowSize.width - margins.right
         default: x = visibleFrame.midX - windowSize.width / 2
         }
         let y: CGFloat
         switch row {
-        case 0:  y = visibleFrame.minY + margin
-        case 2:  y = visibleFrame.maxY - windowSize.height - margin
+        case 0:  y = visibleFrame.minY + margins.bottom
+        case 2:  y = visibleFrame.maxY - windowSize.height - margins.top
         default: y = visibleFrame.midY - windowSize.height / 2
         }
         return CGPoint(x: x, y: y)
@@ -498,15 +710,36 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
 
     private func resolveAndNavigateToToday(force: Bool) {
         guard let info = note.periodicInfo else { return }
-        let config = NoteConfig(path: info.pathTemplate, template: info.templateFile?.path)
-        let date = noteStore.logicalDate(rolloverDelay: info.rolloverDelay)
-        guard let newNote = noteStore.resolvePeriodicNote(from: config, for: date) else { return }
-        if !force {
-            guard newNote.path.path != note.path.path else { return }
+        switch info.mode {
+        case .periodic:
+            let config = NoteConfig(path: info.pathTemplate, template: info.templateFile?.path)
+            let date = noteStore.logicalDate(rolloverDelay: info.rolloverDelay)
+            guard let newNote = noteStore.resolvePeriodicNote(from: config, for: date) else { return }
+            if !force {
+                guard newNote.path.path != note.path.path else { return }
+            }
+            navigateToFile(newNote.path)
+            isShowingToday = true
+            updateNavigationButtons()
+        case .stream:
+            guard let newNote = resolveLatestOrCreateStreamNote() else { return }
+            if !force {
+                guard newNote.path.path != note.path.path else { return }
+            }
+            navigateToFile(newNote.path)
+            isShowingToday = true
+            lastKnownStreamLatest = newNote.path
+            updateNavigationButtons()
         }
-        navigateToFile(newNote.path)
-        isShowingToday = true
-        updateNavigationButtons()
+    }
+
+    /// Stream equivalent of `NoteStore.resolvePeriodicNote`: returns the latest
+    /// matching file, or creates one from the template resolved at the current
+    /// time when the directory has no matches yet (spec: "一致ファイルが無い場合").
+    private func resolveLatestOrCreateStreamNote() -> Note? {
+        guard let info = note.periodicInfo else { return nil }
+        let config = NoteConfig(path: info.pathTemplate, template: info.templateFile?.path, mode: .stream)
+        return noteStore.resolveStreamNote(from: config)
     }
 
     func handleRollover(_ newNote: Note) {
@@ -514,6 +747,19 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
         note.path = newNote.path
         note.title = newNote.title
         reloadContentForNavigation()
+    }
+
+    /// Forces navigation to a specific stream entry regardless of current
+    /// browsing state. Used by the `create` quick-capture hotkey (design
+    /// decision 6), which always creates a brand-new file and must show it as
+    /// latest even if the user was mid-browse through history.
+    func showStreamEntry(_ url: URL) {
+        guard note.periodicInfo?.mode == .stream else { return }
+        navigateToFile(url)
+        isShowingToday = true
+        lastKnownStreamLatest = url
+        updateNavigationButtons()
+        show()
     }
 
     private func navigateToFile(_ url: URL) {
@@ -528,11 +774,19 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
             }
         }
         isShowingToday = false
-        // Check if navigated file is actually today's file
+        // Check if the navigated file is "current": today's file for periodic
+        // notes (time-resolved), or the latest matching file for stream notes.
         if let info = note.periodicInfo {
-            let todayPath = PathTemplateResolver.resolve(info.pathTemplate, for: noteStore.logicalDate(rolloverDelay: info.rolloverDelay))
-            if let todayURL = resolveTemplatePath(todayPath), todayURL.path == url.path {
-                isShowingToday = true
+            switch info.mode {
+            case .periodic:
+                let todayPath = PathTemplateResolver.resolve(info.pathTemplate, for: noteStore.logicalDate(rolloverDelay: info.rolloverDelay))
+                if let todayURL = resolveTemplatePath(todayPath), todayURL.path == url.path {
+                    isShowingToday = true
+                }
+            case .stream:
+                if let files = periodicMatchingFiles(), files.last?.path == url.path {
+                    isShowingToday = true
+                }
             }
         }
         reloadContentForNavigation()
@@ -544,6 +798,7 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
         }
 
         contentModel = NoteContentModel(note: note)
+        wireContentModel()
         let rootView = NoteContentView(model: contentModel, noteId: note.id, onTogglePin: { [weak self] in self?.togglePinAction() })
             .environmentObject(NoteStore.shared)
         if let panel = window as? NotePanel {
@@ -587,6 +842,66 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
                 self?.reloadContent()
             }
         }
+
+        setupDirectoryWatcherIfNeeded()
+    }
+
+    /// For stream notes, watches the template's parent directory so new or
+    /// removed matching files are detected without restarting the app (design
+    /// decision 3). No-op — and clears any previous watcher — for
+    /// periodic/static notes. Called from `setupFileWatcher()`, i.e. on init
+    /// and on every navigation, so the watcher always tracks the current note.
+    private func setupDirectoryWatcherIfNeeded() {
+        directoryWatcher?.stop()
+        directoryWatcher = nil
+
+        guard let info = note.periodicInfo, info.mode == .stream else { return }
+        let baseDir = PathTemplateResolver.extractBaseDirectory(from: info.pathTemplate)
+        guard let baseDirURL = resolveTemplatePath(baseDir) else { return }
+
+        let watcher = DirectoryWatcher(url: baseDirURL) { [weak self] in
+            self?.handleStreamDirectoryChange()
+        }
+        watcher.start()
+        directoryWatcher = watcher
+    }
+
+    /// Directory-watcher callback for stream notes: rescans matching files and
+    /// either follows to the new latest (tail -f semantics, only when already
+    /// showing latest and visible), falls back when the displayed file was
+    /// deleted externally (a deletion surfaces as a directory `.write` event
+    /// too), or otherwise only refreshes navigation button state so a user
+    /// reading history is never interrupted.
+    private func handleStreamDirectoryChange() {
+        guard let info = note.periodicInfo, info.mode == .stream else { return }
+
+        let displayedFile = note.path
+        let displayedFileExists = FileManager.default.fileExists(atPath: displayedFile.path)
+        let files = periodicMatchingFiles() ?? []
+        let newLatest = files.last
+
+        defer { lastKnownStreamLatest = newLatest }
+
+        if !displayedFileExists {
+            if let newLatest {
+                navigateToFile(newLatest)
+            } else if let created = resolveLatestOrCreateStreamNote() {
+                navigateToFile(created.path)
+            }
+            updateNavigationButtons()
+            return
+        }
+
+        guard let newLatest, newLatest.path != displayedFile.path else {
+            updateNavigationButtons()
+            return
+        }
+
+        if StreamFollow.shouldFollow(isVisible: isVisible, displayedFile: displayedFile, previousLatest: lastKnownStreamLatest) {
+            navigateToFile(newLatest)
+        } else {
+            updateNavigationButtons()
+        }
     }
 
     private func reloadContent() {
@@ -597,20 +912,41 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
     private func applyContentView<V: View>(_ rootView: V, to panel: NotePanel) {
         let hostingView = NSHostingView(rootView: rootView)
         hostingView.wantsLayer = true
-        hostingView.layer?.backgroundColor = note.colorScheme.nsColor.cgColor
+        hostingView.layer?.backgroundColor = NSColor.clear.cgColor
         panel.contentView = hostingView
         debugLogContentViewIfNeeded(panel: panel, hostingView: hostingView)
     }
 
     private func debugLogContentViewIfNeeded(panel: NotePanel, hostingView: NSView) {
         guard ProcessInfo.processInfo.environment["CHIRAMI_DEBUG_TITLEBAR"] == "1" else { return }
-        logger.debug("[Content] title=\(panel.title, privacy: .public) frame=\(String(describing: panel.frame), privacy: .public) contentLayoutRect=\(String(describing: panel.contentLayoutRect), privacy: .public)")
-        logger.debug("[Content] hosting frame=\(String(describing: hostingView.frame), privacy: .public) wantsLayer=\(hostingView.wantsLayer) layerBg=\(String(describing: hostingView.layer?.backgroundColor), privacy: .public)")
+        logger.debug(
+            """
+            [Content] title=\(panel.title, privacy: .public) \
+            frame=\(String(describing: panel.frame), privacy: .public) \
+            contentLayoutRect=\(String(describing: panel.contentLayoutRect), privacy: .public)
+            """
+        )
+        logger.debug(
+            """
+            [Content] hosting frame=\(String(describing: hostingView.frame), privacy: .public) \
+            wantsLayer=\(hostingView.wantsLayer) \
+            layerBg=\(String(describing: hostingView.layer?.backgroundColor), privacy: .public)
+            """
+        )
         if let contentView = panel.contentView {
             logger.debug("[Content] contentView type=\(String(describing: type(of: contentView)), privacy: .public) frame=\(String(describing: contentView.frame), privacy: .public)")
             if let superview = contentView.superview {
                 logger.debug("[Content] contentSuperview type=\(String(describing: type(of: superview)), privacy: .public) frame=\(String(describing: superview.frame), privacy: .public)")
             }
+        }
+    }
+
+    /// Wires the current content model to this controller. Must be called
+    /// whenever `contentModel` is (re)created (init and navigation reload) so
+    /// the readiness callback is never left unset.
+    private func wireContentModel() {
+        contentModel.onWebViewReady = { [weak self] in
+            self?.handleWebViewReady()
         }
     }
 }
@@ -621,29 +957,34 @@ class NoteWindowController: NSWindowController, NSWindowDelegate {
 @MainActor
 class NoteContentModel: ObservableObject {
     @Published var text: String = ""
-    @Published var fontSize: CGFloat
-    @Published var colorScheme: NoteColorScheme
-    @Published var fontName: String?
+    @Published var fontSize: CGFloat = 14
+    @Published var theme: String?
     nonisolated(unsafe) var savedCursorLocation: Int = 0
     nonisolated(unsafe) var savedScrollOffset: CGPoint = .zero
     var focusWebView: (() -> Void)?
+    /// Closes the CodeMirror search panel if open. Invoked when the note window
+    /// is hidden so the search bar does not linger on the next show.
+    var closeSearchPanel: (() -> Void)?
+    var setWindowActive: ((Bool) -> Void)?
     var getEditorContext: ((@escaping (Result<String, Error>) -> Void) -> Void)?
+    /// Fires once after the WebView is ready and its panel background matches the theme.
+    /// The window controller uses this to defer the initial fade-in and avoid a yellow flash.
+    var onWebViewReady: (() -> Void)?
     /// Resolved file path of the note (used by image widget for relative path resolution).
     var notePath: String?
     /// Folded line numbers to apply on next WebView update (cleared after applying).
     var pendingFoldedLines: [Int]?
-    private let note: Note
+    private var note: Note
     private let imagePasteService = ImagePasteService()
     private let logger = Logger(subsystem: "io.github.uphy.Chirami", category: "NoteContentModel")
-    private var isSaving = false
-    private var isReloading = false
+    /// The content most recently loaded from or written to disk.
+    /// Used to distinguish self-echo file events (from our own atomic writes)
+    /// from genuine external changes.
     private var lastSavedContent: String = ""
 
     init(note: Note) {
         self.note = note
-        self.fontSize = note.fontSize
-        self.colorScheme = note.colorScheme
-        self.fontName = AppConfig.shared.config.font
+        self.theme = note.theme
         self.notePath = note.path.path
         let content = NoteStore.shared.readContent(of: note)
         text = content
@@ -663,19 +1004,34 @@ class NoteContentModel: ObservableObject {
     }
 
     func save() {
-        guard !isSaving, !isReloading, text != lastSavedContent else { return }
-        isSaving = true
-        lastSavedContent = text
+        guard text != lastSavedContent else { return }
         NoteStore.shared.writeContent(text, to: note)
-        isSaving = false
+        lastSavedContent = text
     }
 
     func reloadIfNeeded(_ newContent: String) {
-        guard !isSaving, newContent != text else { return }
-        isReloading = true
+        // Self-echo of our own save (atomic write fires the file watcher):
+        // the disk content matches what we last wrote, so skip deterministically.
+        guard newContent != lastSavedContent else { return }
+        guard newContent != text else {
+            // Disk already matches the local text; just mark it as saved.
+            lastSavedContent = newContent
+            return
+        }
+        // Genuine external change. If there are unsaved local edits, do not
+        // silently overwrite them; keep the local content and warn.
+        guard text == lastSavedContent else {
+            logger.warning("External change to \(self.note.path.path, privacy: .public) conflicts with unsaved local edits; keeping local content")
+            return
+        }
         lastSavedContent = newContent
         text = newContent
-        isReloading = false
+    }
+
+    func applyNoteMetadata(_ updated: Note) {
+        note = updated
+        theme = updated.theme
+        notePath = updated.path.path
     }
 
     /// Decodes a data URL, saves the image to the attachments directory, and calls completion with the Markdown text.
@@ -716,6 +1072,33 @@ class NoteContentModel: ObservableObject {
     }
 }
 
+extension NoteContentModel: NoteWebViewHost {
+    var webViewCapabilities: NoteWebViewCapabilities { .all }
+
+    var noteFileURL: URL? { note.path }
+
+    var noteWikiLinkConfig: WikiLinkConfig? {
+        AppConfig.shared.config.notes.first { nc in
+            if let info = note.periodicInfo {
+                return nc.path == info.pathTemplate
+            }
+            return nc.resolvedPath == note.path.path
+        }?.wikilink
+    }
+
+    func webViewContentChanged(_ text: String) {
+        self.text = text
+    }
+
+    func webViewPastedImage(dataUrl: String, insertMarkdown: @escaping (String) -> Void) {
+        handlePastedImage(dataUrl: dataUrl, completion: insertMarkdown)
+    }
+
+    func webViewFoldChanged(lines: [Int]) {
+        updateFoldingState(lines: lines)
+    }
+}
+
 // MARK: - NoteContentView
 
 struct NoteContentView: View {
@@ -724,13 +1107,9 @@ struct NoteContentView: View {
     var onTogglePin: (() -> Void)?
     @EnvironmentObject private var noteStore: NoteStore
 
-    private var note: Note? {
-        noteStore.notes.first(where: { $0.id == noteId })
-    }
-
     var body: some View {
         ZStack {
-            (note?.colorScheme.nsColor ?? NoteColorScheme.yellow.nsColor).swiftUI
+            Color.clear
                 .ignoresSafeArea()
             NoteWebViewRepresentable(model: model)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)

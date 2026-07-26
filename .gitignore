@@ -2,7 +2,7 @@
 *.xcuserstate
 xcuserdata/
 .build/
-build/
+/build/
 DerivedData/
 Package.resolved
 .swiftpm/
@@ -19,3 +19,5 @@ Chirami/Resources/editor/bundle.js
 Chirami/Resources/editor/bundle.js.map
 Chirami/Resources/editor/bundle.css
 Chirami/Resources/editor/index.html
+Chirami/Resources/editor/*.woff2
+__pycache__/

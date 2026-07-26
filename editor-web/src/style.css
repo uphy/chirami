@@ -1,15 +1,7 @@
-@import 'tldraw/tldraw.css';
+@import '../node_modules/@excalidraw/excalidraw/dist/prod/index.css';
 
-:root {
-  --chirami-bg: transparent;
-  --chirami-text: #222;
-  --chirami-link: #2e538f;
-  --chirami-code: #6b3d1c;
-  --chirami-code-bg: rgba(0, 0, 0, 0.07);
-  --chirami-selection: rgba(34, 34, 34, 0.15);
-  --chirami-font: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
-  --chirami-font-size: 14px;
-}
+/* --chirami-* variables are defined in chirami-default.css (injected by Swift via WKUserScript).
+   This file only contains structural styles that reference those variables. */
 
 html, body, #editor {
   margin: 0;
@@ -39,23 +31,63 @@ html, body {
   -webkit-font-smoothing: antialiased;
 }
 
-.cm-selectionBackground,
-.cm-editor ::selection {
+.cm-editor .cm-cursor,
+.cm-editor .cm-dropCursor {
+  border-left-color: var(--chirami-text) !important;
+}
+
+/* Empty-document placeholder (CodeMirror placeholder extension) */
+.cm-editor .cm-placeholder {
+  color: color-mix(in srgb, var(--chirami-muted) 72%, transparent);
+}
+
+body ::selection {
+  background-color: var(--chirami-selection);
+  color: inherit;
+}
+
+.cm-selectionBackground {
   background-color: var(--chirami-selection) !important;
+  border-radius: 2px;
+}
+
+.cm-editor.chirami-ime-composing .cm-selectionBackground,
+.cm-editor.chirami-ime-composing ::selection {
+  background-color: transparent !important;
 }
 
 .cm-scroller {
-  line-height: 1.65;
+  line-height: 1.65 !important;
   padding-right: 16px;
+  overflow-anchor: none;
 }
 
 /* Inline formatting (heading sizes/weights and strikethrough handled by markdownStyle in editor.ts) */
 .cm-editor .tok-emphasis { font-style: italic; }
 .cm-editor .tok-strong { font-weight: 700; }
 
-/* Links */
-.cm-editor .tok-link { color: var(--chirami-link); text-decoration: underline; }
-.cm-editor .tok-url { color: var(--chirami-link); }
+/* Highlight (Obsidian-style ==text==).
+   `.cm-highlight` is the Live Preview span (markdownStyle in editor.ts);
+   `mark` is the static rendered element (renderInlineMarkdown). No dedicated
+   theme variable exists, so derive a subtle accent-tinted background that stays
+   legible across all themes (including the yellow default). */
+.cm-editor .cm-highlight,
+.cm-editor mark {
+  background-color: color-mix(in srgb, var(--chirami-accent) 28%, transparent);
+  color: inherit;
+  border-radius: 3px;
+  padding: 0 2px;
+}
+
+/* Links — --chirami-link falls back to accent for custom themes that don't define it */
+.cm-editor .tok-link { color: var(--chirami-link, var(--chirami-accent)); text-decoration: underline; }
+.cm-editor .tok-url { color: var(--chirami-link, var(--chirami-accent)); }
+/* Rendered clickable spans (Link previews and standalone autolinked URLs) share the link look */
+.cm-editor .cm-clickable-link {
+  cursor: pointer;
+  color: var(--chirami-link, var(--chirami-accent));
+  text-decoration: underline;
+}
 
 /* Inline code */
 .chirami-inline-code {
@@ -64,97 +96,99 @@ html, body {
   background-color: var(--chirami-code-bg);
   border-radius: 3px;
   padding: 0 4px;
+  /* Wrap long inline code at the window edge: prefer word boundaries, but
+     break within a token when a single run exceeds the available width. */
+  overflow-wrap: anywhere;
 }
 
 /* Blockquote */
 .cm-editor .cm-line.cm-quote {
-  border-left: 3px solid var(--chirami-link);
+  border-left: 3px solid var(--chirami-accent);
   padding-left: 8px;
   opacity: 0.85;
 }
+
+/* Obsidian callout */
+.cm-editor .cm-line.cm-callout {
+  border-left: 3px solid var(--callout-color, var(--chirami-accent));
+  padding-left: 8px;
+  background: var(--callout-bg, color-mix(in srgb, var(--chirami-surface) 84%, transparent));
+}
+
+.cm-editor .cm-line.cm-callout-header {
+  padding-top: 6px;
+  padding-bottom: 4px;
+}
+
+.cm-editor .cm-line.cm-callout-last {
+  padding-bottom: 6px;
+}
+
+.cm-callout-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--callout-color, var(--chirami-accent));
+  font-weight: bold;
+}
+
+.cm-callout-icon {
+  font-style: normal;
+  line-height: 1;
+  -webkit-text-stroke: 0.4px currentColor;
+}
+
+.cm-callout-note     { --callout-color: #448aff; --callout-bg: rgba(68, 138, 255, 0.08); }
+.cm-callout-abstract { --callout-color: #00b0ff; --callout-bg: rgba(0, 176, 255, 0.08); }
+.cm-callout-tip      { --callout-color: #00bcd4; --callout-bg: rgba(0, 188, 212, 0.08); }
+.cm-callout-success  { --callout-color: #00c853; --callout-bg: rgba(0, 200, 83, 0.08); }
+.cm-callout-question { --callout-color: #64dd17; --callout-bg: rgba(100, 221, 23, 0.08); }
+.cm-callout-warning  { --callout-color: #ff9100; --callout-bg: rgba(255, 145, 0, 0.08); }
+.cm-callout-failure  { --callout-color: #ff5252; --callout-bg: rgba(255, 82, 82, 0.08); }
+.cm-callout-danger   { --callout-color: #ff1744; --callout-bg: rgba(255, 23, 68, 0.08); }
+.cm-callout-example  { --callout-color: #7c4dff; --callout-bg: rgba(124, 77, 255, 0.08); }
+.cm-callout-quote    { --callout-color: #9e9e9e; --callout-bg: rgba(158, 158, 158, 0.08); }
 
 /* Code block comment dimming */
 .cm-editor .tok-comment { opacity: 0.7; }
 
 /* List markers */
-.cm-editor .tok-list { color: var(--chirami-link); }
+.cm-editor .tok-list { color: var(--chirami-accent); }
 
 
-/* Hide top-level list mark ("- ") via display:none so the span is removed from
-   the inline formatting context and creates no element-boundary break opportunity. */
-.cm-editor .cm-list-mark-hidden {
-  display: none;
-}
-
-/* Rendered mode: mark is hidden; bullet provided by ::before; text indented. */
-.cm-editor .cm-line.cm-list-hanging {
-  padding-left: 1.5em;
-  position: relative;
-}
-.cm-editor .cm-line.cm-list-hanging::before {
-  content: '•';
-  position: absolute;
-  left: 0;
-  width: 1.3em;
-  text-align: right;
+/* Bullet widget: static styles. width is set inline per nesting level. */
+.cm-bullet-widget {
+  display: inline-block;
+  text-indent: 0;
   color: var(--chirami-text);
   opacity: 0.5;
-  font-size: 0.85em;
   line-height: inherit;
+  user-select: none;
 }
 
-/* Nested list items: --hang-n is set via inline style from TypeScript (space count).
-   Same approach as cm-list-hanging: leading spaces and "- " are hidden from the DOM
-   flow; padding-left indents all lines uniformly; ::before provides the bullet. */
-.cm-editor .cm-line.cm-list-hang {
-  padding-left: calc(var(--hang-n) * 0.25em + 0.75em);
-  position: relative;
-}
-.cm-editor .cm-line.cm-list-hang::before {
-  content: '•';
-  position: absolute;
-  left: calc(var(--hang-n) * 0.25em);
-  width: 0.75em;
-  text-align: right;
-  color: var(--chirami-text);
-  opacity: 0.5;
-  font-size: 0.85em;
+/* Checkbox gutter wrapper: same principle as BulletWidget — inline-block with
+   a fixed em width so the widget occupies exactly the gutter, aligning wrapped
+   lines with text. Width is set inline per nesting level. */
+.cm-checkbox-gutter {
+  display: inline-block;
+  text-indent: 0;
   line-height: inherit;
+  user-select: none;
 }
 
-/* Cursor lines: suppress ::before bullet — the real "- " mark is shown instead. */
-.cm-editor .cm-line.cm-list-hanging.cm-list-hanging-cursor::before,
-.cm-editor .cm-line.cm-list-hang.cm-list-hang-cursor::before {
-  display: none;
-}
-
-/* Position the top-level cursor-line "- " mark absolutely in the far-left gutter. */
-.cm-editor .cm-list-mark-cursor {
-  position: absolute;
-  left: 0;
-  width: 1.3em;
-  text-align: right;
-  color: var(--chirami-text);
-  opacity: 0.5;
-  font-size: 0.85em;
-  line-height: inherit;
-  white-space: nowrap;
-  overflow: hidden;
-}
-
-/* Position the nested cursor-line "- " mark in the level-appropriate gutter.
-   --hang-n is inherited from the cm-line element set by the TypeScript decoration. */
-.cm-editor .cm-list-mark-cursor-hang {
-  position: absolute;
-  left: calc(var(--hang-n) * 0.25em);
-  width: 0.75em;
-  text-align: right;
-  color: var(--chirami-text);
-  opacity: 0.5;
-  font-size: 0.85em;
-  line-height: inherit;
-  white-space: nowrap;
-  overflow: hidden;
+/* List items: BulletWidget provides the bullet gutter.
+   padding-left sets where continuation (wrapped) lines start.
+   text-indent: -gutter pulls the first visual line left by the gutter width,
+   so the widget lands at (totalIndent - gutterWidth) from the border edge,
+   creating the correct visual indentation per nesting level.
+   The extra 6px matches CodeMirror's default .cm-line padding-left (0 2px 0 6px)
+   which is overridden by setting padding-left here, so we restore it explicitly. */
+.cm-editor .cm-line.cm-list-item {
+  padding-left: calc(var(--list-indent) + 6px);
+  text-indent: calc(-1 * var(--list-gutter));
+  line-height: 1.5;
+  padding-top: 4px;
+  padding-bottom: 4px;
 }
 
 
@@ -215,43 +249,49 @@ html, body {
   padding: 0;
 }
 
-/* Checkbox widget */
-.cm-checkbox-widget input[type="checkbox"] {
-  -webkit-appearance: none;
+/* Task item checkbox — appearance:none so the checked state is stable even when
+   the window is inactive (macOS dims native controls on focus loss).
+   Circle style matching Glass Light/Dark design (size=16, strokeWidth=2 equivalent). */
+.cm-editor input[type="checkbox"] {
   appearance: none;
-  width: 13px;
-  height: 13px;
-  border: 1.5px solid color-mix(in srgb, var(--chirami-text) 40%, transparent);
-  border-radius: 3px;
-  background-color: transparent;
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid color-mix(in srgb, var(--chirami-text) 30%, transparent);
+  border-radius: 50%;
+  background: transparent;
   cursor: pointer;
   vertical-align: middle;
-  margin: 0 3px 1px 0;
+  margin: 0 0 1px 0;
   position: relative;
   flex-shrink: 0;
 }
 
-.cm-checkbox-widget input[type="checkbox"]:checked {
-  background-color: color-mix(in srgb, var(--chirami-text) 55%, transparent);
-  border-color: color-mix(in srgb, var(--chirami-text) 55%, transparent);
+.cm-editor input[type="checkbox"]:checked {
+  background: AccentColor;
+  border-color: AccentColor;
 }
 
-.cm-checkbox-widget input[type="checkbox"]:checked::after {
+/* Checkmark sized to match SVG path M3 8l3.5 3.5L13 5 at 60% of 16px (9.6px rendered).
+   Short arm ~3px, long arm ~6px, strokeWidth 1.5px. */
+.cm-editor input[type="checkbox"]:checked::after {
   content: '';
   position: absolute;
   left: 50%;
-  top: 45%;
-  width: 5px;
-  height: 8px;
-  border: 1.5px solid var(--chirami-bg);
+  top: 50%;
+  width: 3px;
+  height: 6px;
+  border: 1.5px solid white;
   border-top: none;
   border-left: none;
   transform: translate(-50%, -60%) rotate(45deg);
 }
 
-/* Checked task line dimming */
+/* Checked task line dimming with strikethrough */
 .cm-task-checked {
-  color: color-mix(in srgb, var(--chirami-text) 40%, transparent);
+  color: color-mix(in srgb, var(--chirami-text) 55%, transparent);
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, var(--chirami-text) 30%, transparent);
 }
 
 /* Horizontal rule */
@@ -264,20 +304,18 @@ html, body {
   margin: 0.25em 0;
 }
 
-/* Hide raw table markdown text when widget is shown */
-.cm-table-raw {
-  display: none;
-}
-
-/* Hide raw mermaid markdown text when widget is shown */
-.cm-mermaid-raw {
-  display: none;
-}
-
-/* Mermaid diagram container */
-.cm-mermaid-container {
+/* Mermaid diagram container.
+   The outer wrap is the hover/position anchor (no overflow so the edit
+   button is never clipped); the inner scroller owns overflow. */
+.cm-mermaid-widget {
+  position: relative;
   margin: 0.5em 0;
+}
+
+.cm-mermaid-container {
   overflow: auto;
+  max-width: var(--cm-block-width, 100%);
+  max-height: var(--cm-block-height, none);
 }
 
 .cm-mermaid-container svg {
@@ -288,17 +326,22 @@ html, body {
 /* Mermaid syntax error display */
 .cm-mermaid-error {
   padding: 8px;
-  background: rgba(255, 0, 0, 0.08);
+  background: color-mix(in srgb, var(--chirami-danger) 10%, transparent);
   border-radius: 4px;
   font-family: ui-monospace, "SF Mono", Menlo, monospace;
   font-size: 12px;
-  color: #cd3131;
+  color: var(--chirami-danger);
 }
 
 /* Table widget */
 .cm-table-widget {
-  overflow-x: auto;
+  position: relative;
   margin: 0.5em 0;
+}
+
+/* Inner scroller owns overflow so the hover button stays pinned to the wrap */
+.cm-table-scroll {
+  overflow-x: auto;
 }
 
 .cm-table-widget table {
@@ -309,14 +352,66 @@ html, body {
 
 .cm-table-widget th,
 .cm-table-widget td {
-  border: 1px solid rgba(128, 128, 128, 0.3);
+  border: 1px solid var(--chirami-border);
   padding: 4px 8px;
   text-align: left;
 }
 
 .cm-table-widget thead tr {
-  background: rgba(128, 128, 128, 0.1);
+  background: var(--chirami-surface);
   font-weight: bold;
+}
+
+/* Edit-as-Markdown button (hidden by default, shown on hover).
+   Shared by the table and mermaid widgets. Anchored above the widget's
+   top-right corner so it never covers content; the 1px border overlap keeps
+   the wrap's :hover chain unbroken while the pointer travels onto the button. */
+.cm-source-edit-btn {
+  position: absolute;
+  bottom: calc(100% - 1px);
+  right: 0;
+  padding: 2px 8px;
+  font-size: 12px;
+  border: 1px solid var(--chirami-border);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--chirami-surface-raised) 90%, transparent);
+  color: var(--chirami-text);
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+}
+
+.cm-table-widget:hover .cm-source-edit-btn,
+.cm-mermaid-widget:hover .cm-source-edit-btn {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.cm-table-widget td.cm-table-cell-editing,
+.cm-table-widget th.cm-table-cell-editing {
+  outline: 2px solid var(--chirami-accent);
+  outline-offset: -2px;
+}
+
+.cm-table-cell-input {
+  width: 100%;
+  min-width: 3em;
+  box-sizing: border-box;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
+  padding: 0;
+  margin: 0;
+  display: block;
+  resize: none;
+  overflow: hidden;
+  white-space: pre-wrap;
+  word-break: break-word;
+  vertical-align: top;
 }
 
 /* Image widget */
@@ -334,8 +429,8 @@ html, body {
   line-height: 20px;
   text-align: center;
   border: none;
-  background: rgba(0, 0, 0, 0.6);
-  color: white;
+  background: color-mix(in srgb, var(--chirami-text) 65%, transparent);
+  color: var(--chirami-bg);
   border-radius: 50%;
   cursor: pointer;
   opacity: 0;
@@ -345,87 +440,128 @@ html, body {
   transition: opacity 0.15s;
 }
 
-/* Hide raw tldraw markdown text when widget is shown */
-.cm-tldraw-raw {
-  display: none;
+/* Excalidraw JSON placeholder (shown when cursor is inside the block) */
+.cm-excalidraw-json-placeholder {
+  color: color-mix(in srgb, var(--chirami-muted) 72%, transparent);
+  font-family: var(--chirami-font);
+  font-style: italic;
 }
 
-/* tldraw container */
-.cm-tldraw-container {
+/* excalidraw container */
+.cm-excalidraw-container {
   position: relative;
-  margin: 0.5em 0;
+  margin: 0;
+  padding: 8px 0;
+  background: #ffffff;
   border-radius: 6px;
   overflow: hidden;
-  border: 1px solid rgba(128, 128, 128, 0.2);
+  border: 1px solid var(--chirami-border);
+  max-width: var(--cm-block-width, 100%);
+  max-height: var(--cm-block-height, none);
 }
 
-/* tldraw SVG preview */
-.cm-tldraw-preview-inner {
+/* excalidraw SVG preview */
+.cm-excalidraw-preview-inner {
   width: 100%;
-  background: white;
+  background: #ffffff;
 }
 
-/* Override TldrawImage's internal div/img styles (both use height: 100%) */
-.cm-tldraw-preview-inner > div {
-  height: auto !important;
-}
-
-.cm-tldraw-preview-inner img {
+.cm-excalidraw-preview-inner img {
   display: block;
   width: 100% !important;
   height: auto !important;
 }
 
 /* Empty block placeholder */
-.cm-tldraw-placeholder {
+.cm-excalidraw-placeholder {
   display: flex;
   align-items: center;
   justify-content: center;
   min-height: 60px;
-  color: rgba(128, 128, 128, 0.7);
+  color: var(--chirami-muted);
   font-size: 13px;
   cursor: pointer;
   user-select: none;
 }
 
 /* Error state */
-.cm-tldraw-error {
+.cm-excalidraw-error {
   padding: 8px;
-  background: rgba(255, 0, 0, 0.08);
+  background: color-mix(in srgb, var(--chirami-danger) 10%, transparent);
   border-radius: 4px;
   font-family: ui-monospace, "SF Mono", Menlo, monospace;
   font-size: 12px;
-  color: #cd3131;
+  color: var(--chirami-danger);
 }
 
 /* Edit button (hidden by default, shown on hover) */
-.cm-tldraw-edit-btn {
+.cm-excalidraw-edit-btn {
   position: absolute;
   top: 8px;
   right: 8px;
   padding: 4px 10px;
   font-size: 12px;
-  border: 1px solid rgba(128, 128, 128, 0.4);
+  border: 1px solid var(--chirami-border);
   border-radius: 4px;
-  background: rgba(255, 255, 255, 0.9);
-  color: #222;
+  background: color-mix(in srgb, var(--chirami-surface-raised) 90%, transparent);
+  color: var(--chirami-text);
   cursor: pointer;
   opacity: 0;
   transition: opacity 0.15s;
   pointer-events: none;
 }
 
-.cm-tldraw-container.cm-tldraw-hover .cm-tldraw-edit-btn,
-.cm-tldraw-placeholder ~ .cm-tldraw-edit-btn {
+.cm-excalidraw-container.cm-excalidraw-hover .cm-excalidraw-edit-btn,
+.cm-excalidraw-placeholder ~ .cm-excalidraw-edit-btn {
   opacity: 1;
   pointer-events: auto;
 }
 
-/* tldraw overlay root (full-screen) */
-#tldraw-overlay-root {
+/* excalidraw overlay root (full-screen) */
+#excalidraw-overlay-root {
   position: fixed;
   inset: 0;
-  z-index: 9999;
+  z-index: 900;
+  background: #ffffff;
+}
+
+/* Hide Excalidraw UI elements that are non-functional in this context */
+.help-icon,
+[data-testid="help-menu-item"],
+[data-testid="toolbar-embeddable"],
+.dropdown-menu-group,
+[data-testid="toolbar-laser"] + div,
+.dropdown-menu div[style*="--default-border-color"],
+.library-menu-control-buttons--at-bottom,
+[data-testid="lib-dropdown--load"],
+[data-testid="lib-dropdown--export"] {
+  display: none !important;
+}
+
+/* Details widget */
+
+.cm-details-summary {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  user-select: none;
+  padding: 1px 0;
+  /* The whole row toggles, so the whole row shows the pointer cursor. */
+  cursor: pointer;
+}
+
+.cm-details-arrow {
+  display: inline-block;
+  width: 1em;
+  font-size: 0.75em;
+  color: var(--chirami-text);
+  opacity: 0.6;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.cm-details-summary-text {
+  color: var(--chirami-text);
 }
 
 /* Slash command picker */
@@ -433,12 +569,16 @@ html, body {
   list-style: none;
   margin: 0;
   padding: 4px 0;
-  background-color: #ffffff;
-  color: #222222;
-  border: 1px solid rgba(0, 0, 0, 0.15);
+  background-color: var(--chirami-surface-raised);
+  color: var(--chirami-text);
+  border: 1px solid var(--chirami-border);
   border-radius: 6px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 16px color-mix(in srgb, black 18%, transparent);
+  /* min-width/max-width are set dynamically in slashCommand.ts so the picker
+     fits the editor width on narrow notes. These are fallbacks for the brief
+     pre-position frame and any case where JS positioning does not run. */
   min-width: 220px;
+  max-width: 100%;
   max-height: 240px;
   overflow-y: auto;
   z-index: 10000;
@@ -455,20 +595,219 @@ html, body {
 
 .cm-slash-picker-item:hover,
 .cm-slash-picker-item--selected {
-  background-color: rgba(0, 0, 0, 0.07);
+  background-color: color-mix(in srgb, var(--chirami-accent) 10%, var(--chirami-surface-raised) 90%);
 }
 
 .cm-slash-picker-label {
   font-size: 13px;
   font-weight: 600;
-  color: #222222;
+  color: var(--chirami-text);
   flex-shrink: 0;
 }
 
 .cm-slash-picker-desc {
   font-size: 12px;
-  color: rgba(34, 34, 34, 0.55);
+  color: var(--chirami-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* Search / replace panel (@codemirror/search standard panel).
+   The default panel ships with bare white styling that clashes with the note
+   theme and is too tall for narrow note windows (~248pt). Restyle it to use the
+   --chirami-* theme variables and compact spacing while keeping all controls
+   (find / next / prev / all / case / regexp / word / replace) functional. */
+.cm-panels {
+  background-color: var(--chirami-surface-raised);
+  color: var(--chirami-text);
+  border-color: var(--chirami-border);
+}
+
+.cm-panels-bottom {
+  border-top: 1px solid var(--chirami-border);
+}
+
+.cm-panels-top {
+  border-bottom: 1px solid var(--chirami-border);
+}
+
+.cm-panel.cm-search {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 5px;
+  /* Reserve space on the right for the absolutely-positioned close button. */
+  padding: 6px 24px 6px 8px;
+  font-size: 12px;
+  background-color: var(--chirami-surface-raised);
+  color: var(--chirami-text);
+}
+
+/* Force a line break before the replace row (the panel inserts a <br>). */
+.cm-panel.cm-search br {
+  flex-basis: 100%;
+  height: 0;
+  margin: 0;
+}
+
+.cm-panel.cm-search .cm-textfield {
+  flex: 1 1 96px;
+  min-width: 0;
+  padding: 3px 7px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--chirami-text);
+  background-color: var(--chirami-surface);
+  border: 1px solid var(--chirami-border);
+  border-radius: 5px;
+  outline: none;
+}
+
+.cm-panel.cm-search .cm-textfield::placeholder {
+  color: var(--chirami-muted);
+}
+
+.cm-panel.cm-search .cm-textfield:focus {
+  border-color: var(--chirami-accent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--chirami-accent) 45%, transparent);
+}
+
+.cm-panel.cm-search .cm-button {
+  flex: 0 0 auto;
+  padding: 3px 9px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--chirami-text);
+  background-image: none;
+  background-color: var(--chirami-surface);
+  border: 1px solid var(--chirami-border);
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.12s ease, border-color 0.12s ease;
+}
+
+.cm-panel.cm-search .cm-button:hover {
+  background-color: color-mix(in srgb, var(--chirami-accent) 12%, var(--chirami-surface) 88%);
+  border-color: color-mix(in srgb, var(--chirami-accent) 40%, var(--chirami-border) 60%);
+}
+
+.cm-panel.cm-search .cm-button:active {
+  background-color: color-mix(in srgb, var(--chirami-accent) 20%, var(--chirami-surface) 80%);
+}
+
+.cm-panel.cm-search label {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11.5px;
+  color: var(--chirami-muted);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+/* Reset the round task-checkbox styling (`.cm-editor input[type="checkbox"]`,
+   which also matches here since the panel lives inside .cm-editor) back to a
+   native square checkbox for the search options. */
+.cm-panel.cm-search label input[type="checkbox"] {
+  appearance: auto;
+  -webkit-appearance: checkbox;
+  width: 13px;
+  height: 13px;
+  margin: 0;
+  border: none;
+  border-radius: 0;
+  background: none;
+  accent-color: var(--chirami-accent);
+  vertical-align: middle;
+}
+
+/* Cancel the round-checkbox checkmark pseudo-element inherited from the global
+   task-checkbox rule. */
+.cm-panel.cm-search label input[type="checkbox"]:checked {
+  background: none;
+}
+
+.cm-panel.cm-search label input[type="checkbox"]:checked::after {
+  content: none;
+}
+
+/* Close button (×): no name-based class, target by name attribute. */
+.cm-panel.cm-search button[name="close"] {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  padding: 0 4px;
+  font-size: 16px;
+  line-height: 1;
+  color: var(--chirami-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.cm-panel.cm-search button[name="close"]:hover {
+  color: var(--chirami-text);
+}
+
+/* Search match highlighting — derive from theme variables so matches read well
+   across all themes instead of the default raw yellow. */
+.cm-searchMatch {
+  background-color: color-mix(in srgb, var(--chirami-accent) 28%, transparent);
+  border-radius: 2px;
+}
+
+.cm-searchMatch-selected {
+  background-color: color-mix(in srgb, var(--chirami-accent) 55%, transparent);
+}
+
+/* Frontmatter block (leading --- … --- YAML).
+   Shown above the body as a compact, read-only row of key/value chips when the
+   cursor is outside; when the cursor is inside, the chips are removed and the
+   raw YAML is edited directly (lang-yaml highlighting — no styles here).
+   Colours use --chirami-* so the block follows the active note theme. */
+.cm-frontmatter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  /* Clip to a single row: relayout hides chips that wrapped below, and the
+     max-height keeps the widget one row tall even for the one frame before the
+     ResizeObserver relayout runs — so the body content below never shifts. */
+  max-height: 1.9em;
+  overflow: hidden;
+  gap: 4px 6px;
+  padding: 2px 0 6px;
+  font-size: 0.85em;
+  cursor: text;
+}
+
+.cm-frontmatter-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  max-width: 100%;
+  min-width: 0;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background-color: color-mix(in srgb, var(--chirami-surface) 60%, transparent);
+}
+
+.cm-frontmatter-chip-key {
+  color: var(--chirami-muted);
+  white-space: nowrap;
+  flex: none;
+}
+
+.cm-frontmatter-chip-value {
+  color: var(--chirami-text);
+  min-width: 0;
+  max-width: 22ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cm-frontmatter-chip-more {
+  color: var(--chirami-muted);
+  flex: none;
 }

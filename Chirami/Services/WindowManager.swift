@@ -10,11 +10,17 @@ class WindowManager: ObservableObject {
     private let noteStore = NoteStore.shared
     private var rolloverTimer: Timer?
     private(set) weak var lastFocusedController: NoteWindowController?
+    private(set) weak var lastFocusedEditorProvider: (any EditorContextProvider)?
 
     private init() {}
 
     func noteWindowDidBecomeKey(_ controller: NoteWindowController) {
         lastFocusedController = controller
+        lastFocusedEditorProvider = controller
+    }
+
+    func editorWindowDidBecomeKey(_ provider: any EditorContextProvider) {
+        lastFocusedEditorProvider = provider
     }
 
     func openAllWindows() {
@@ -75,12 +81,36 @@ class WindowManager: ObservableObject {
 
     func toggleWindow(for noteId: String) {
         guard let controller = controllers[noteId] else {
-            if let note = noteStore.notes.first(where: { $0.id == noteId }) {
+            if let note = noteStore.refreshNote(for: noteId) {
                 openWindow(for: note)
             }
             return
         }
         controller.toggle()
+    }
+
+    func createWindow(for noteId: String) {
+        // For stream notes this always creates a brand-new quick-capture entry
+        // (design decision 6), not just "today's" file — see
+        // `NoteStore.createStreamEntry`.
+        guard let note = noteStore.refreshNote(for: noteId, isCreateAction: true) else {
+            return
+        }
+
+        if let controller = controllers[noteId] {
+            if note.periodicInfo?.mode == .stream {
+                // `showStreamEntry` forces navigation to the just-created file even
+                // if the controller was mid-browse through history; plain `show()`
+                // would only re-latest when already following (see `isShowingToday`).
+                controller.showStreamEntry(note.path)
+            } else {
+                controller.show()
+            }
+            return
+        }
+
+        openWindow(for: note)
+        controllers[noteId]?.show()
     }
 
     func isVisible(noteId: String) -> Bool {
@@ -109,8 +139,9 @@ class WindowManager: ObservableObject {
             openWindow(for: note)
         }
 
-        // Manage rollover timer
-        let hasPeriodicNotes = noteStore.notes.contains { $0.periodicInfo != nil }
+        // Manage rollover timer. Stream notes never roll over (design decision 5),
+        // so a directory of stream-only notes should not keep the timer running.
+        let hasPeriodicNotes = noteStore.notes.contains { $0.periodicInfo?.mode == .periodic }
         if hasPeriodicNotes {
             startRolloverTimer()
         } else {
@@ -137,16 +168,18 @@ class WindowManager: ObservableObject {
     func checkRollover() {
         for (_, controller) in controllers {
             guard let info = controller.note.periodicInfo else { continue }
+            // Stream notes have no time-based "current" to roll over to; the
+            // directory watcher covers new-file detection instead (design decision 5).
+            guard info.mode == .periodic else { continue }
             let logicalDate = noteStore.logicalDate(rolloverDelay: info.rolloverDelay)
             let newPath = PathTemplateResolver.resolve(info.pathTemplate, for: logicalDate)
             guard let newURL = resolvePath(newPath) else { continue }
 
             if newURL.path != controller.note.path.path {
-                let config = NoteConfig(
-                    path: info.pathTemplate,
-                    title: info.titlePrefix,
-                    template: info.templateFile?.path
-                )
+                // Look up the original NoteConfig instead of re-synthesizing one
+                // from PeriodicNoteInfo, which would silently drop attributes
+                // (theme, transparency, hotkeys, position, ...).
+                guard let config = noteStore.noteConfig(for: controller.note.id) else { continue }
                 if let newNote = noteStore.resolvePeriodicNote(from: config, for: logicalDate) {
                     controller.handleRollover(newNote)
                 }

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Claude to Codex"
+  short_description: "Port Claude Code assets to Codex"
+  default_prompt: "Use $migrate-claude-to-codex to convert this repository's Claude Code configuration into Codex-native skills and instructions."

@@ -1,28 +1,31 @@
 import { EditorView, ViewPlugin, ViewUpdate, keymap } from "@codemirror/view";
 import { Prec } from "@codemirror/state";
-import { openTldrawOverlay } from "../tldraw-overlay";
+import { openExcalidrawOverlay } from "../excalidraw-overlay";
+import { EditorCapabilities, hasCapability } from "../capabilities";
 
 export interface SlashCommand {
   id: string;
   label: string;
   description: string;
+  /** When set, the command is offered only if the host enables this capability. */
+  capability?: keyof EditorCapabilities;
   execute(view: EditorView, lineFrom: number): void;
 }
 
 const COMMANDS: SlashCommand[] = [
   {
-    id: "tldraw",
-    label: "/tldraw",
-    description: "Insert a tldraw diagram block",
+    id: "excalidraw",
+    label: "/excalidraw",
+    description: "Insert an Excalidraw diagram block",
     execute(view, lineFrom) {
-      const block = "```tldraw\n\n```";
+      const block = "```excalidraw\n\n```";
       const lineTo = view.state.doc.lineAt(lineFrom).to;
       view.dispatch({
         changes: { from: lineFrom, to: lineTo, insert: block },
         selection: { anchor: lineFrom + block.length },
       });
-      const codeFrom = lineFrom + "```tldraw\n".length;
-      openTldrawOverlay("", (newSnapshot) => {
+      const codeFrom = lineFrom + "```excalidraw\n".length;
+      openExcalidrawOverlay("", (newSnapshot) => {
         if (!newSnapshot) return;
         view.dispatch({
           changes: { from: codeFrom, to: codeFrom, insert: newSnapshot + "\n" },
@@ -41,6 +44,22 @@ const COMMANDS: SlashCommand[] = [
       view.dispatch({
         changes: { from: lineFrom, to: view.state.doc.lineAt(lineFrom).to, insert: block },
         selection: { anchor: cursorPos },
+      });
+    },
+  },
+  {
+    id: "details",
+    label: "/details",
+    description: "Insert a collapsible details block",
+    execute(view, lineFrom) {
+      const summaryPlaceholder = "Summary";
+      const block = `<details>\n<summary>${summaryPlaceholder}</summary>\n\n</details>`;
+      const lineTo = view.state.doc.lineAt(lineFrom).to;
+      const summaryFrom = lineFrom + "<details>\n<summary>".length;
+      const summaryTo = summaryFrom + summaryPlaceholder.length;
+      view.dispatch({
+        changes: { from: lineFrom, to: lineTo, insert: block },
+        selection: { anchor: summaryFrom, head: summaryTo },
       });
     },
   },
@@ -169,9 +188,10 @@ class SlashCommandPicker {
   }
 
   private filterCommands(filter: string): SlashCommand[] {
-    if (!filter) return COMMANDS;
+    const available = COMMANDS.filter((c) => !c.capability || hasCapability(c.capability));
+    if (!filter) return available;
     const q = filter.toLowerCase();
-    return COMMANDS.filter((c) => c.id.startsWith(q) || c.label.toLowerCase().startsWith("/" + q));
+    return available.filter((c) => c.id.startsWith(q) || c.label.toLowerCase().startsWith("/" + q));
   }
 
   private refreshHighlight(): void {
@@ -202,16 +222,30 @@ class SlashCommandPicker {
 
       const PICKER_HEIGHT = 200;
       const MARGIN = 4;
+      const EDGE_MARGIN = 16;
       const viewportHeight = window.innerHeight;
+      const editorRect = view.dom.getBoundingClientRect();
+
+      // Cap width so the picker stays within the editor bounds; the desc text
+      // then truncates via CSS ellipsis instead of being clipped at the window
+      // edge. Also clamp min-width so it never overrides the cap on narrow notes.
+      const applyMaxWidth = (left: number) => {
+        if (!this.el) return;
+        const maxWidth = Math.max(0, editorRect.right - left - EDGE_MARGIN);
+        this.el.style.maxWidth = `${maxWidth}px`;
+        this.el.style.minWidth = `${Math.min(220, maxWidth)}px`;
+      };
 
       if (!coords) {
-        const editorRect = view.dom.getBoundingClientRect();
-        this.el.style.left = `${editorRect.left + 16}px`;
+        const left = editorRect.left + EDGE_MARGIN;
+        this.el.style.left = `${left}px`;
         this.el.style.top = `${editorRect.top + 40}px`;
+        applyMaxWidth(left);
         return;
       }
 
       this.el.style.left = `${coords.left}px`;
+      applyMaxWidth(coords.left);
 
       if (coords.bottom + PICKER_HEIGHT + MARGIN > viewportHeight) {
         this.el.style.top = "";

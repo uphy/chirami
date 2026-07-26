@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+#MISE description="Release ビルド (.app バンドル生成)"
+#MISE depends=["build:editor", "build:swift", "build:go"]
+set -euo pipefail
+
+version="${APP_VERSION:-0.0.0-dev}"
+
+# .app バンドル構成
+app_dir="build/Chirami.app/Contents"
+mkdir -p "$app_dir/MacOS" "$app_dir/Resources"
+
+cp .build/release/Chirami "$app_dir/MacOS/Chirami"
+
+# Go CLI バイナリをバンドルに同梱
+# Use chirami_bin to avoid case-insensitive FS conflict with the Swift binary "Chirami"
+cp build/chirami-bin "$app_dir/MacOS/chirami_bin"
+
+# Editor web files (CodeMirror bundle)
+if [ -d "Chirami/Resources/editor" ]; then
+  rm -rf "$app_dir/Resources/editor"
+  cp -r Chirami/Resources/editor "$app_dir/Resources/editor"
+  echo "Editor: web files copied"
+fi
+
+# Color scheme definitions
+if [ -f "Chirami/Resources/color_schemes.yaml" ]; then
+  cp Chirami/Resources/color_schemes.yaml "$app_dir/Resources/color_schemes.yaml"
+fi
+
+# Built-in theme CSS (loaded via Bundle.main at runtime)
+if [ -f "Chirami/Resources/chirami-default.css" ]; then
+  cp Chirami/Resources/chirami-default.css "$app_dir/Resources/chirami-default.css"
+  echo "CSS: chirami-default.css copied"
+fi
+
+# Menu bar icon
+menu_icon_src="Chirami/Resources/Assets.xcassets/MenuBarIcon.imageset"
+if [ -d "$menu_icon_src" ]; then
+  cp "$menu_icon_src/MenuBarIcon.png"    "$app_dir/Resources/MenuBarIcon.png"
+  cp "$menu_icon_src/MenuBarIcon@2x.png" "$app_dir/Resources/MenuBarIcon@2x.png"
+  echo "Icon: MenuBarIcon copied"
+fi
+
+# アイコン (icns) 生成
+src_png="Chirami/Resources/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png"
+if [ -f "$src_png" ]; then
+  iconset_dir="$(mktemp -d)/AppIcon.iconset"
+  mkdir -p "$iconset_dir"
+  sips -z 16   16   "$src_png" --out "$iconset_dir/icon_16x16.png"    > /dev/null
+  sips -z 32   32   "$src_png" --out "$iconset_dir/icon_16x16@2x.png" > /dev/null
+  sips -z 32   32   "$src_png" --out "$iconset_dir/icon_32x32.png"    > /dev/null
+  sips -z 64   64   "$src_png" --out "$iconset_dir/icon_32x32@2x.png" > /dev/null
+  sips -z 128  128  "$src_png" --out "$iconset_dir/icon_128x128.png"   > /dev/null
+  sips -z 256  256  "$src_png" --out "$iconset_dir/icon_128x128@2x.png" > /dev/null
+  sips -z 256  256  "$src_png" --out "$iconset_dir/icon_256x256.png"   > /dev/null
+  sips -z 512  512  "$src_png" --out "$iconset_dir/icon_256x256@2x.png" > /dev/null
+  sips -z 512  512  "$src_png" --out "$iconset_dir/icon_512x512.png"   > /dev/null
+  cp "$src_png"                     "$iconset_dir/icon_512x512@2x.png"
+  iconutil -c icns "$iconset_dir" -o "$app_dir/Resources/AppIcon.icns"
+  rm -rf "$(dirname "$iconset_dir")"
+  echo "Icon: AppIcon.icns generated"
+fi
+
+# Info.plist の Xcode 変数を実値に置換
+sed \
+  -e 's/$(DEVELOPMENT_LANGUAGE)/en/' \
+  -e 's/$(EXECUTABLE_NAME)/Chirami/' \
+  -e 's/$(PRODUCT_BUNDLE_IDENTIFIER)/com.uphy.Chirami/' \
+  -e "s/\$(MARKETING_VERSION)/$version/" \
+  -e "s/\$(CURRENT_PROJECT_VERSION)/$version/" \
+  -e 's/$(MACOSX_DEPLOYMENT_TARGET)/14.0/' \
+  Chirami/Info.plist > "$app_dir/Info.plist"
+
+echo "Built build/Chirami.app (version: $version)"

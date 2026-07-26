@@ -129,3 +129,86 @@ Turn the selected bullet list into a table
 ```
 
 Unlike the Raycast approach, you can keep the conversation going and refine the result interactively.
+
+## Claude Code Stop Hook (Stream Note)
+
+A [Stop hook](https://docs.claude.com/en/docs/claude-code/hooks) fires whenever Claude Code finishes responding. Writing each assistant answer to its own timestamped Markdown file turns your Claude Code history into a [Stream Note](advanced.md#stream-notes) — summon the latest answer with a hotkey when it's too complex for the terminal (Mermaid diagrams, tables, long code blocks), and flip back through previous answers with ◀/▶.
+
+### Hook Script
+
+`~/.claude/hooks/chirami-stream-note.sh` reads the Stop hook's JSON payload from stdin, extracts the transcript path, and writes the last assistant message to a new file:
+
+```bash
+#!/bin/bash
+set -euo pipefail
+
+DIR="$HOME/dev/notes/_workspace/claude"
+mkdir -p "$DIR"
+
+INPUT=$(cat)
+TRANSCRIPT=$(echo "$INPUT" | jq -r '.transcript_path')
+
+# Concatenate the text blocks of the last assistant message in the transcript
+TEXT=$(jq -rs '
+  [.[] | select(.type == "assistant")] | last
+  | .message.content
+  | map(select(.type == "text") | .text)
+  | join("\n")
+' "$TRANSCRIPT")
+
+[ -z "$TEXT" ] && exit 0
+
+# Writer contract: zero-padded, fixed-length timestamp so lexicographic
+# order equals chronological order.
+TS=$(date +%Y-%m-%d-%H%M%S)
+FILE="$DIR/${TS}.md"
+
+# On collision, bump to the next second instead of appending a suffix
+# (an unmatched suffix would be invisible to Chirami's navigation).
+while [ -e "$FILE" ]; do
+  TS=$(date -j -v+1S -f "%Y-%m-%d-%H%M%S" "$TS" +%Y-%m-%d-%H%M%S)
+  FILE="$DIR/${TS}.md"
+done
+
+printf '%s\n' "$TEXT" > "$FILE"
+```
+
+Make it executable: `chmod +x ~/.claude/hooks/chirami-stream-note.sh`.
+
+### Claude Code Settings
+
+Register the hook in `.claude/settings.json` (project) or `~/.claude/settings.json` (user):
+
+```json
+{
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/chirami-stream-note.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+### Chirami Config
+
+Register the directory as a stream note and bind a hotkey to jump straight to the latest answer:
+
+```yaml
+notes:
+  - path: ~/dev/notes/_workspace/claude/{yyyy-MM-dd-HHmmss}.md
+    title: Claude Answers
+    mode: stream
+    hotkeys:
+      - key: option+c
+        action: toggle
+```
+
+Press `option+c` any time to open the newest answer, and ◀/▶ to flip back through earlier ones — no restart needed even though the files are written by a process outside Chirami.

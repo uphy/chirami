@@ -1,11 +1,12 @@
 import AppKit
 import SwiftUI
+import os
 
 // MARK: - DisplayWindowController
 
 /// Manages a single Ad-hoc Note window opened via chirami://display URI.
 @MainActor
-class DisplayWindowController: NSObject, NSWindowDelegate {
+class DisplayWindowController: NSObject, NSWindowDelegate, EditorContextProvider {
 
     let panel: DisplayPanel
     let profileName: String?
@@ -17,7 +18,15 @@ class DisplayWindowController: NSObject, NSWindowDelegate {
     /// When true, closing this window should NOT notify FIFO (used during --id replacement).
     var suppressCloseNotification = false
 
-    init(panel: DisplayPanel, contentModel: DisplayContentModel, profileName: String? = nil, windowId: String? = nil, position: NotePosition = .fixed, transparency: Double = 0.9, isPinned: Bool = true) {
+    init(
+        panel: DisplayPanel,
+        contentModel: DisplayContentModel,
+        profileName: String? = nil,
+        windowId: String? = nil,
+        position: NotePosition = .fixed,
+        transparency: Double = 0.9,
+        isPinned: Bool = true
+    ) {
         self.panel = panel
         self.contentModel = contentModel
         self.profileName = profileName
@@ -29,9 +38,10 @@ class DisplayWindowController: NSObject, NSWindowDelegate {
         panel.delegate = self
 
         if position == .cursor {
-            panel.setupPinButton(target: self, action: #selector(togglePinAction))
+            panel.setupPinButton { [weak self] in self?.togglePinAction() }
             panel.updatePinState(isPinned: isPinned)
         }
+        panel.applyConfiguredAppearance()
     }
 
     /// Place the panel and show it.
@@ -109,9 +119,26 @@ class DisplayWindowController: NSObject, NSWindowDelegate {
         panel.updatePinState(isPinned: isPinned)
     }
 
+    // MARK: - EditorContextProvider
+
+    func getEditorContext(completion: @escaping (Result<String, Error>) -> Void) {
+        guard let getter = contentModel.getEditorContext else {
+            completion(.failure(NSError(domain: "ContextHandler", code: -1,
+                userInfo: [NSLocalizedDescriptionKey: "editor not ready"])))
+            return
+        }
+        getter(completion)
+    }
+
     // MARK: - NSWindowDelegate
 
+    func windowDidBecomeKey(_ notification: Notification) {
+        contentModel.setWindowActive?(true)
+        WindowManager.shared.editorWindowDidBecomeKey(self)
+    }
+
     func windowDidResignKey(_ notification: Notification) {
+        contentModel.setWindowActive?(false)
         guard !isPinned, panel.isVisible else { return }
         setVisible(false)
     }
@@ -187,12 +214,11 @@ class DisplayWindowManager {
 
         // Resolve profile settings
         let profile = profileName.flatMap { AppConfig.shared.config.adhoc?.profiles?[$0] }
-        let color = profile?.resolveNoteColorScheme() ?? .yellow
         let transparency = profile?.resolveTransparency() ?? 0.9
-        let fontSize = profile?.resolveFontSize() ?? 14
         let position = profile?.resolvePosition() ?? .fixed
         let alwaysOnTop = profile?.resolveAlwaysOnTop() ?? true
         let customTitle = profile?.title
+        let theme = profile?.theme
 
         // Validate callback_pipe: only allow paths under /tmp/ or $TMPDIR
         let validPipe: String? = callbackPipePath.flatMap { isValidCallbackPipe($0) ? $0 : nil }
@@ -224,14 +250,14 @@ class DisplayWindowManager {
         }
 
         let isPinned = position != .cursor
-        let panel = DisplayPanel(callbackPipePath: validPipe, isReadOnly: readOnly, color: color, transparency: transparency, customTitle: customTitle, alwaysOnTop: alwaysOnTop)
+        let panel = DisplayPanel(callbackPipePath: validPipe, isReadOnly: readOnly, transparency: transparency, customTitle: customTitle, alwaysOnTop: alwaysOnTop)
         panel.centerTitle()
         panel.setupCloseButtonHover()
-        let contentModel = DisplayContentModel(content: displayContent, fileURL: fileURL)
-        let contentView = DisplayContentView(model: contentModel, isReadOnly: readOnly, colorScheme: color, fontSize: fontSize, fontName: AppConfig.shared.config.font)
+        let contentModel = DisplayContentModel(content: displayContent, fileURL: fileURL, isReadOnly: readOnly)
+        let contentView = DisplayContentView(model: contentModel, isReadOnly: readOnly, theme: theme)
         let hostingView = NSHostingView(rootView: contentView)
         hostingView.wantsLayer = true
-        hostingView.layer?.backgroundColor = color.nsColor.cgColor
+        hostingView.layer?.backgroundColor = NSColor.clear.cgColor
         panel.contentView = hostingView
         let controller = DisplayWindowController(
             panel: panel,

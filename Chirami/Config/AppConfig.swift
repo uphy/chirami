@@ -3,15 +3,26 @@ import os
 
 class AppConfig: YAMLStore<ChiramiConfig> {
     static let shared = AppConfig()
+    static let defaultConfigDirectory = FileManager.realHomeDirectory
+        .appendingPathComponent(".config/chirami", isDirectory: true)
 
     private let logger = Logger(subsystem: "io.github.uphy.Chirami", category: "AppConfig")
     var config: ChiramiConfig { data }
+    let configDirectoryURL: URL
 
-    private init() {
-        let configDir = FileManager.realHomeDirectory
-            .appendingPathComponent(".config/chirami")
-        Self.initializeIfNeeded(configDir: configDir)
-        super.init(directory: configDir, fileName: "config.yaml", label: "Config", defaultValue: ChiramiConfig(), watchForChanges: true)
+    private convenience init() {
+        self.init(directory: Self.defaultConfigDirectory)
+    }
+
+    /// Designated initializer. Tests must pass a temporary directory so that
+    /// neither loading nor the sample-content side effect touches the real
+    /// `~/.config/chirami`.
+    init(directory: URL, createSampleConfigIfNeeded: Bool = true, watchForChanges: Bool = true) {
+        self.configDirectoryURL = directory
+        if createSampleConfigIfNeeded {
+            Self.initializeIfNeeded(configDir: directory)
+        }
+        super.init(directory: directory, fileName: "config.yaml", label: "Config", defaultValue: ChiramiConfig(), watchForChanges: watchForChanges)
     }
 
     private static func initializeIfNeeded(configDir: URL) {
@@ -51,28 +62,32 @@ class AppConfig: YAMLStore<ChiramiConfig> {
     notes:
       - path: ~/.config/chirami/sample-notes/welcome.md
         title: Welcome
-        color_scheme: yellow
 
       - path: ~/.config/chirami/sample-notes/quick-memo.md
         title: Quick Memo
-        color_scheme: blue
         position: cursor
-        hotkey: cmd+shift+m
+        hotkeys:
+          - key: option+m
+            action: toggle
 
       - path: ~/.config/chirami/sample-notes/daily/{yyyy-MM-dd}.md
         title: Daily Note
-        color_scheme: green
         template: ~/.config/chirami/sample-notes/daily/template.md
+        hotkeys:
+          - key: option+d
+            action: toggle
+          - key: option+shift+d
+            action: create
     """
 
     private static let welcomeContent = """
     # Welcome to Chirami
 
-    A quick reference for Chirami.
+    A quick reference for Chirami. Full docs → [uphy.github.io/chirami](https://uphy.github.io/chirami/)
 
     ## Basic Usage
 
-    - **Move**: Drag the title bar to reposition it (hold `Cmd` to drag from anywhere)
+    - **Move**: Hold `Cmd` and drag anywhere in the note window
     - **Menu bar**: Manage notes from the menu bar icon
     - **Add notes**: Edit `config.yaml` via Menu → "Edit Config"
 
@@ -80,17 +95,17 @@ class AppConfig: YAMLStore<ChiramiConfig> {
 
     Click a note in the **menu bar popup** to toggle its visibility.
 
-    You can also assign a keyboard shortcut to each note via the `hotkey` field in `config.yaml`.
-    In this demo, **Quick Memo** is set to `Cmd+Shift+M` — try pressing it!
+    You can also assign keyboard shortcuts to each note via the `hotkeys` field in `config.yaml`.
+    In this demo, **Quick Memo** is set to `Option+M` — try pressing it!
 
-    ## Markdown
+    ## Editor
 
     **bold** / *italic* / `code`
 
     - [ ] Unchecked task
     - [x] Checked task
 
-    [Chirami GitHub](https://github.com/uphy/chirami)
+    Type `/` at the start of a line to insert Mermaid diagrams, Excalidraw drawings, tables, and more.
 
     ## Config File
 
@@ -105,7 +120,7 @@ class AppConfig: YAMLStore<ChiramiConfig> {
     ---
     This note is configured with (`config.yaml`):
 
-    - **`hotkey: cmd+shift+m`** — summon/dismiss with a keyboard shortcut
+    - **`hotkeys: [{ key: option+m, action: toggle }]`** — summon/dismiss with a keyboard shortcut
     - **`position: cursor`** — appears at the mouse cursor position when summoned
 
     Cursor notes start unpinned by default — they hide when focus is lost.

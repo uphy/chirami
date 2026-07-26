@@ -51,4 +51,12 @@ enum PeriodicFileNavigator {
         else { return nil }
         return sortedFiles[index + 1]
     }
+
+    /// Returns the lexicographically last file matching the template (used by
+    /// stream notes to resolve "current" as "latest"), or nil when there are
+    /// no matches. `listMatchingFiles` already sorts lexicographically by
+    /// relative path, so latest is simply its last element.
+    static func latestMatchingFile(template: String, baseDirectory: URL) -> URL? {
+        listMatchingFiles(template: template, baseDirectory: baseDirectory).last
+    }
 }

@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 
 /// Manages content and auto-saving for Ad-hoc Note windows.
@@ -6,13 +7,19 @@ class DisplayContentModel: ObservableObject {
 
     @Published var text: String
     let fileURL: URL?
+    /// Read-only windows have no save path; editor input is disabled in JS
+    /// (`setReadOnly`) and content updates are ignored here as a backstop.
+    let isReadOnly: Bool
     nonisolated(unsafe) var savedCursorLocation: Int = 0
     nonisolated(unsafe) var savedScrollOffset: CGPoint = .zero
+    var getEditorContext: ((@escaping (Result<String, Error>) -> Void) -> Void)?
+    var setWindowActive: ((Bool) -> Void)?
     private var lastSavedContent: String
 
-    init(content: String, fileURL: URL?) {
+    init(content: String, fileURL: URL?, isReadOnly: Bool = false) {
         self.text = content
         self.fileURL = fileURL
+        self.isReadOnly = isReadOnly
         self.lastSavedContent = content
     }
 
@@ -22,5 +29,16 @@ class DisplayContentModel: ObservableObject {
         guard text != lastSavedContent else { return }
         lastSavedContent = text
         try? text.write(to: fileURL, atomically: true, encoding: .utf8)
+    }
+}
+
+extension DisplayContentModel: NoteWebViewHost {
+    var webViewCapabilities: NoteWebViewCapabilities { .none }
+
+    var noteFileURL: URL? { fileURL }
+
+    func webViewContentChanged(_ text: String) {
+        guard !isReadOnly else { return }
+        self.text = text
     }
 }

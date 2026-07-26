@@ -12,14 +12,26 @@ Chirami uses two files:
 ## Full Example
 
 ```yaml
-appearance: auto
+appearance:
+  mode: auto
+  css_file: ~/.config/chirami/custom.css
+  variables:
+    font-size: 14px
+    font: '"JetBrains Mono", monospace'
 
 launch_at_login: true
 
-hotkey: cmd+shift+n
+hotkeys:
+  - key: option+n
+    action: toggle
 
 drag_modifier: command
 warp_modifier: ctrl+option
+warp_margin:
+  top: 8
+  right: 8
+  bottom: 8
+  left: 8
 
 smart_paste:
   enabled: true
@@ -31,38 +43,35 @@ karabiner:
   on_unfocus: 0
   cli_path: /Library/Application Support/org.pqrs/Karabiner-Elements/bin/karabiner_cli
 
-color_schemes:
-  monokai:
-    dark:
-      background: [0.149, 0.157, 0.129]
-      text: [0.973, 0.973, 0.949]
-      link: [0.400, 0.851, 0.937]
-      code: [0.663, 0.882, 0.071]
-    light:
-      background: [0.980, 0.976, 0.965]
-      text: [0.149, 0.157, 0.129]
-      link: [0.157, 0.451, 0.702]
-      code: [0.400, 0.553, 0.031]
+wikilink:
+  open: ["open", "obsidian://open?path={{path_encoded}}"]
 
 notes:
   - path: ~/Notes/todo.md
     title: TODO
-    color_scheme: blue
+    theme: blue
     transparency: 0.95
-    font_size: 14
-    hotkey: cmd+shift+t
+    hotkeys:
+      - key: option+t
+        action: toggle
     position: fixed
 
   - path: ~/Notes/daily/{yyyy-MM-dd}.md
     title: Daily
-    color_scheme: green
-    hotkey: cmd+shift+d
+    theme: green
+    hotkeys:
+      - key: option+d
+        action: toggle
+      - key: option+shift+d
+        action: create
     rollover_delay: 2h
     template: ~/Notes/templates/daily.md
 
   - path: ~/Desktop/scratch.md
-    color_scheme: yellow
-    hotkey: cmd+shift+s
+    theme: yellow
+    hotkeys:
+      - key: option+s
+        action: toggle
     position: cursor
 ```
 
@@ -70,15 +79,16 @@ notes:
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `appearance` | string | `auto` | Appearance mode. `auto` (follow system), `light`, or `dark`. |
+| `appearance` | string or object | `auto` | Appearance configuration. Accepts the legacy string form (`auto` / `light` / `dark`) or an object with `mode`, `css_file`, and `variables`. See [Appearance](#appearance). |
 | `launch_at_login` | bool | `false` | Launch Chirami automatically on macOS login. |
 | `show_menu_bar_icon` | bool | `true` | Show the Chirami icon in the macOS menu bar. Set to `false` to hide it (use global hotkey to access notes). |
-| `hotkey` | string | — | Global hotkey to toggle all note windows. Format: modifier keys + key (e.g. `cmd+shift+n`). |
+| `hotkeys` | array | — | Global hotkey bindings. Top-level supports `toggle` only. |
 | `drag_modifier` | string | `command` | Modifier key for window dragging. Allowed: `command`, `option`, `shift`, `control`. |
-| `warp_modifier` | string | `ctrl+option` | Modifier key combination for Window Warp (HJKL grid movement). Specify modifiers joined with `+` (e.g. `ctrl+option`, `command+shift`). Allowed tokens: `ctrl`/`control`, `option`/`opt`, `command`/`cmd`, `shift`. |
+| `warp_modifier` | string | `ctrl+option` | Modifier key combination for window manipulation shortcuts. It applies to Window Warp (`H`/`J`/`K`/`L` or arrow keys) and window scaling (`=` / `-`). Specify modifiers joined with `+` (e.g. `ctrl+option`, `command+shift`). Allowed tokens: `ctrl`/`control`, `option`/`opt`, `command`/`cmd`, `shift`. If this conflicts with built-in `Cmd+=` / `Cmd+-`, the font shortcuts win. |
+| `warp_margin` | object | `{top: 8, right: 8, bottom: 8, left: 8}` | Display-edge gaps used by Window Warp, window scaling clamp, and cursor-positioned note clamp. Values are in points. |
 | `smart_paste` | object | — | Smart Paste configuration. See [Smart Paste](advanced.md#smart-paste). |
 | `karabiner` | object | — | Karabiner-Elements integration. See [Karabiner](advanced.md#karabiner-elements-integration). |
-| `color_schemes` | object | — | Custom color scheme definitions. See [Custom Color Schemes](#custom-color-schemes). |
+| `wikilink` | object | — | Default `[[wiki link]]` resolution and open command. See [Wiki Links](#wiki-links). |
 | `notes` | array | `[]` | List of Registered Note configurations. |
 
 ## Note Settings (Registered Notes)
@@ -88,66 +98,141 @@ Each entry in `notes` configures one Registered Note — a sticky note window ma
 | Field | Type | Default | Required | Description |
 |-------|------|---------|----------|-------------|
 | `path` | string | — | yes | File path. Absolute or `~/` relative. Supports `{date-format}` placeholders for periodic notes. |
+| `mode` | string | `periodic` | no | Resolution mode for template-path notes (`path` containing `{...}`): `periodic` resolves to the current date; `stream` resolves to the lexicographically latest matching file. `stream` requires a `{...}` placeholder in the filename component, and the filename may additionally include one `*` wildcard. See [Stream Notes](advanced.md#stream-notes). |
 | `title` | string | filename | no | Window title shown in the title bar. |
-| `color_scheme` | string | `yellow` | no | Color scheme name. Built-in: `yellow`, `blue`, `green`, `pink`, `purple`, `gray`. Custom color schemes defined in `color_schemes` are also accepted. |
+| `theme` | string | — | no | Theme name, applied to the note via the `data-chirami-theme` attribute. Built-in: `yellow`, `blue`, `green`, `pink`, `purple`, `gray`. Custom themes defined in `appearance.css_file` are also accepted. See [CSS Theming](css-theming.md). |
 | `transparency` | number | `0.9` | no | Window opacity (0.0–1.0). |
-| `font_size` | integer | `14` | no | Font size in points. Range: 8–32. |
-| `hotkey` | string | — | no | Global hotkey to toggle this note (e.g. `cmd+shift+m`). |
+| `hotkeys` | array | `[]` | no | Hotkey bindings for this note. Registered Notes support `toggle` and `create`. |
 | `position` | string | `fixed` | no | `fixed` (remembers last position) or `cursor` (appears at mouse cursor). |
 | `always_on_top` | boolean | `true` | no | Whether the note window floats above all other windows. |
-| `rollover_delay` | string | — | no | Delay before date rollover for periodic notes (e.g. `2h`, `30m`). |
+| `rollover_delay` | string | — | no | Delay before date rollover for periodic notes (e.g. `2h`, `30m`). Ignored in `stream` mode. |
 | `template` | string | — | no | Template file path for periodic notes. Copied when creating a new day's file. |
 | `attachment.dir` | string | — | no | Attachment directory for images. See [Images](advanced.md#images). |
+| `wikilink` | object | — | no | Per-note `[[wiki link]]` override. `open` and `vault` fall back field-by-field to the global `wikilink` config. See [Wiki Links](#wiki-links). |
 
 ### Hotkey Format
 
-Hotkeys are specified as modifier keys joined with `+`, followed by the key:
-
-- Modifiers: `cmd`, `shift`, `option`/`alt`, `control`/`ctrl`
-- Examples: `cmd+shift+m`, `cmd+option+n`
-
-### Built-in Color Schemes
-
-Six built-in color schemes are available: `yellow`, `blue`, `green`, `pink`, `purple`, `gray`.
-
-## Custom Color Schemes
-
-Define custom color schemes in the `color_schemes` block. Each color scheme requires `dark` and `light` variants, each with four color channels as RGB arrays (0.0–1.0).
+Hotkeys are configured as an array of bindings:
 
 ```yaml
-color_schemes:
-  monokai:
-    dark:
-      background: [0.149, 0.157, 0.129]
-      text: [0.973, 0.973, 0.949]
-      link: [0.400, 0.851, 0.937]
-      code: [0.663, 0.882, 0.071]
-    light:
-      background: [0.980, 0.976, 0.965]
-      text: [0.149, 0.157, 0.129]
-      link: [0.157, 0.451, 0.702]
-      code: [0.400, 0.553, 0.031]
-
-notes:
-  - path: ~/Notes/daily/{yyyy-MM-dd}.md
-    color_scheme: monokai
+hotkeys:
+  - key: option+m
+    action: toggle
 ```
 
-| Field | Description |
-|-------|-------------|
-| `background` | Window and editor background color |
-| `text` | Body text color |
-| `link` | Hyperlink color |
-| `code` | Inline code and code block text color |
+`key` uses modifier keys joined with `+`, followed by the key:
 
-Custom color scheme names can also override built-in ones (e.g. redefining `yellow`). Changes to `color_schemes` in config.yaml take effect immediately without restarting.
+- Modifiers: `cmd`, `shift`, `option`/`alt`, `control`/`ctrl`
+- Examples: `option+m`, `option+shift+m`, `option+n`
+
+`action` values:
+
+- `toggle` — show/hide the target note or note group
+- `create` — Registered Note only. Ensures the file exists and opens the current resolved note
+
+Recommended pattern:
+
+- Base shortcut for `toggle`
+- Same shortcut + `shift` for `create`
+- Example: `option+m` = `toggle`, `option+shift+m` = `create`
+
+## Appearance
+
+The `appearance` field configures global display mode and CSS-based theming.
+
+```yaml
+appearance:
+  mode: auto                          # auto | light | dark
+  css_file: ~/.config/chirami/custom.css
+  variables:
+    font-size: 14px
+    font: '"JetBrains Mono", monospace'
+```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `mode` | string | `auto` | Appearance mode: `auto` (follow system), `light`, or `dark`. |
+| `css_file` | string | — | Path to a user CSS file layered on top of the built-in styles. Supports `~/` expansion. |
+| `variables` | object | — | Quick overrides for `--chirami-*` CSS custom properties. Keys without a `--` prefix are treated as `--chirami-<key>`. Injected as inline style on `<html>`, so these win over every stylesheet rule. |
+
+Six built-in themes are available via the per-note `theme` field: `yellow`, `blue`, `green`, `pink`, `purple`, `gray`.
+
+Changes to `appearance.variables`, `appearance.css_file`, and the CSS file it references are hot-reloaded — no restart needed.
+
+See [CSS Theming](css-theming.md) for the full list of `--chirami-*` variables, how to define custom themes, and dark-mode handling.
+
+## Excalidraw
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `excalidraw.libraries` | string[] | `[]` | Paths to `.excalidrawlib` files to load as read-only libraries in the Excalidraw editor. Both version 1 and version 2 formats are supported. Paths support `~` expansion. |
+
+Example:
+
+```yaml
+excalidraw:
+  libraries:
+    - ~/.config/chirami/excalidraw/system-design.excalidrawlib
+    - ~/.config/chirami/excalidraw/aws-icons.excalidrawlib
+```
+
+Libraries from [libraries.excalidraw.com](https://libraries.excalidraw.com/) can be downloaded as `.excalidrawlib` files and placed here.
+
+## Wiki Links
+
+Configures how `[[wiki links]]` are resolved and opened. Clicking a wiki link (or pressing Cmd+Enter with the cursor inside it) resolves the target to a local `.md` file and runs the `open` command with it.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `wikilink.open` | string or string[] | `["open", "{{path}}"]` | Command run with the resolved file. See [Command format](#command-format). |
+| `wikilink.vault` | string | — | Vault root for resolution. When omitted, Chirami walks up from the source note to the nearest `.obsidian` directory. Supports `~` expansion. |
+
+Both fields can also be set per note under `notes[].wikilink`; each field falls back to the global value, then to the default.
+
+**Resolution** — The target (`Page`, `Page#Heading`, or `Page|Alias`) is matched to a file by name, looking first in the source note's directory, then for the shortest matching `.md` under the vault root. This first version resolves to the **file** only; `#heading` / `^block` jumps and `![[embeds]]` are not supported.
+
+### Command format
+
+`open` accepts two shapes:
+
+- **Array** (recommended) — executed directly without a shell, so paths with spaces or non-ASCII characters are passed safely: `["code", "{{path}}"]`.
+- **String** — executed via `/bin/sh -c`, enabling shell features and `$CHIRAMI_*` environment variables: `"code $CHIRAMI_TARGET"`.
+
+Tokens are substituted in both forms:
+
+| Placeholder | Env variable | Value |
+|-------------|--------------|-------|
+| `{{path}}` | `$CHIRAMI_TARGET` | Resolved absolute file path. |
+| `{{path_encoded}}` | `$CHIRAMI_TARGET_ENCODED` | Percent-encoded absolute path, for embedding in a URL such as `obsidian://open?path=…`. |
+| `{{vault}}` | `$CHIRAMI_VAULT` | Resolved vault root (empty if none). |
+| `{{target}}` | `$CHIRAMI_TARGET_NAME` | Link name (without `#heading` / `|alias`). |
+
+Examples:
+
+```yaml
+# Open every wiki link in Obsidian, picking the correct vault from the path.
+wikilink:
+  open: ["open", "obsidian://open?path={{path_encoded}}"]
+
+notes:
+  - path: ~/scratch.md
+    title: Scratch
+    # This note lives outside any vault — open its links with the OS default app.
+    wikilink:
+      open: ["open", "{{path}}"]
+
+  - path: ~/project/todo.md
+    title: TODO
+    # Open this project's links in VS Code instead.
+    wikilink:
+      open: ["code", "{{path}}"]
+```
 
 ## Smart Paste
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `smart_paste.enabled` | boolean | `true` | Enable Smart Paste (Cmd+Shift+V). |
-| `smart_paste.fetch_url_title` | boolean | `true` | Fetch page title when pasting URLs. |
 
 ## Karabiner
 
