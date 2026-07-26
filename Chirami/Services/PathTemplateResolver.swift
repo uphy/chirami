@@ -127,10 +127,9 @@ enum PathTemplateResolver {
         let chars = Array(relativePath)
         for prefixEnd in 0...chars.count {
             guard matchesFixedSegment(String(chars[0..<prefixEnd]), template: prefixTemplate) else { continue }
-            for suffixStart in prefixEnd...chars.count {
-                if matchesFixedSegment(String(chars[suffixStart...]), template: suffixTemplate) {
-                    return true
-                }
+            for suffixStart in prefixEnd...chars.count
+            where matchesFixedSegment(String(chars[suffixStart...]), template: suffixTemplate) {
+                return true
             }
         }
         return false

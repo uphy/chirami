@@ -919,8 +919,20 @@ class NoteWindowController: NSWindowController, NSWindowDelegate, EditorContextP
 
     private func debugLogContentViewIfNeeded(panel: NotePanel, hostingView: NSView) {
         guard ProcessInfo.processInfo.environment["CHIRAMI_DEBUG_TITLEBAR"] == "1" else { return }
-        logger.debug("[Content] title=\(panel.title, privacy: .public) frame=\(String(describing: panel.frame), privacy: .public) contentLayoutRect=\(String(describing: panel.contentLayoutRect), privacy: .public)")
-        logger.debug("[Content] hosting frame=\(String(describing: hostingView.frame), privacy: .public) wantsLayer=\(hostingView.wantsLayer) layerBg=\(String(describing: hostingView.layer?.backgroundColor), privacy: .public)")
+        logger.debug(
+            """
+            [Content] title=\(panel.title, privacy: .public) \
+            frame=\(String(describing: panel.frame), privacy: .public) \
+            contentLayoutRect=\(String(describing: panel.contentLayoutRect), privacy: .public)
+            """
+        )
+        logger.debug(
+            """
+            [Content] hosting frame=\(String(describing: hostingView.frame), privacy: .public) \
+            wantsLayer=\(hostingView.wantsLayer) \
+            layerBg=\(String(describing: hostingView.layer?.backgroundColor), privacy: .public)
+            """
+        )
         if let contentView = panel.contentView {
             logger.debug("[Content] contentView type=\(String(describing: type(of: contentView)), privacy: .public) frame=\(String(describing: contentView.frame), privacy: .public)")
             if let superview = contentView.superview {

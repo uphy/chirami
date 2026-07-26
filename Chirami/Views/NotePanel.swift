@@ -199,7 +199,13 @@ class NotePanel: NSPanel {
         var level = 0
         while let view = current {
             let layerColor = view.layer?.backgroundColor.map { NSColor(cgColor: $0)?.description ?? "cgColor" } ?? "nil"
-            logger.debug("[Titlebar] level=\(level) type=\(String(describing: type(of: view)), privacy: .public) frame=\(String(describing: view.frame), privacy: .public) wantsLayer=\(view.wantsLayer) layerBg=\(layerColor, privacy: .public)")
+            logger.debug(
+                """
+                [Titlebar] level=\(level) type=\(String(describing: type(of: view)), privacy: .public) \
+                frame=\(String(describing: view.frame), privacy: .public) \
+                wantsLayer=\(view.wantsLayer) layerBg=\(layerColor, privacy: .public)
+                """
+            )
             current = view.superview
             level += 1
         }

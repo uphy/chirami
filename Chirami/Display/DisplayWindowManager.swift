@@ -18,7 +18,15 @@ class DisplayWindowController: NSObject, NSWindowDelegate, EditorContextProvider
     /// When true, closing this window should NOT notify FIFO (used during --id replacement).
     var suppressCloseNotification = false
 
-    init(panel: DisplayPanel, contentModel: DisplayContentModel, profileName: String? = nil, windowId: String? = nil, position: NotePosition = .fixed, transparency: Double = 0.9, isPinned: Bool = true) {
+    init(
+        panel: DisplayPanel,
+        contentModel: DisplayContentModel,
+        profileName: String? = nil,
+        windowId: String? = nil,
+        position: NotePosition = .fixed,
+        transparency: Double = 0.9,
+        isPinned: Bool = true
+    ) {
         self.panel = panel
         self.contentModel = contentModel
         self.profileName = profileName

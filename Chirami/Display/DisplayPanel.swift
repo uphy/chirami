@@ -55,8 +55,8 @@ class DisplayPanel: NotePanel {
         guard !didNotifyClosed else { return }
         didNotifyClosed = true
         let fd = callbackPipeFd
-        guard fd >= 0,
-              let data = "CLOSED\n".data(using: .utf8) else { return }
+        guard fd >= 0 else { return }
+        let data = Data("CLOSED\n".utf8)
         callbackPipeFd = -1
         PipeIO.write(data, to: fd, logger: logger, context: "DisplayPanel.notifyClosed")
         _ = Darwin.close(fd)
