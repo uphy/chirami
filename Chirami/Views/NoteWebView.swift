@@ -53,6 +53,11 @@ final class NoteWebView: NSView {
     /// True while the CodeMirror search panel (Cmd+F) is open in the WebView.
     private(set) var searchPanelVisible: Bool = false
 
+    /// Opacity of the note background (1 = fully opaque). See `setBackgroundAlpha`.
+    private(set) var backgroundAlpha: Double = 1
+    /// Last value pushed to `--chirami-bg-alpha`; nil until the first sync.
+    private var appliedBodyBackgroundPercent: String?
+
     override init(frame frameRect: NSRect) {
         let config = WKWebViewConfiguration()
         #if DEBUG
@@ -265,6 +270,34 @@ final class NoteWebView: NSView {
         enqueueOrEval("document.documentElement.style.setProperty('--chirami-font-size', '\(size)px');")
     }
 
+    /// Sets how opaque the note background is, without affecting text.
+    ///
+    /// The window itself stays at `alphaValue = 1` — applying transparency there
+    /// fades the text too, which is what made translucent notes hard to read.
+    /// The alpha lands on the NSPanel background instead, which covers both the
+    /// titlebar and (through the transparent WebView) the note body, so the whole
+    /// window is translucent to exactly the configured degree.
+    func setBackgroundAlpha(_ alpha: Double) {
+        let clamped = min(max(alpha, 0), 1)
+        guard clamped != backgroundAlpha else { return }
+        backgroundAlpha = clamped
+        if isReady { fetchAndApplyPanelBackground() }
+    }
+
+    /// Whether the CSS paints the note background.
+    ///
+    /// Normally the NSPanel owns the background (see `setBackgroundAlpha`) and the
+    /// document stays transparent. If the theme's `--chirami-bg` cannot be parsed
+    /// into an NSColor (e.g. a user theme that resolves to `color-mix(...)`), the
+    /// panel colour would be wrong, so the CSS takes the background back — opaque,
+    /// but in the right colour.
+    private func setBodyPaintsBackground(_ painted: Bool) {
+        let percent = painted ? "100%" : "0%"
+        guard percent != appliedBodyBackgroundPercent else { return }
+        appliedBodyBackgroundPercent = percent
+        enqueueOrEval("document.documentElement.style.setProperty('--chirami-bg-alpha', '\(percent)');")
+    }
+
     /// Injects data-chirami-theme attribute on <html> for per-note theme selection.
     /// nil removes the attribute so CSS :root defaults apply.
     func setThemeAttribute(_ theme: String?) {
@@ -364,9 +397,14 @@ final class NoteWebView: NSView {
                 guard let self else { return }
                 if let colorStr = result as? String, !colorStr.isEmpty {
                     if let color = NSColor(cssRGB: colorStr) {
-                        self.window?.backgroundColor = color
+                        // The panel background covers the titlebar and shows through
+                        // the transparent document, so both are translucent to the
+                        // same, configured degree.
+                        self.window?.backgroundColor = color.withAlphaComponent(self.backgroundAlpha)
+                        self.setBodyPaintsBackground(false)
                     } else {
                         self.logger.warning("Could not parse \(Self.bgVariable, privacy: .public) value: \(colorStr, privacy: .public)")
+                        self.setBodyPaintsBackground(true)
                     }
                 }
                 if !self.didNotifyReadyForDisplay {
@@ -671,6 +709,7 @@ struct NoteWebViewRepresentable: NSViewRepresentable {
         nsView.setContent(model.text)
         nsView.setFontSize(Double(model.fontSize))
         nsView.setThemeAttribute(model.theme)
+        nsView.setBackgroundAlpha(model.backgroundAlpha)
         if let notePath = model.notePath {
             nsView.setNotePath(notePath)
         }

@@ -30,12 +30,16 @@
   --chirami-text: rgb(115, 97, 26);
   --chirami-accent: rgb(140, 94, 26);
   --chirami-link: rgb(36, 98, 191);
-  --chirami-code: rgb(51, 184, 71);
+  --chirami-code: rgb(35, 126, 49);
   --chirami-muted: color-mix(in srgb, var(--chirami-text) 74%, var(--chirami-bg) 26%);
   --chirami-border: color-mix(in srgb, var(--chirami-text) 16%, transparent);
-  --chirami-surface: color-mix(in srgb, var(--chirami-bg) 96%, white 4%);
-  --chirami-surface-strong: color-mix(in srgb, var(--chirami-bg) 91%, var(--chirami-text) 9%);
-  --chirami-surface-raised: color-mix(in srgb, var(--chirami-bg) 98%, white 2%);
+  /* Light mode mixes surfaces toward the text colour (like dark mode does).
+     Mixing toward white is invisible on an already-light background, which
+     left table headers, frontmatter chips and panels indistinguishable. */
+  --chirami-surface: color-mix(in srgb, var(--chirami-bg) 93%, var(--chirami-text) 7%);
+  --chirami-surface-strong: color-mix(in srgb, var(--chirami-bg) 86%, var(--chirami-text) 14%);
+  /* Raised = popovers/panels: lighter than the note so they read as elevated. */
+  --chirami-surface-raised: color-mix(in srgb, var(--chirami-bg) 74%, white 26%);
   --chirami-code-bg: color-mix(in srgb, var(--chirami-text) 8%, transparent);
   --chirami-selection: color-mix(in srgb, var(--chirami-accent) 28%, white 12%);
   --chirami-danger: color-mix(in srgb, #d92d20 78%, var(--chirami-text) 22%);
@@ -51,7 +55,7 @@
     --chirami-text: rgb(235, 224, 166);
     --chirami-accent: rgb(242, 204, 115);
     --chirami-link: rgb(133, 184, 255);
-    --chirami-code: rgb(56, 181, 77);
+    --chirami-code: rgb(92, 205, 111);
     --chirami-muted: color-mix(in srgb, var(--chirami-text) 82%, var(--chirami-bg) 18%);
     --chirami-border: color-mix(in srgb, var(--chirami-text) 24%, transparent);
     --chirami-surface: color-mix(in srgb, var(--chirami-bg) 80%, var(--chirami-text) 20%);
@@ -71,7 +75,7 @@
   --chirami-text: rgb(115, 97, 26);
   --chirami-accent: rgb(140, 94, 26);
   --chirami-link: rgb(36, 98, 191);
-  --chirami-code: rgb(51, 184, 71);
+  --chirami-code: rgb(35, 126, 49);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -80,7 +84,7 @@
     --chirami-text: rgb(235, 224, 166);
     --chirami-accent: rgb(242, 204, 115);
     --chirami-link: rgb(133, 184, 255);
-    --chirami-code: rgb(56, 181, 77);
+    --chirami-code: rgb(92, 205, 111);
   }
 }
 
@@ -90,7 +94,7 @@
   --chirami-text: rgb(31, 64, 115);
   --chirami-accent: rgb(33, 56, 140);
   --chirami-link: rgb(0, 85, 212);
-  --chirami-code: rgb(26, 115, 204);
+  --chirami-code: rgb(22, 96, 170);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -109,7 +113,7 @@
   --chirami-text: rgb(38, 89, 38);
   --chirami-accent: rgb(20, 89, 79);
   --chirami-link: rgb(21, 94, 186);
-  --chirami-code: rgb(26, 133, 64);
+  --chirami-code: rgb(23, 118, 57);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -128,7 +132,7 @@
   --chirami-text: rgb(128, 38, 56);
   --chirami-accent: rgb(153, 38, 74);
   --chirami-link: rgb(34, 84, 184);
-  --chirami-code: rgb(204, 38, 89);
+  --chirami-code: rgb(170, 32, 74);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -146,7 +150,7 @@
   --chirami-bg: rgb(224, 194, 255);
   --chirami-text: rgb(77, 38, 115);
   --chirami-accent: rgb(94, 38, 140);
-  --chirami-link: rgb(41, 76, 204);
+  --chirami-link: rgb(40, 74, 199);
   --chirami-code: rgb(115, 38, 191);
 }
 
@@ -174,7 +178,7 @@
     --chirami-bg: rgb(64, 64, 64);
     --chirami-text: rgb(209, 209, 209);
     --chirami-accent: rgb(171, 186, 209);
-    --chirami-link: rgb(122, 170, 255);
+    --chirami-link: rgb(127, 173, 255);
     --chirami-code: rgb(140, 191, 217);
   }
 }

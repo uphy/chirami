@@ -99,7 +99,7 @@ class DisplayWindowController: NSObject, NSWindowDelegate, EditorContextProvider
             panel.orderFront(nil)
             NSAnimationContext.runAnimationGroup { context in
                 context.duration = 0.2
-                panel.animator().alphaValue = transparency
+                panel.animator().alphaValue = 1
             }
         } else {
             NSAnimationContext.runAnimationGroup({ context in
@@ -108,7 +108,7 @@ class DisplayWindowController: NSObject, NSWindowDelegate, EditorContextProvider
             }, completionHandler: { [weak self] in
                 Task { @MainActor in
                     self?.panel.orderOut(nil)
-                    self?.panel.alphaValue = self?.transparency ?? 0.9
+                    self?.panel.alphaValue = 1
                 }
             })
         }
@@ -252,9 +252,15 @@ class DisplayWindowManager {
         let isPinned = position != .cursor
         let panel = DisplayPanel(callbackPipePath: validPipe, isReadOnly: readOnly, transparency: transparency, customTitle: customTitle, alwaysOnTop: alwaysOnTop)
         panel.centerTitle()
+        if readOnly { panel.setupReadOnlyIndicator() }
         panel.setupCloseButtonHover()
         let contentModel = DisplayContentModel(content: displayContent, fileURL: fileURL, isReadOnly: readOnly)
-        let contentView = DisplayContentView(model: contentModel, isReadOnly: readOnly, theme: theme)
+        let contentView = DisplayContentView(
+            model: contentModel,
+            isReadOnly: readOnly,
+            theme: theme,
+            backgroundAlpha: transparency
+        )
         let hostingView = NSHostingView(rootView: contentView)
         hostingView.wantsLayer = true
         hostingView.layer?.backgroundColor = NSColor.clear.cgColor

@@ -20,6 +20,11 @@ class NotePanel: NSPanel {
     private var nextButton: NSButton?
     private var todayButton: NSButton?
     private var pinButton: NSButton?
+    private var readOnlyIndicator: NSImageView?
+    /// Pin state mirrored so titlebar hover can keep an active pin visible while
+    /// fading out the inactive one, matching the close button's hover behaviour.
+    private var isPinned = false
+    private var isTitlebarHovered = false
     private var didLogTitlebarHierarchy = false
     private let logger = Logger(subsystem: "io.github.uphy.Chirami", category: "NotePanel")
 
@@ -82,6 +87,32 @@ class NotePanel: NSPanel {
         customTitleLabel = label
     }
 
+    /// Show a read-only indicator to the left of the centered title.
+    /// Uses the `lock` SF Symbol so it matches the monochrome titlebar controls
+    /// (pin / navigation chevrons) instead of a coloured emoji in the title text.
+    func setupReadOnlyIndicator() {
+        guard readOnlyIndicator == nil,
+              let closeButton = standardWindowButton(.closeButton),
+              let fullWidthView = fullWidthTitlebarView(startingAt: closeButton),
+              let label = customTitleLabel else { return }
+
+        let image = NSImage(systemSymbolName: "lock.fill", accessibilityDescription: "Read only")
+        let imageView = NSImageView(image: image ?? NSImage())
+        imageView.symbolConfiguration = NSImage.SymbolConfiguration(pointSize: 9, weight: .semibold)
+        imageView.contentTintColor = .secondaryLabelColor
+        imageView.toolTip = "Read only"
+        imageView.translatesAutoresizingMaskIntoConstraints = false
+        imageView.setContentHuggingPriority(.required, for: .horizontal)
+
+        fullWidthView.addSubview(imageView)
+        NSLayoutConstraint.activate([
+            imageView.centerYAnchor.constraint(equalTo: label.centerYAnchor),
+            imageView.trailingAnchor.constraint(equalTo: label.leadingAnchor, constant: -4)
+        ])
+
+        readOnlyIndicator = imageView
+    }
+
     /// Set up navigation buttons (◀ ▶ ●) in the titlebar for periodic/stream notes.
     /// - Parameter isStream: when true, the "jump to current" button is labeled
     ///   "Latest" instead of "Today" (stream-note-mode design: the Today button
@@ -135,6 +166,10 @@ class NotePanel: NSPanel {
         guard let fullWidthView = fullWidthTitlebarView(startingAt: closeButton) else { return }
 
         let button = makeNavButton(symbolName: "pin", action: #selector(pinButtonTapped), target: self)
+        // Unpinned notes hide the pin until the titlebar is hovered, mirroring the
+        // close button. A pinned note keeps it visible because that is state, not
+        // an affordance.
+        button.alphaValue = 0
         fullWidthView.addSubview(button)
         NSLayoutConstraint.activate([
             button.centerYAnchor.constraint(equalTo: closeButton.centerYAnchor),
@@ -146,8 +181,10 @@ class NotePanel: NSPanel {
 
     /// Update the pin button icon and color to reflect pinned state.
     func updatePinState(isPinned: Bool) {
+        self.isPinned = isPinned
         pinButton?.image = NSImage(systemSymbolName: isPinned ? "pin.fill" : "pin", accessibilityDescription: nil)
         pinButton?.contentTintColor = isPinned ? .labelColor : .secondaryLabelColor
+        pinButton?.alphaValue = isPinned || isTitlebarHovered ? 1 : 0
     }
 
     private func makeNavButton(symbolName: String, action: Selector, target: AnyObject) -> NSButton {
@@ -303,6 +340,7 @@ class NotePanel: NSPanel {
     }
 
     override func mouseEntered(with event: NSEvent) {
+        isTitlebarHovered = true
         guard let closeButton = standardWindowButton(.closeButton) else {
             super.mouseEntered(with: event)
             return
@@ -310,10 +348,12 @@ class NotePanel: NSPanel {
         NSAnimationContext.runAnimationGroup { context in
             context.duration = 0.15
             closeButton.animator().alphaValue = 1
+            pinButton?.animator().alphaValue = 1
         }
     }
 
     override func mouseExited(with event: NSEvent) {
+        isTitlebarHovered = false
         guard let closeButton = standardWindowButton(.closeButton) else {
             super.mouseExited(with: event)
             return
@@ -321,6 +361,7 @@ class NotePanel: NSPanel {
         NSAnimationContext.runAnimationGroup { context in
             context.duration = 0.15
             closeButton.animator().alphaValue = 0
+            if !isPinned { pinButton?.animator().alphaValue = 0 }
         }
     }
 }

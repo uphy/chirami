@@ -5,6 +5,7 @@ import os
 class DisplayPanel: NotePanel {
 
     private var callbackPipeFd: Int32 = -1
+    private(set) var isReadOnly = false
     var didNotifyClosed = false
     private let logger = Logger(subsystem: "io.github.uphy.Chirami", category: "DisplayPanel")
 
@@ -17,15 +18,20 @@ class DisplayPanel: NotePanel {
             defer: false
         )
 
-        let baseTitle = customTitle ?? "chirami"
-        title = isReadOnly ? "🔒 \(baseTitle)" : baseTitle
+        // Read-only is shown as a titlebar lock icon (see setupReadOnlyIndicator),
+        // not as a prefix in the title text.
+        self.isReadOnly = isReadOnly
+        title = customTitle ?? "chirami"
         titlebarAppearsTransparent = true
         isMovableByWindowBackground = true
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         level = alwaysOnTop ? .floating : .normal
         isRestorable = false
-        backgroundColor = NoteWindowController.defaultPanelBackground
-        alphaValue = transparency
+        // Transparency applies to the background only, so the note text stays
+        // opaque; the window's alpha is reserved for the show/hide fade.
+        isOpaque = false
+        backgroundColor = NoteWindowController.defaultPanelBackground.withAlphaComponent(transparency)
+        alphaValue = 1
 
         standardWindowButton(.miniaturizeButton)?.isHidden = true
         standardWindowButton(.zoomButton)?.isHidden = true

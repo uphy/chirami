@@ -9,8 +9,11 @@ html, body, #editor {
   height: 100%;
 }
 
+/* Background transparency is applied here (not via NSWindow alphaValue) so the
+   note background can be translucent while the text stays fully opaque.
+   Swift sets --chirami-bg-alpha (a percentage) from the note's `transparency`. */
 html, body {
-  background: var(--chirami-bg);
+  background: color-mix(in srgb, var(--chirami-bg) var(--chirami-bg-alpha, 100%), transparent);
   color: var(--chirami-text);
   font-family: var(--chirami-font);
   font-size: var(--chirami-font-size);
@@ -18,7 +21,7 @@ html, body {
 
 .cm-editor {
   height: 100%;
-  background-color: var(--chirami-bg);
+  background-color: transparent;
 }
 
 .cm-editor.cm-focused {
@@ -60,6 +63,52 @@ body ::selection {
   line-height: 1.65 !important;
   padding-right: 16px;
   overflow-anchor: none;
+}
+
+/* Persistent thin scrollbar: the note window is small and content is often
+   taller than the panel, but macOS overlay scrollbars only appear while
+   scrolling, so there was no hint that the note continued below the fold.
+   A custom scrollbar renders only when the content actually overflows. */
+.cm-scroller::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+
+.cm-scroller::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.cm-scroller::-webkit-scrollbar-thumb {
+  background-color: color-mix(in srgb, var(--chirami-text) 22%, transparent);
+  border: 2px solid transparent;
+  background-clip: content-box;
+  border-radius: 5px;
+}
+
+.cm-scroller::-webkit-scrollbar-thumb:hover {
+  background-color: color-mix(in srgb, var(--chirami-text) 38%, transparent);
+}
+
+.cm-scroller::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Headings: give each level breathing room so the hierarchy is readable even
+   when the author did not leave blank lines around the heading. Padding (not
+   margin) keeps CodeMirror's line height measurement straightforward. */
+.cm-editor .cm-line.cm-heading {
+  padding-top: 0.5em;
+  padding-bottom: 0.15em;
+}
+
+.cm-editor .cm-line.cm-heading-1,
+.cm-editor .cm-line.cm-heading-2 {
+  padding-top: 0.65em;
+}
+
+/* No extra gap when the heading is the very first line of the note. */
+.cm-editor .cm-line.cm-heading:first-child {
+  padding-top: 0;
 }
 
 /* Inline formatting (heading sizes/weights and strikethrough handled by markdownStyle in editor.ts) */
@@ -186,9 +235,25 @@ body ::selection {
 .cm-editor .cm-line.cm-list-item {
   padding-left: calc(var(--list-indent) + 6px);
   text-indent: calc(-1 * var(--list-gutter));
-  line-height: 1.5;
-  padding-top: 4px;
-  padding-bottom: 4px;
+  /* Same line-height as body text (.cm-scroller) so wrapped list lines keep the
+     document's vertical rhythm; the padding provides the item separation. */
+  padding-top: 2px;
+  padding-bottom: 2px;
+}
+
+/* Ordered list marker ("1." / "1)").
+   The number must stay visible, so instead of the BulletWidget replacement it is
+   wrapped in a fixed-width inline-block that is exactly --list-gutter wide. That
+   makes the text after the marker start at the gutter edge, so wrapped lines
+   (pulled left by text-indent) align with the item text just like bullets. */
+.cm-ordered-marker {
+  display: inline-block;
+  width: var(--list-gutter);
+  text-indent: 0;
+  /* Number colour comes from .tok-list; dim it like the bullet widget so the
+     markers do not compete with the item text. */
+  opacity: 0.65;
+  line-height: inherit;
 }
 
 
@@ -242,6 +307,23 @@ body ::selection {
 .cm-code-block-line .tok-meta      { color: #795e26; }
 .cm-code-block-line .tok-invalid   { color: #cd3131; }
 
+/* Dark mode — VS Code Dark+ equivalents. The Light+ palette above is built from
+   dark, heavily saturated colours that sink into a dark code block background. */
+@media (prefers-color-scheme: dark) {
+  .cm-code-block-line .tok-keyword   { color: #569cd6; }
+  .cm-code-block-line .tok-string    { color: #ce9178; }
+  .cm-code-block-line .tok-string2   { color: #d16969; }
+  .cm-code-block-line .tok-number    { color: #b5cea8; }
+  .cm-code-block-line .tok-comment   { color: #6a9955; }
+  .cm-code-block-line .tok-typeName  { color: #4ec9b0; }
+  .cm-code-block-line .tok-className { color: #4ec9b0; }
+  .cm-code-block-line .tok-propertyName { color: #dcdcaa; }
+  .cm-code-block-line .tok-atom,
+  .cm-code-block-line .tok-bool      { color: #569cd6; }
+  .cm-code-block-line .tok-meta      { color: #dcdcaa; }
+  .cm-code-block-line .tok-invalid   { color: #f44747; }
+}
+
 /* Inside code block lines, reset the per-span inline-code styles */
 .cm-code-block-line .chirami-inline-code {
   background: none;
@@ -267,9 +349,11 @@ body ::selection {
   flex-shrink: 0;
 }
 
+/* Checked state uses the note's accent colour rather than the system
+   AccentColor, which is a fixed blue that clashes with themed notes. */
 .cm-editor input[type="checkbox"]:checked {
-  background: AccentColor;
-  border-color: AccentColor;
+  background: var(--chirami-accent);
+  border-color: var(--chirami-accent);
 }
 
 /* Checkmark sized to match SVG path M3 8l3.5 3.5L13 5 at 60% of 16px (9.6px rendered).
@@ -281,7 +365,9 @@ body ::selection {
   top: 50%;
   width: 3px;
   height: 6px;
-  border: 1.5px solid white;
+  /* Checkmark drawn in the note background colour so it stays legible against
+     any accent colour (light accents in dark themes included). */
+  border: 1.5px solid var(--chirami-bg);
   border-top: none;
   border-left: none;
   transform: translate(-50%, -60%) rotate(45deg);
@@ -584,33 +670,38 @@ body ::selection {
   z-index: 10000;
 }
 
+/* Two-line item: side-by-side label + description gets truncated to an
+   unreadable "Insert an Excali…" in a narrow note, so the description wraps
+   onto its own line under the label instead. */
 .cm-slash-picker-item {
   display: flex;
-  align-items: baseline;
-  gap: 8px;
-  padding: 6px 12px;
+  flex-direction: column;
+  gap: 1px;
+  padding: 6px 10px;
+  border-left: 2px solid transparent;
   cursor: pointer;
   user-select: none;
 }
 
 .cm-slash-picker-item:hover,
 .cm-slash-picker-item--selected {
-  background-color: color-mix(in srgb, var(--chirami-accent) 10%, var(--chirami-surface-raised) 90%);
+  background-color: color-mix(in srgb, var(--chirami-accent) 20%, var(--chirami-surface-raised) 80%);
+}
+
+.cm-slash-picker-item--selected {
+  border-left-color: var(--chirami-accent);
 }
 
 .cm-slash-picker-label {
   font-size: 13px;
   font-weight: 600;
   color: var(--chirami-text);
-  flex-shrink: 0;
 }
 
 .cm-slash-picker-desc {
   font-size: 12px;
+  line-height: 1.35;
   color: var(--chirami-muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 /* Search / replace panel (@codemirror/search standard panel).
@@ -618,46 +709,50 @@ body ::selection {
    theme and is too tall for narrow note windows (~248pt). Restyle it to use the
    --chirami-* theme variables and compact spacing while keeping all controls
    (find / next / prev / all / case / regexp / word / replace) functional. */
-.cm-panels {
+.cm-editor .cm-panels {
   background-color: var(--chirami-surface-raised);
   color: var(--chirami-text);
   border-color: var(--chirami-border);
 }
 
-.cm-panels-bottom {
+.cm-editor .cm-panels-bottom {
   border-top: 1px solid var(--chirami-border);
 }
 
-.cm-panels-top {
+.cm-editor .cm-panels-top {
   border-bottom: 1px solid var(--chirami-border);
 }
 
-.cm-panel.cm-search {
+.cm-editor .cm-panel.cm-search {
   position: relative;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px 5px;
+  /* border-box: the panel is laid out at the editor's full width, so with the
+     default content-box the horizontal padding pushed the last button (and the
+     replace row) past the right edge, under the close button. */
+  box-sizing: border-box;
+  gap: 3px 4px;
   /* Reserve space on the right for the absolutely-positioned close button. */
-  padding: 6px 24px 6px 8px;
+  padding: 4px 22px 4px 6px;
   font-size: 12px;
   background-color: var(--chirami-surface-raised);
   color: var(--chirami-text);
 }
 
 /* Force a line break before the replace row (the panel inserts a <br>). */
-.cm-panel.cm-search br {
+.cm-editor .cm-panel.cm-search br {
   flex-basis: 100%;
   height: 0;
   margin: 0;
 }
 
-.cm-panel.cm-search .cm-textfield {
+.cm-editor .cm-panel.cm-search .cm-textfield {
   flex: 1 1 96px;
   min-width: 0;
-  padding: 3px 7px;
+  padding: 2px 6px;
   font-size: 12px;
-  line-height: 1.4;
+  line-height: 1.35;
   color: var(--chirami-text);
   background-color: var(--chirami-surface);
   border: 1px solid var(--chirami-border);
@@ -665,20 +760,20 @@ body ::selection {
   outline: none;
 }
 
-.cm-panel.cm-search .cm-textfield::placeholder {
+.cm-editor .cm-panel.cm-search .cm-textfield::placeholder {
   color: var(--chirami-muted);
 }
 
-.cm-panel.cm-search .cm-textfield:focus {
+.cm-editor .cm-panel.cm-search .cm-textfield:focus {
   border-color: var(--chirami-accent);
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--chirami-accent) 45%, transparent);
 }
 
-.cm-panel.cm-search .cm-button {
+.cm-editor .cm-panel.cm-search .cm-button {
   flex: 0 0 auto;
-  padding: 3px 9px;
+  padding: 2px 8px;
   font-size: 12px;
-  line-height: 1.4;
+  line-height: 1.35;
   color: var(--chirami-text);
   background-image: none;
   background-color: var(--chirami-surface);
@@ -688,16 +783,16 @@ body ::selection {
   transition: background-color 0.12s ease, border-color 0.12s ease;
 }
 
-.cm-panel.cm-search .cm-button:hover {
+.cm-editor .cm-panel.cm-search .cm-button:hover {
   background-color: color-mix(in srgb, var(--chirami-accent) 12%, var(--chirami-surface) 88%);
   border-color: color-mix(in srgb, var(--chirami-accent) 40%, var(--chirami-border) 60%);
 }
 
-.cm-panel.cm-search .cm-button:active {
+.cm-editor .cm-panel.cm-search .cm-button:active {
   background-color: color-mix(in srgb, var(--chirami-accent) 20%, var(--chirami-surface) 80%);
 }
 
-.cm-panel.cm-search label {
+.cm-editor .cm-panel.cm-search label {
   display: inline-flex;
   align-items: center;
   gap: 3px;
@@ -710,7 +805,7 @@ body ::selection {
 /* Reset the round task-checkbox styling (`.cm-editor input[type="checkbox"]`,
    which also matches here since the panel lives inside .cm-editor) back to a
    native square checkbox for the search options. */
-.cm-panel.cm-search label input[type="checkbox"] {
+.cm-editor .cm-panel.cm-search label input[type="checkbox"] {
   appearance: auto;
   -webkit-appearance: checkbox;
   width: 13px;
@@ -725,40 +820,50 @@ body ::selection {
 
 /* Cancel the round-checkbox checkmark pseudo-element inherited from the global
    task-checkbox rule. */
-.cm-panel.cm-search label input[type="checkbox"]:checked {
+.cm-editor .cm-panel.cm-search label input[type="checkbox"]:checked {
   background: none;
 }
 
-.cm-panel.cm-search label input[type="checkbox"]:checked::after {
+.cm-editor .cm-panel.cm-search label input[type="checkbox"]:checked::after {
   content: none;
 }
 
-/* Close button (×): no name-based class, target by name attribute. */
-.cm-panel.cm-search button[name="close"] {
+/* Close button (×): no name-based class, target by name attribute.
+   Centred on the first row (the search field) instead of floating in the
+   panel's top corner, which read as a stray glyph above the row. */
+.cm-editor .cm-panel.cm-search button[name="close"] {
   position: absolute;
   top: 4px;
-  right: 6px;
-  padding: 0 4px;
-  font-size: 16px;
-  line-height: 1;
+  right: 4px;
+  width: 16px;
+  height: 20px;
+  padding: 0;
+  font-size: 15px;
+  line-height: 20px;
+  text-align: center;
   color: var(--chirami-muted);
   background: none;
   border: none;
+  border-radius: 4px;
   cursor: pointer;
 }
 
-.cm-panel.cm-search button[name="close"]:hover {
+.cm-editor .cm-panel.cm-search button[name="close"]:hover {
   color: var(--chirami-text);
+  background-color: color-mix(in srgb, var(--chirami-text) 10%, transparent);
 }
 
 /* Search match highlighting — derive from theme variables so matches read well
-   across all themes instead of the default raw yellow. */
-.cm-searchMatch {
+   across all themes instead of the default raw yellow.
+   The `.cm-editor` prefix is required: @codemirror/search declares its defaults
+   in a baseTheme, which compiles to `.<editor-class> .cm-searchMatch` and wins
+   on specificity over a bare `.cm-searchMatch` rule. */
+.cm-editor .cm-searchMatch {
   background-color: color-mix(in srgb, var(--chirami-accent) 28%, transparent);
   border-radius: 2px;
 }
 
-.cm-searchMatch-selected {
+.cm-editor .cm-searchMatch-selected {
   background-color: color-mix(in srgb, var(--chirami-accent) 55%, transparent);
 }
 

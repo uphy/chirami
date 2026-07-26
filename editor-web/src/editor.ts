@@ -38,7 +38,10 @@ const markdownStyle = HighlightStyle.define([
   { tag: tags.heading1, fontSize: "1.6em", fontWeight: "bold" },
   { tag: tags.heading2, fontSize: "1.4em", fontWeight: "bold" },
   { tag: tags.heading3, fontSize: "1.2em", fontWeight: "bold" },
-  { tag: [tags.heading4, tags.heading5, tags.heading6], fontWeight: "bold" },
+  // H4 stays close to body size but is still a step above it; H5/H6 drop to the
+  // muted colour so the lower levels remain distinguishable from plain text.
+  { tag: tags.heading4, fontSize: "1.08em", fontWeight: "bold" },
+  { tag: [tags.heading5, tags.heading6], fontWeight: "bold", color: "var(--chirami-muted)" },
   { tag: tags.strikethrough, textDecoration: "line-through" },
   { tag: tags.monospace, class: "chirami-inline-code" },
   { tag: highlightTag, class: "cm-highlight" },

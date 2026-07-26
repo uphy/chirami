@@ -48,9 +48,9 @@ From lowest to highest:
 | `--chirami-accent` | Interactive / emphasis color |
 | `--chirami-muted` | Secondary text color |
 | `--chirami-border` | Standard border color |
-| `--chirami-surface` | Embedded widget surface |
+| `--chirami-surface` | Embedded widget surface (table headers, callouts, chips) — recessed, so mix toward `--chirami-text` |
 | `--chirami-surface-strong` | Stronger embedded surface |
-| `--chirami-surface-raised` | Raised controls / popovers |
+| `--chirami-surface-raised` | Raised controls / popovers (slash picker, search panel) — elevated, so mix toward the lighter side |
 | `--chirami-code` | Inline code text color |
 | `--chirami-code-bg` | Inline code background color |
 | `--chirami-selection` | Text selection highlight color |

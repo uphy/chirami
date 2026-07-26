@@ -63,8 +63,13 @@ class NoteWindowController: NSWindowController, NSWindowDelegate, EditorContextP
         panel.isMovableByWindowBackground = true
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panel.level = note.alwaysOnTop ? .floating : .normal
-        panel.alphaValue = note.transparency
+        // `transparency` applies to the background only (see NoteWebView
+        // .setBackgroundAlpha); the window's own alpha is reserved for the
+        // show/hide fade so note text never becomes translucent.
+        panel.alphaValue = 1
+        panel.isOpaque = false
         panel.backgroundColor = NoteWindowController.defaultPanelBackground
+            .withAlphaComponent(note.transparency)
         panel.isRestorable = false
 
         panel.standardWindowButton(.miniaturizeButton)?.isHidden = true
@@ -255,7 +260,7 @@ class NoteWindowController: NSWindowController, NSWindowDelegate, EditorContextP
         guard let panel = window as? NotePanel else { return }
         NSAnimationContext.runAnimationGroup { context in
             context.duration = 0.2
-            panel.animator().alphaValue = note.transparency
+            panel.animator().alphaValue = 1
         }
     }
 
@@ -324,7 +329,6 @@ class NoteWindowController: NSWindowController, NSWindowDelegate, EditorContextP
 
         isFadingOut = true
         let token = fadeOutToken
-        let targetTransparency = note.transparency
         // If this panel held key status, surrender app activation after
         // orderOut so focus returns to the previously active app. show()
         // activates the app explicitly, and without this counterpart the
@@ -342,7 +346,7 @@ class NoteWindowController: NSWindowController, NSWindowDelegate, EditorContextP
                 guard let self, self.isFadingOut, self.fadeOutToken == token else { return }
                 self.isFadingOut = false
                 panel.orderOut(nil)
-                panel.alphaValue = targetTransparency  // Restore for next show()
+                panel.alphaValue = 1  // Restore for next show()
                 if wasKey {
                     NSApp.deactivate()
                 }
@@ -387,19 +391,28 @@ class NoteWindowController: NSWindowController, NSWindowDelegate, EditorContextP
         if pathChanged {
             reloadContentForNavigation()
             if !isFadingOut {
-                panel.alphaValue = updated.transparency
+                applyBackgroundTransparency(updated.transparency, to: panel)
             }
             panel.level = updated.alwaysOnTop ? .floating : .normal
             return
         }
 
-        // Skip alpha update during fade-out to avoid interrupting animation
+        // Skip background update during fade-out to avoid interrupting animation
         if !isFadingOut {
-            panel.alphaValue = updated.transparency
+            applyBackgroundTransparency(updated.transparency, to: panel)
         }
         panel.title = updated.title
         panel.level = updated.alwaysOnTop ? .floating : .normal
         contentModel.applyNoteMetadata(updated)
+    }
+
+    /// Re-applies the note's transparency to the panel background. The WebView
+    /// side is updated through `contentModel.backgroundAlpha`; this keeps the
+    /// native titlebar colour in sync for the window's current theme colour.
+    private func applyBackgroundTransparency(_ transparency: Double, to panel: NotePanel) {
+        let base = panel.backgroundColor.withAlphaComponent(1)
+        panel.isOpaque = false
+        panel.backgroundColor = base.withAlphaComponent(transparency)
     }
 
     // MARK: - NSWindowDelegate
@@ -959,6 +972,9 @@ class NoteContentModel: ObservableObject {
     @Published var text: String = ""
     @Published var fontSize: CGFloat = 14
     @Published var theme: String?
+    /// Note background opacity. Applied to the background only (CSS + panel colour)
+    /// so translucent notes keep fully opaque text.
+    @Published var backgroundAlpha: Double = 1
     nonisolated(unsafe) var savedCursorLocation: Int = 0
     nonisolated(unsafe) var savedScrollOffset: CGPoint = .zero
     var focusWebView: (() -> Void)?
@@ -985,6 +1001,7 @@ class NoteContentModel: ObservableObject {
     init(note: Note) {
         self.note = note
         self.theme = note.theme
+        self.backgroundAlpha = note.transparency
         self.notePath = note.path.path
         let content = NoteStore.shared.readContent(of: note)
         text = content
@@ -1031,6 +1048,7 @@ class NoteContentModel: ObservableObject {
     func applyNoteMetadata(_ updated: Note) {
         note = updated
         theme = updated.theme
+        backgroundAlpha = updated.transparency
         notePath = updated.path.path
     }
 
