@@ -38,3 +38,44 @@ describe("htmlToMarkdown", () => {
     expect(htmlToMarkdown(html)).toBe("# Title\n\nbody");
   });
 });
+
+describe("htmlToMarkdown underscore escaping", () => {
+  it("leaves intraword underscores unescaped", () => {
+    expect(htmlToMarkdown("<p>user_name calls max_count</p>")).toBe("user_name calls max_count");
+  });
+
+  it("treats a run of intraword underscores as one delimiter", () => {
+    expect(htmlToMarkdown("<p>user__name</p>")).toBe("user__name");
+  });
+
+  it("counts non-ASCII letters as word characters", () => {
+    expect(htmlToMarkdown("<p>見出し_本文</p>")).toBe("見出し_本文");
+  });
+
+  it("keeps the escape where the underscore could open emphasis", () => {
+    expect(htmlToMarkdown("<p>_emphasis_ and __strong__</p>")).toBe(
+      "\\_emphasis\\_ and \\_\\_strong\\_\\_",
+    );
+  });
+
+  it("keeps the escape at a text node edge, where the neighbour is unknown", () => {
+    // turndown's default emphasis delimiter is "_", hence the run that follows.
+    expect(htmlToMarkdown("<p>lead_<em>tail</em></p>")).toBe("lead\\__tail_");
+  });
+
+  it("keeps the escape next to punctuation", () => {
+    expect(htmlToMarkdown("<p>foo_(bar)</p>")).toBe("foo\\_(bar)");
+  });
+
+  it("still escapes a literal backslash that precedes an underscore", () => {
+    expect(htmlToMarkdown("<p>a\\_b</p>")).toBe("a\\\\\\_b");
+  });
+
+  it("leaves other escapes alone", () => {
+    expect(htmlToMarkdown("<p>2 * 3 [x] `code`</p>")).toBe("2 \\* 3 \\[x\\] \\`code\\`");
+  });
+
+  it("does not touch underscores inside code", () => {
+    expect(htmlToMarkdown("<p><code>__init__</code></p>")).toBe("`__init__`");
+  });
+});
