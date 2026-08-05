@@ -41,6 +41,58 @@ turndown.addRule("listItem", {
   },
 });
 
+const WORD_CHAR_RE = /[\p{L}\p{N}]/u;
+
+// Turndown escapes every "_" it finds in a text node, so `user_name` lands
+// in the note as `user\_name` and the backslash stays visible in Live
+// Preview. CommonMark never reads an intraword "_" run as emphasis: such a run
+// is both left- and right-flanking and is preceded by a non-punctuation
+// character, so it can neither open nor close. The backslash buys nothing and
+// costs a wrong character in every identifier pasted from a doc.
+//
+// Drop the escape only for runs with a letter or digit on both sides. A run at
+// either edge of the text node has no known neighbour there — an adjacent
+// inline element could supply one — so it stays escaped.
+function unescapeIntrawordUnderscores(escaped: string): string {
+  let out = "";
+  let i = 0;
+  while (i < escaped.length) {
+    if (escaped[i] !== "\\" || i + 1 >= escaped.length) {
+      out += escaped[i];
+      i += 1;
+      continue;
+    }
+    if (escaped[i + 1] !== "_") {
+      // Copy any other escape pair verbatim, "\\\\" included: consuming both
+      // characters keeps a literal backslash from being read as the opener of
+      // the escape that follows it.
+      out += escaped.slice(i, i + 2);
+      i += 2;
+      continue;
+    }
+
+    let end = i;
+    let run = "";
+    while (escaped[end] === "\\" && escaped[end + 1] === "_") {
+      run += "_";
+      end += 2;
+    }
+    const before = out[out.length - 1];
+    const after = escaped[end];
+    const intraword =
+      before !== undefined &&
+      after !== undefined &&
+      WORD_CHAR_RE.test(before) &&
+      WORD_CHAR_RE.test(after);
+    out += intraword ? run : escaped.slice(i, end);
+    i = end;
+  }
+  return out;
+}
+
+const escapeMarkdown = turndown.escape.bind(turndown);
+turndown.escape = (text: string) => unescapeIntrawordUnderscores(escapeMarkdown(text));
+
 /** Converts pasted HTML into Chirami-flavored Markdown (tab-indented lists). */
 export function htmlToMarkdown(html: string): string {
   return turndown.turndown(html);
