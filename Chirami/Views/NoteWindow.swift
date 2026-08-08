@@ -214,6 +214,18 @@ class NoteWindowController: NSWindowController, NSWindowDelegate, EditorContextP
             navigateToTodayIfNeeded()
         }
 
+        // Force the SwiftUI content to lay out before the panel is ordered front.
+        // `NSHostingView` does not run `makeNSView` when it is assigned as the
+        // content view, so right after a swap (periodic rollover:
+        // navigateToTodayIfNeeded -> reloadContentForNavigation) the `NoteWebView`
+        // does not exist yet. `becomeKey` fires from the `showWindow`/`orderFront`
+        // below, and both focus paths — `windowDidBecomeKey`
+        // (contentModel.focusWebView) and `NotePanel.becomeKey` (firstDescendant
+        // lookup) — would find nothing, leaving the note unable to accept
+        // keystrokes. This must stay above the ordering calls: doing it just
+        // before `makeKeyAndOrderFront` is already too late.
+        panel.contentView?.layoutSubtreeIfNeeded()
+
         // Cancel in-flight fade-out
         isFadingOut = false
         fadeOutToken += 1

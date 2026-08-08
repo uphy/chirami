@@ -212,6 +212,19 @@ final class NoteWebView: NSView {
         enqueueOrEval("window.chirami.focus();")
     }
 
+    /// Safety net for the case where this view is attached to a window that is
+    /// already key. The regular focus paths run from `NSWindow.becomeKey`, so a
+    /// view created after that point would never be focused and the note would
+    /// silently reject keystrokes. `NoteWindowController.show()` forces layout to
+    /// keep the normal ordering; this covers any path that still attaches late.
+    /// The `isKeyWindow` guard keeps startup (`NotePanel.startupMode`, where
+    /// panels are ordered front without becoming key) from stealing focus.
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        guard window?.isKeyWindow == true else { return }
+        focus()
+    }
+
     func setWindowActive(_ active: Bool) {
         enqueueOrEval("window.chirami.setWindowActive(\(active ? "true" : "false"));")
     }
