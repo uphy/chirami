@@ -20,7 +20,7 @@
     "@excalidraw/excalidraw": "^0.18.1",
     "@lezer/highlight": "^1",
     "@lezer/markdown": "^1",
-    "mermaid": "^11.16.0",
+    "mermaid": "^11.17.2",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "turndown": "^7",
@@ -35,9 +35,9 @@
     "esbuild": "^0.28",
     "eslint": "^10.8.0",
     "eslint-plugin-react-hooks": "^7.1.1",
-    "globals": "^17.7.0",
+    "globals": "^17.11.0",
     "typescript": "^5",
     "typescript-eslint": "^8.65.0",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.11"
   }
 }
