@@ -4,8 +4,9 @@ import { markdown } from "@codemirror/lang-markdown";
 import { yamlFrontmatter } from "@codemirror/lang-yaml";
 import { languages } from "@codemirror/language-data";
 import { search, searchKeymap, searchPanelOpen, closeSearchPanel } from "@codemirror/search";
-import { Compartment, EditorState, Prec, Transaction } from "@codemirror/state";
+import { Compartment, EditorState, Prec } from "@codemirror/state";
 import { EditorView, ViewUpdate, keymap, drawSelection, placeholder } from "@codemirror/view";
+import { externalContentTransaction } from "./externalContent";
 import { GFM } from "@lezer/markdown";
 import { classHighlighter, tags } from "@lezer/highlight";
 import { chiramiKeymap, openLink, openLinkAtPosition, tightListEnterKeymap, surroundSelectionHandler } from "./extensions/keymap";
@@ -265,10 +266,7 @@ export function setEditorContent(view: EditorView, text: string) {
     });
   }
 
-  view.dispatch({
-    changes: { from: 0, to: view.state.doc.length, insert: text },
-    annotations: [Transaction.userEvent.of("external"), Transaction.addToHistory.of(false)],
-  });
+  view.dispatch(externalContentTransaction(view.state, text));
 
   if (foldedLineNumbers.length > 0) {
     applyFoldingFromLines(view, foldedLineNumbers);
