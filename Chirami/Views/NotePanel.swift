@@ -318,16 +318,22 @@ class NotePanel: NSPanel {
                 onTogglePin?()
                 return
             }
-            // ESC key (keyCode 53) with no modifiers hides the window, unless a
-            // WebView overlay (Excalidraw) or the CodeMirror search panel is open —
-            // dispatch ESC to JS instead so it closes the overlay/panel first.
-            // NOTE: do NOT call super.sendEvent for ESC; it triggers cancelOperation:/
-            // performClose: which closes the panel regardless of onHideRequest.
+            // ESC key (keyCode 53) with no modifiers hides the window, unless:
+            // - an input method is composing text: ESC belongs to the IME (cancel
+            //   the composition), so deliver the event normally;
+            // - a WebView overlay (Excalidraw), the search panel or the slash
+            //   command menu is open, or text is selected: dispatch ESC to JS so it
+            //   closes that / clears the selection first.
+            // NOTE: otherwise do NOT call super.sendEvent for ESC; it triggers
+            // cancelOperation:/performClose: which closes the panel regardless of
+            // onHideRequest.
             if event.keyCode == 53 {
                 let activeFlags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
                 if activeFlags.isEmpty {
-                    if let webView = contentView?.firstDescendant(of: NoteWebView.self),
-                       webView.overlayVisible || webView.searchPanelVisible {
+                    let webView = contentView?.firstDescendant(of: NoteWebView.self)
+                    if let webView, webView.imeComposing {
+                        super.sendEvent(event)
+                    } else if let webView, webView.handlesEscapeInEditor {
                         webView.dispatchEscapeKey()
                     } else {
                         onHideRequest?()

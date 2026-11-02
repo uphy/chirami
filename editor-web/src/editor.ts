@@ -27,7 +27,7 @@ import {
 } from "./extensions/foldMarkdown";
 import { foldedRanges } from "@codemirror/language";
 import { smartPaste, plainPasteKeymap } from "./extensions/smartPaste";
-import { slashCommandExtension } from "./extensions/slashCommand";
+import { closeSlashMenu, isSlashMenuOpen, slashCommandExtension } from "./extensions/slashCommand";
 import { foldGutterLineHover } from "./extensions/foldGutterHover";
 import { cursorRevealField, windowActiveField } from "./extensions/utils";
 import { postToSwift } from "./bridge";
@@ -73,6 +73,16 @@ export function createEditor(parent: HTMLElement, callbacks: EditorCallbacks): E
   // `searchPanelVisible` bridge message so NotePanel can route ESC to JS (close
   // the panel) instead of hiding the note window. Same pattern as `overlayVisible`.
   let searchPanelVisible = false;
+  // True while ESC has an in-editor job (close the slash menu, clear the
+  // selection). Mirrored to Swift via `editorEscapeActive` so NotePanel sends
+  // ESC to JS instead of hiding the note.
+  let escapeActive = false;
+  const syncEscapeActive = (state: EditorState) => {
+    const next = isSlashMenuOpen() || !state.selection.main.empty;
+    if (next === escapeActive) return;
+    escapeActive = next;
+    postToSwift({ type: "editorEscapeActive", active: next });
+  };
 
   const updateListener = EditorView.updateListener.of((update: ViewUpdate) => {
     if (update.docChanged) {
@@ -88,6 +98,7 @@ export function createEditor(parent: HTMLElement, callbacks: EditorCallbacks): E
       searchPanelVisible = nextSearchPanelVisible;
       postToSwift({ type: "searchPanelVisible", visible: searchPanelVisible });
     }
+    syncEscapeActive(update.state);
   });
 
   const scrollHandler = EditorView.domEventHandlers({
@@ -236,6 +247,18 @@ export function createEditor(parent: HTMLElement, callbacks: EditorCallbacks): E
   // interfering with that flow.
   document.addEventListener("keydown", (e) => {
     if (e.key !== "Escape") return;
+    if (closeSlashMenu()) {
+      syncEscapeActive(view.state);
+      e.preventDefault();
+      return;
+    }
+    // ESC with a selection only clears it (Ctrl-G never reaches the editor
+    // under Karabiner's Emacs rules); the next ESC hides the note.
+    if (!view.state.selection.main.empty && !searchPanelOpen(view.state)) {
+      view.dispatch({ selection: { anchor: view.state.selection.main.head }, userEvent: "select" });
+      e.preventDefault();
+      return;
+    }
     if (!searchPanelOpen(view.state)) return;
     closeSearchPanel(view);
     e.preventDefault();
