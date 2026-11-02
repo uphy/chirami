@@ -94,7 +94,7 @@ Changes are committed when you navigate to another cell or the editor loses focu
 
 **Task list toggle** — Cmd+L converts the current line to/from a task list item (`- [ ]`). Inside a blockquote the task is inserted after `> `; headings are left unchanged. Click a checkbox to toggle it.
 
-**List auto-continuation** — Press Enter on a list item to continue the list with the next marker. Press Enter on an empty list item to end the list. Shift+Enter inserts a line break inside the item (an indented continuation line). Enter on an empty `> ` line ends the blockquote.
+**List auto-continuation** — Press Enter on a list item to continue the list with the next marker. Press Enter on an empty list item to end the list. Ordered list numbers are kept sequential when you add, delete, move, cut or paste items in Chirami (the first number is kept; lists that repeat one number, such as `1. 1. 1.`, and changes made by other editors are left as they are). Shift+Enter inserts a line break inside the item (an indented continuation line). Enter on an empty `> ` line ends the blockquote.
 
 **Text surround** — Select text and type a Markdown emphasis character to wrap the selection. Whitespace at the edges of the selection stays outside the markers. Supported pairs:
 

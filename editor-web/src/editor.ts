@@ -27,6 +27,7 @@ import {
 } from "./extensions/foldMarkdown";
 import { foldedRanges } from "@codemirror/language";
 import { smartPaste, plainPasteKeymap } from "./extensions/smartPaste";
+import { orderedListRenumber } from "./extensions/orderedListRenumber";
 import { closeSlashMenu, isSlashMenuOpen, slashCommandExtension } from "./extensions/slashCommand";
 import { foldGutterLineHover } from "./extensions/foldGutterHover";
 import { cursorRevealField, windowActiveField } from "./extensions/utils";
@@ -226,6 +227,7 @@ export function createEditor(parent: HTMLElement, callbacks: EditorCallbacks): E
       frontmatterExtension,
       slashCommandExtension,
       smartPaste,
+      orderedListRenumber,
       updateListener,
       scrollHandler,
       EditorView.contentAttributes.of({
