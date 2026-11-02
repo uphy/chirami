@@ -75,7 +75,7 @@ screen_y = bounds["Y"] + pixel_y / 2
 
 ### 3.1 やってはいけない前面化と、成否の判定方法
 
-**`frontmost_app()` を成否の判定に使わない。** Chirami は LSUIElement + `.nonactivatingPanel` なので、パネルが key window でもアプリは frontmost にならず、`frontmost_app()` はターミナル（`ghostty` など）を返し続ける。これを見て「前面化に失敗した」と判断すると、実際には通っている操作を諦めることになる。
+**`frontmost_app()` を成否の判定に使わない。** Chirami は LSUIElement + `.nonactivatingPanel` なので、状況によってはパネルが key window でもアプリが frontmost にならず、`frontmost_app()` がターミナル（`ghostty` など）を返すことがある（2026-11 時点の環境では `option+0` 後に Chirami が frontmost になるのを確認）。これを見て「前面化に失敗した」と判断すると、実際には通っている操作を諦めることになる。
 
 以下の前面化ルートは **すべて効かない**。macOS 14+ がバックグラウンドアプリのフォーカス奪取を拒否するため。試して時間を溶かさない。
 
@@ -97,6 +97,57 @@ assert type_marker in open("/tmp/chirami-test.md").read()
 `get_window()` は既定で `kCGWindowListOptionOnScreenOnly` を使う。`kCGWindowListOptionAll` は**隠れたウィンドウも返し**、`screencapture -l` はそれを平然とキャプチャする。全件リストで hide/show を判定すると押下回数が1つずれ、**非表示ノートの古い内容を撮って「正常に見える」** という最悪の誤検証になる。
 
 > ⚠️ **Esc を汎用 dismiss に使わない。** Esc はノートを閉じる。さらに 2 発目の Esc が背後のアプリ（Claude Code を動かすターミナル）に抜けて**セッションを中断**させ得る。パネルを閉じたいときは `×` ボタンのクリックなど対象を特定した操作で。
+
+### 3.3 レンダリング結果と状態は AX で文字として読む
+
+`scripts/chirami_ax.swift` は Accessibility API で Test ノートの中身（WKWebView 内の CodeMirror まで）を読む。チェックボックスの状態・レンダリング後のテキスト・表示中かどうかは、キャプチャ画像を見るよりこちらで判定する。キャプチャは色・配置など見た目の確認に使う。
+
+```bash
+AX=.claude/skills/chirami-verify/scripts/chirami_ax.swift
+
+swift $AX visible                      # 表示中なら exit 0、非表示なら exit 1
+swift $AX dump                         # AX ツリーを出す（下の例）
+swift $AX text                         # レンダリング後のエディタ全文
+swift $AX press AXCheckBox "task one"  # ラベルで要素を特定して AXPress（--nth N で同名の N 番目）
+```
+
+`dump` の出力例（`- [ ] task one` / `- [x] task two` / `**bold**` / `[link](...)`）：
+
+```
+AXWindow(AXSystemDialog) label="Test" [AXRaise]
+  AXTextArea value="Probe Heading\n\ntask one\ntask two\n\nSome bold text and a link.\n\n" [AXPress]
+    AXStaticText value="Probe Heading"
+    AXCheckBox label="task one" value="0" [AXPress]    ← 0 = 未チェック, 1 = チェック済み
+    AXStaticText value="task one"
+    ...
+AXButton(AXCloseButton) label="close" [AXPress]
+AXButton label="pin" [AXPress]
+```
+
+- チェックボックスのラベルは直後の `AXStaticText` の文字列。`press AXCheckBox "task one"` で切り替わり、`.md` にも保存される（確認済み）
+- `--title <ノート名>` で Test 以外のノートも読めるが、操作は原則 Test ノートだけにする
+- 非表示のノートは `AXWindows` に出ないので、`visible` は OnScreenOnly と同じ判定になる
+- 閉じるボタンへの `AXPress` は成功を返すがノートは隠れない。隠すときは `option+0` を使う
+- 初回は Swift のコンパイルで 1〜2 秒かかる
+
+### 3.4 キー操作は chirami_keys.swift、カーソル位置は chirami context で見る
+
+`scripts/chirami_keys.swift` は Test ノートにキー列を送る。各ステップの前に「Chirami が前面かつパネルにフォーカスがある」ことを確かめ、外れていたら exit 1 で止まる（ターミナルへの誤入力を防ぐ）。毎回コンパイルすると遅いので、先にバイナリ化して使う。
+
+```bash
+swiftc -O .claude/skills/chirami-verify/scripts/chirami_keys.swift -o /tmp/chirami-keys
+/tmp/chirami-keys cmd+up down ctrl+e tab 'text:hello' 'clip:- x\n- y' cmd+v
+/tmp/chirami-keys 'html:<ul><li>x</li></ul>|x' cmd+v     # HTML をクリップボードに入れて貼る
+chirami context   # Markdown ソース上の cursor / selection（行は1始まり、列は0始まり）
+```
+
+- 合成イベントは Karabiner-Elements を通らない。emacs 風の操作は Karabiner が変換した後のキーで送る（`ctrl+n` → `down`、`ctrl+f` → `right`、mark 中の `ctrl+n` → `shift+down`、`ctrl+w` → `cmd+x`、`ctrl+y` → `cmd+v`）。`ctrl+a` / `ctrl+e` / `ctrl+k` はそのまま Chirami に届く
+- 英数字・記号は実キーコード（US 配列）で送る。Unicode 文字列の注入は ctrl 系のキーの直後に WebKit に捨てられるため、日本語は `clip:` + `cmd+v` で入れる
+- IME の確認は `scripts/chirami_ime.swift` で入力ソースを切り替え（例 `com.google.inputmethod.Japanese.base`）、ローマ字を `text:kaigi` で送る。切り替え直後は 0.5 秒ほど待つ。終わったら必ず元の入力ソースに戻す（`trap ... EXIT` を使う）
+- コピー（`cmd+c`）やプレーン貼り付け（`cmd+shift+v`）は、直前のキーと間を空けないと取りこぼすことがある。`sleep:300` を挟む
+- `option+0` で表示すると Chirami は前面アプリになる（`NSWorkspace.frontmostApplication` が Chirami を返す）
+
+> agent-desktop（vercel-labs）は使えない。ノートの NSPanel は `.floating`（`kCGWindowLayer` 3）で、agent-desktop は layer 0 以外のウィンドウを読み飛ばすため `snapshot --app Chirami` が `WINDOW_NOT_FOUND` になる（1.0.2 で確認）。
 
 ### カスタム操作（スクリプトを直接書く場合）
 
@@ -188,7 +239,7 @@ python3 .claude/skills/chirami-verify/scripts/chirami_interact.py reload /tmp/ou
 
 1. 必要に応じて `mise run apply` でビルド・再起動
 2. テストファイルを直書きし、隠して1回出す（`reload` / `show_and_focus`）→ 再読込 + key window
-3. Read ツールでキャプチャを視覚確認
+3. 文字・状態は `chirami_ax.swift dump` / `text` で判定し、見た目は Read ツールでキャプチャを確認
 4. 操作の確認は同じ状態のまま続けて送る（クリック・Cmd+V・Tab・Cmd+F）
 5. 入力が入ったかは**ノートのファイルを読んで**判定する（`frontmost_app()` では判定しない）
 6. 内容を差し替えるときは 2 に戻る
