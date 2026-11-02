@@ -12,30 +12,26 @@ import { indentWidth, leadingWhitespace, ListLine, listLineAt, subtreeEnd } from
 // ---------------------------------------------------------------------------
 // List indent / dedent
 
-/** Nearest earlier list item at exactly `width`, stopping at a shallower line. */
-function previousSiblingAt(state: EditorState, lineNumber: number, width: number): ListLine | null {
-  for (let n = lineNumber - 1; n >= 1; n--) {
-    const line = state.doc.line(n);
-    if (line.text.trim() === "") continue;
-    const w = indentWidth(leadingWhitespace(line.text), state.tabSize);
-    const item = listLineAt(state, line);
-    if (w < width) return null;
-    if (w === width && item) return item;
-  }
-  return null;
+// Siblings and parents come from the syntax tree, not from indentation:
+// scanning lines by width crossed headings, paragraphs and blank lines into
+// an unrelated list above (e.g. Option-Up on the first item of a TODO list
+// swapped it into the previous bullet list).
+
+function listLineOf(state: EditorState, node: SyntaxNode | null): ListLine | null {
+  return node ? listLineAt(state, state.doc.lineAt(node.from)) : null;
 }
 
-/** Nearest earlier list item shallower than `width` (the parent item). */
-function parentItem(state: EditorState, lineNumber: number, width: number): ListLine | null {
-  for (let n = lineNumber - 1; n >= 1; n--) {
-    const line = state.doc.line(n);
-    if (line.text.trim() === "") continue;
-    const item = listLineAt(state, line);
-    const w = indentWidth(leadingWhitespace(line.text), state.tabSize);
-    if (item && w < width) return item;
-    if (!item && w === 0) return null;
-  }
-  return null;
+/** Previous / next item in the same list, or null at the list's edge. */
+function siblingItem(state: EditorState, item: ListLine, forward: boolean): ListLine | null {
+  let n = forward ? item.item.nextSibling : item.item.prevSibling;
+  while (n && n.name !== "ListItem") n = forward ? n.nextSibling : n.prevSibling;
+  return listLineOf(state, n);
+}
+
+/** The list item this item is nested in, or null for a top-level item. */
+function parentListItem(state: EditorState, item: ListLine): ListLine | null {
+  const outer = item.item.parent?.parent;
+  return outer?.name === "ListItem" ? listLineOf(state, outer) : null;
 }
 
 /** Indentation the item would get one level deeper. */
@@ -43,8 +39,7 @@ function deeperIndent(state: EditorState, item: ListLine): string {
   // Space-indented lists (pasted from GitHub etc.) nest at the parent's
   // content column; adding a tab there would mix tabs and spaces.
   if (item.indent.includes(" ")) {
-    const width = indentWidth(item.indent, state.tabSize);
-    const sibling = previousSiblingAt(state, item.line.number, width);
+    const sibling = siblingItem(state, item, false);
     const step = sibling ? sibling.marker.length + 1 : item.marker.length + 1;
     return item.indent + " ".repeat(step);
   }
@@ -53,18 +48,28 @@ function deeperIndent(state: EditorState, item: ListLine): string {
 
 /** Indentation the item would get one level shallower, or null at top level. */
 function shallowerIndent(state: EditorState, item: ListLine): string | null {
-  const width = indentWidth(item.indent, state.tabSize);
-  if (width === 0) return null;
-  const parent = parentItem(state, item.line.number, width);
+  if (indentWidth(item.indent, state.tabSize) === 0) return null;
+  const parent = parentListItem(state, item);
   return parent ? parent.indent : "";
 }
 
-/** New marker for an ordered item moved to `indent` (continues the siblings there). */
-function renumberedMarker(state: EditorState, item: ListLine, indent: string): string | null {
+/**
+ * New marker for an ordered item after indenting (it joins the previous
+ * item's child list) or dedenting (it follows its former parent).
+ */
+function renumberedMarker(state: EditorState, item: ListLine, deeper: boolean): string | null {
   if (!item.ordered) return null;
   const delimiter = item.marker.slice(-1);
-  const sibling = previousSiblingAt(state, item.line.number, indentWidth(indent, state.tabSize));
-  const next = sibling?.ordered ? parseInt(sibling.marker, 10) + 1 : 1;
+  let next = 1;
+  if (deeper) {
+    const prev = siblingItem(state, item, false);
+    const childList = prev?.item.getChild("OrderedList") ?? prev?.item.getChild("BulletList");
+    const last = childList?.lastChild?.name === "ListItem" ? listLineOf(state, childList.lastChild) : null;
+    if (last?.ordered) next = parseInt(last.marker, 10) + 1;
+  } else {
+    const parent = parentListItem(state, item);
+    if (parent?.ordered) next = parseInt(parent.marker, 10) + 1;
+  }
   const marker = `${next}${delimiter}`;
   return marker === item.marker ? null : marker;
 }
@@ -99,7 +104,7 @@ function moveListItem(view: EditorView, deeper: boolean): boolean {
 
   const end = subtreeEnd(state, item.line.number);
   const changes = reindentLines(state, item.line.number, end, item.indent, newIndent);
-  const marker = renumberedMarker(state, item, newIndent);
+  const marker = renumberedMarker(state, item, deeper);
   const markFrom = item.line.from + item.indent.length;
   if (marker) changes.push({ from: markFrom, to: markFrom + item.marker.length, insert: marker });
 
@@ -130,7 +135,7 @@ function moveSelectedLines(view: EditorView, deeper: boolean): boolean {
       const newIndent = deeper ? deeperIndent(state, item) : shallowerIndent(state, item);
       if (newIndent === null) continue;
       changes.push({ from: line.from, to: line.from + item.indent.length, insert: newIndent });
-      const marker = renumberedMarker(state, item, newIndent);
+      const marker = renumberedMarker(state, item, deeper);
       const markFrom = line.from + item.indent.length;
       if (marker) changes.push({ from: markFrom, to: markFrom + item.marker.length, insert: marker });
       continue;
@@ -522,41 +527,39 @@ function moveListSubtree(view: EditorView, up: boolean): boolean {
   if (!item) return false;
   if (!sel.empty && state.doc.lineAt(sel.anchor).number !== line.number) return false;
 
-  const width = indentWidth(item.indent, state.tabSize);
   const start = line.number;
-  const end = subtreeEnd(state, start);
+  const lastLineOf = (it: ListLine) => state.doc.lineAt(it.item.to).number;
 
   let aStart: number;
   let bStart: number;
   let bEnd: number;
   if (up) {
-    const prev = previousSiblingAt(state, start, width);
+    const prev = siblingItem(state, item, false);
     if (!prev) return true;
     aStart = prev.line.number;
     bStart = start;
-    bEnd = end;
+    bEnd = lastLineOf(item);
   } else {
-    let next = end + 1;
-    while (next <= state.doc.lines && state.doc.line(next).text.trim() === "") next++;
-    if (next > state.doc.lines) return true;
-    const nextItem = listLineAt(state, state.doc.line(next));
-    if (!nextItem || indentWidth(nextItem.indent, state.tabSize) !== width) return true;
+    const next = siblingItem(state, item, true);
+    if (!next) return true;
     aStart = start;
-    bStart = next;
-    bEnd = subtreeEnd(state, next);
+    bStart = next.line.number;
+    bEnd = lastLineOf(next);
   }
-  // Keep blank lines between the blocks with the block above them.
+  // Blank lines between the two blocks stay between them (a loose list stays loose).
   const from = state.doc.line(aStart).from;
   const mid = state.doc.line(bStart).from;
   const to = state.doc.line(bEnd).to;
-  const blockA = state.sliceDoc(from, mid - 1);
+  const rawA = state.sliceDoc(from, mid - 1);
+  const blockA = rawA.replace(/\n+$/, "");
+  const separator = state.lineBreak + rawA.slice(blockA.length);
   const blockB = state.sliceDoc(mid, to);
-  const insert = blockB + state.lineBreak + blockA;
+  const insert = blockB + separator + blockA;
 
   // The moved item is block B when going up, block A when going down.
   const offsetInItem = sel.head - line.from;
   const anchorOffset = sel.anchor - line.from;
-  const newLineFrom = up ? from : from + blockB.length + state.lineBreak.length + (line.from - from);
+  const newLineFrom = up ? from : from + blockB.length + separator.length;
   view.dispatch({
     changes: { from, to, insert },
     selection: EditorSelection.range(newLineFrom + anchorOffset, newLineFrom + offsetInItem),
