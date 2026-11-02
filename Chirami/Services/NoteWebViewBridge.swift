@@ -19,6 +19,8 @@ final class NoteWebViewBridge: NSObject, WKScriptMessageHandler {
     var onFoldChanged: (([Int]) -> Void)?  // 1-based line numbers
     var onOverlayVisibleChanged: ((Bool) -> Void)?
     var onSearchPanelVisibleChanged: ((Bool) -> Void)?
+    var onEditorEscapeActiveChanged: ((Bool) -> Void)?
+    var onImeComposingChanged: ((Bool) -> Void)?
     var onPluginStateRequest: ((_ pluginId: String) -> Void)?
     var onPluginStateChanged: ((_ pluginId: String, _ stateJson: String) -> Void)?
 
@@ -98,6 +100,14 @@ final class NoteWebViewBridge: NSObject, WKScriptMessageHandler {
         case "searchPanelVisible":
             if let visible = body["visible"] as? Bool {
                 onSearchPanelVisibleChanged?(visible)
+            }
+        case "editorEscapeActive":
+            if let active = body["active"] as? Bool {
+                onEditorEscapeActiveChanged?(active)
+            }
+        case "imeComposing":
+            if let composing = body["composing"] as? Bool {
+                onImeComposingChanged?(composing)
             }
         case "pluginStateRequest":
             if let pluginId = body["pluginId"] as? String {

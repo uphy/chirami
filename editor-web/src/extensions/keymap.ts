@@ -1,9 +1,29 @@
-import { syntaxTree, indentUnit, foldCode, unfoldCode, foldAll, unfoldAll } from "@codemirror/language";
-import { EditorSelection } from "@codemirror/state";
+import { syntaxTree, foldCode, unfoldCode, foldAll, unfoldAll } from "@codemirror/language";
+import { EditorSelection, EditorState, Line } from "@codemirror/state";
 import { EditorView, KeyBinding } from "@codemirror/view";
 import { insertNewlineContinueMarkupCommand } from "@codemirror/lang-markdown";
 import { postToSwift } from "../bridge";
 import { wikiLinkTargetAtPosition } from "./wikilink";
+import {
+  cursorCjkWordLeft,
+  cursorCjkWordRight,
+  cursorLineUpIntoBlock,
+  cursorSmartLineStart,
+  dedentListItem,
+  exitEmptyQuote,
+  indentListItem,
+  killLine,
+  lineContentStart,
+  moveListItemDown,
+  moveListItemUp,
+  listSoftBreak,
+  nextTableCell,
+  previousTableCell,
+  selectCjkWordLeft,
+  selectCjkWordRight,
+  selectLineUpIntoBlock,
+  selectSmartLineStart,
+} from "./editingCommands";
 
 // Always dedent on empty list items instead of converting to a loose list.
 const continueMarkup = insertNewlineContinueMarkupCommand({ nonTightLists: false });
@@ -92,6 +112,11 @@ function tightListEnter(view: EditorView): boolean {
     return true;
   }
 
+  // Enter on an empty "> " line leaves the quote (CodeMirror keeps adding ">").
+  if (exitEmptyQuote(view)) {
+    return true;
+  }
+
   const state = view.state;
   const head = state.selection.main.head;
   const headLine = state.doc.lineAt(head);
@@ -135,10 +160,13 @@ function wrapSelection(
 ): boolean {
   const changes = view.state.changeByRange((range) => {
     if (opts.skipEmpty && range.empty) return { range, changes: [] };
-    const content = view.state.sliceDoc(range.from, range.to);
+    // Word selections made with Option-Right include the leading space, and
+    // "** bold**" is not emphasis in CommonMark: keep edge whitespace outside.
+    const { from, to } = trimRange(view.state, range.from, range.to);
+    const content = view.state.sliceDoc(from, to);
     return {
-      changes: { from: range.from, to: range.to, insert: `${open}${content}${close}` },
-      range: EditorSelection.range(range.from + open.length, range.to + open.length),
+      changes: { from, to, insert: `${open}${content}${close}` },
+      range: EditorSelection.range(from + open.length, to + open.length),
     };
   });
   view.dispatch(view.state.update(changes, {
@@ -148,9 +176,56 @@ function wrapSelection(
   return true;
 }
 
+function trimRange(state: EditorState, from: number, to: number): { from: number; to: number } {
+  const text = state.sliceDoc(from, to);
+  if (text.trim() === "") return { from, to };
+  const lead = text.length - text.trimStart().length;
+  const trail = text.length - text.trimEnd().length;
+  return { from: from + lead, to: to - trail };
+}
+
+/**
+ * Cmd-B / Cmd-I: wrap the selection, or unwrap it when it is already wrapped
+ * (markers just outside the selection, or the selection includes them).
+ */
+function toggleEmphasis(view: EditorView, marker: string): boolean {
+  const state = view.state;
+  const sel = state.selection.main;
+  if (sel.empty) return wrapSelection(view, marker);
+  const { from, to } = trimRange(state, sel.from, sel.to);
+  const n = marker.length;
+  const isMarker = (a: number, b: number) =>
+    state.sliceDoc(a, b) === marker &&
+    // "*" must not be half of "**".
+    (n !== 1 || (state.sliceDoc(a - 1, a) !== "*" && state.sliceDoc(b, b + 1) !== "*"));
+
+  if (from - n >= 0 && isMarker(from - n, from) && isMarker(to, to + n)) {
+    view.dispatch({
+      changes: [{ from: from - n, to: from }, { from: to, to: to + n }],
+      selection: EditorSelection.range(from - n, to - n),
+      scrollIntoView: true,
+    });
+    return true;
+  }
+  if (to - from > 2 * n && isMarker(from, from + n) && isMarker(to - n, to)) {
+    view.dispatch({
+      changes: [{ from, to: from + n }, { from: to - n, to }],
+      selection: EditorSelection.range(from, to - 2 * n),
+      scrollIntoView: true,
+    });
+    return true;
+  }
+  return wrapSelection(view, marker);
+}
+
 function toggleTaskAtCursor(view: EditorView): boolean {
   const sel = view.state.selection.main;
-  const line = view.state.doc.lineAt(sel.head);
+  const fullLine = view.state.doc.lineAt(sel.head);
+  // Headings stay headings: "- [ ] ## Title" is neither a task nor a heading.
+  if (headingOnLine(view.state, fullLine)) return true;
+  // Inside a blockquote the task goes after the "> " markers.
+  const prefixLen = quotePrefixLength(view.state, fullLine);
+  const line = { from: fullLine.from + prefixLen, to: fullLine.to, text: fullLine.text.slice(prefixLen) };
   const checkedTaskMatch = line.text.match(/^(\s*)([-*+])\s\[(x|X)\]\s(.*)$/);
   if (checkedTaskMatch) {
     const bracketStart = line.from + checkedTaskMatch[1].length + checkedTaskMatch[2].length + 2;
@@ -187,7 +262,7 @@ function toggleTaskAtCursor(view: EditorView): boolean {
   }
 
   const prefixDelta = replacement.length - line.text.length;
-  const newCursor = Math.max(line.from, Math.min(sel.head + prefixDelta, line.from + replacement.length));
+  const newCursor = Math.max(line.from, Math.min(Math.max(sel.head, line.from) + prefixDelta, line.from + replacement.length));
   view.dispatch({
     changes: { from: line.from, to: line.to, insert: replacement },
     selection: EditorSelection.cursor(newCursor),
@@ -196,78 +271,41 @@ function toggleTaskAtCursor(view: EditorView): boolean {
   return true;
 }
 
-// Shared setup for indent/dedent: resolves the list item context at the cursor.
-// Returns null if the cursor is not on a list item or the selection is non-empty.
-function resolveListItemContext(view: EditorView) {
-  const state = view.state;
-  const sel = state.selection.main;
-  if (!sel.empty) return null;
-
-  const line = state.doc.lineAt(sel.head);
-  const match = LIST_ITEM_RE.exec(line.text);
-  const contentOffset = listContentStartOffset(line.text);
-  if (!match || contentOffset === null) return null;
-
-  const unit = state.facet(indentUnit);
-  const contentStart = line.from + contentOffset;
-  const contentText = line.text.slice(contentStart - line.from);
-  const cursorBeforeContent = sel.head < contentStart;
-
-  return {
-    line,
-    match,
-    unit,
-    contentStart,
-    contentText,
-    cursorBeforeContent,
-    sel,
-  };
+function headingOnLine(state: EditorState, line: Line): boolean {
+  let found = false;
+  syntaxTree(state).iterate({
+    from: line.from,
+    to: line.to,
+    enter: (node) => {
+      if (node.name.startsWith("ATXHeading") && node.from >= line.from) found = true;
+    },
+  });
+  return found;
 }
 
-// Indents a list item in a single dispatch to avoid visual flicker.
-// Using indentMore followed by a separate cursor dispatch caused the cursor to
-// briefly appear before the list mark, then jump to after "- " one frame later.
-// By inserting the indent unit and setting the final cursor position together,
-// the two-step flicker is eliminated.
-function indentListItem(view: EditorView): boolean {
-  const ctx = resolveListItemContext(view);
-  if (!ctx) return false;
-  const { line, unit, contentStart, contentText, cursorBeforeContent, sel } = ctx;
-  const keepAtContentStart = cursorBeforeContent || contentText.length === 0;
-  const contentOffset = keepAtContentStart ? 0 : Math.max(0, sel.head - contentStart);
-  const targetPos = contentStart + unit.length + contentOffset;
-
-  view.dispatch({
-    changes: { from: line.from, insert: unit },
-    selection: EditorSelection.cursor(targetPos),
-    scrollIntoView: true,
+/** Length of the "> " quote markup at the start of the line (0 outside quotes). */
+function quotePrefixLength(state: EditorState, line: Line): number {
+  const content = lineContentStart(state, line);
+  let hasQuote = false;
+  syntaxTree(state).iterate({
+    from: line.from,
+    to: Math.max(line.from, content),
+    enter: (node) => {
+      if (node.name === "QuoteMark" && node.from >= line.from) hasQuote = true;
+    },
   });
-
-  return true;
-}
-
-// Dedents a list item in a single dispatch to avoid visual flicker.
-// Mirrors indentListItem — same two-step flicker fix for Shift+Tab.
-function dedentListItem(view: EditorView): boolean {
-  const ctx = resolveListItemContext(view);
-  if (!ctx) return false;
-  const { line, match, unit, contentStart, contentText, cursorBeforeContent, sel } = ctx;
-
-  const currentIndent = match[1];
-  if (currentIndent.length === 0) return false;
-
-  const removeLen = Math.min(unit.length, currentIndent.length);
-  const keepAtContentStart = cursorBeforeContent || contentText.length === 0;
-  const contentOffset = keepAtContentStart ? 0 : Math.max(0, sel.head - contentStart);
-  const targetPos = Math.max(line.from, contentStart - removeLen + contentOffset);
-
-  view.dispatch({
-    changes: { from: line.from, to: line.from + removeLen },
-    selection: EditorSelection.cursor(targetPos),
-    scrollIntoView: true,
+  if (!hasQuote) return 0;
+  // Stop before any list marker so "> - item" keeps "- " for the task logic.
+  let end = line.from;
+  syntaxTree(state).iterate({
+    from: line.from,
+    to: line.to,
+    enter: (node) => {
+      if (node.name === "QuoteMark" && node.from >= line.from) end = Math.max(end, node.to);
+    },
   });
-
-  return true;
+  while (end < line.to && line.text[end - line.from] === " ") end++;
+  return end - line.from;
 }
 
 function linkUrlAtPosition(view: EditorView, pos: number): string | null {
@@ -324,12 +362,23 @@ function openLinkAtCursor(view: EditorView): boolean {
 export const tightListEnterKeymap: KeyBinding[] = [
   { any: (_view, event) => isImeAcceptEnter(event) },
   { key: "Enter", run: tightListEnter },
+  { key: "Shift-Enter", run: listSoftBreak },
 ];
 
 export const chiramiKeymap: KeyBinding[] = [
+  { key: "Tab", run: nextTableCell, shift: previousTableCell },
   { key: "Tab", run: indentListItem, shift: dedentListItem },
-  { key: "Mod-b", run: (view) => wrapSelection(view, "**") },
-  { key: "Mod-i", run: (view) => wrapSelection(view, "*") },
+  // Emacs-style keys that reach the editor raw (not remapped by Karabiner).
+  { mac: "Ctrl-a", run: cursorSmartLineStart, shift: selectSmartLineStart },
+  { mac: "Ctrl-k", run: killLine },
+  { key: "Alt-ArrowLeft", run: cursorCjkWordLeft, shift: selectCjkWordLeft },
+  { key: "Alt-ArrowRight", run: cursorCjkWordRight, shift: selectCjkWordRight },
+  { key: "ArrowUp", run: cursorLineUpIntoBlock, shift: selectLineUpIntoBlock },
+  { key: "Alt-ArrowUp", run: moveListItemUp },
+  { key: "Alt-ArrowDown", run: moveListItemDown },
+  { mac: "Ctrl-p", run: cursorLineUpIntoBlock, shift: selectLineUpIntoBlock },
+  { key: "Mod-b", run: (view) => toggleEmphasis(view, "**") },
+  { key: "Mod-i", run: (view) => toggleEmphasis(view, "*") },
   { key: "Mod-l", run: toggleTaskAtCursor },
   { key: "Mod-Enter", run: openLinkAtCursor },
   { key: "Mod-[", run: foldCode },
@@ -338,17 +387,15 @@ export const chiramiKeymap: KeyBinding[] = [
   { key: "Mod-Shift-]", run: unfoldAll },
 ];
 
+// Only Markdown emphasis markers wrap a selection. Brackets and quotes replace
+// it like normal typing: selecting a word to retype it as "(…)" is common, and
+// wrapping there surprised users.
 const SURROUND_PAIRS: Record<string, string> = {
   "*": "*",
   "`": "`",
   "_": "_",
   "~": "~",
   "=": "=",  // type = twice over a selection to wrap as ==highlight==
-  "(": ")",
-  "[": "]",
-  "{": "}",
-  '"': '"',
-  "'": "'",
 };
 
 export const surroundSelectionHandler = EditorView.inputHandler.of(

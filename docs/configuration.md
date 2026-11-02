@@ -33,10 +33,6 @@ warp_margin:
   bottom: 8
   left: 8
 
-smart_paste:
-  enabled: true
-  fetch_url_title: true
-
 karabiner:
   variable: chirami_active
   on_focus: 1
@@ -86,7 +82,6 @@ notes:
 | `drag_modifier` | string | `command` | Modifier key for window dragging. Allowed: `command`, `option`, `shift`, `control`. |
 | `warp_modifier` | string | `ctrl+option` | Modifier key combination for window manipulation shortcuts. It applies to Window Warp (`H`/`J`/`K`/`L` or arrow keys) and window scaling (`=` / `-`). Specify modifiers joined with `+` (e.g. `ctrl+option`, `command+shift`). Allowed tokens: `ctrl`/`control`, `option`/`opt`, `command`/`cmd`, `shift`. If this conflicts with built-in `Cmd+=` / `Cmd+-`, the font shortcuts win. |
 | `warp_margin` | object | `{top: 8, right: 8, bottom: 8, left: 8}` | Display-edge gaps used by Window Warp, window scaling clamp, and cursor-positioned note clamp. Values are in points. |
-| `smart_paste` | object | — | Smart Paste configuration. See [Smart Paste](advanced.md#smart-paste). |
 | `karabiner` | object | — | Karabiner-Elements integration. See [Karabiner](advanced.md#karabiner-elements-integration). |
 | `wikilink` | object | — | Default `[[wiki link]]` resolution and open command. See [Wiki Links](#wiki-links). |
 | `notes` | array | `[]` | List of Registered Note configurations. |
@@ -227,12 +222,6 @@ notes:
     wikilink:
       open: ["code", "{{path}}"]
 ```
-
-## Smart Paste
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `smart_paste.enabled` | boolean | `true` | Enable Smart Paste (Cmd+Shift+V). |
 
 ## Karabiner
 

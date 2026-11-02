@@ -53,6 +53,18 @@ final class NoteWebView: NSView {
     /// True while the CodeMirror search panel (Cmd+F) is open in the WebView.
     private(set) var searchPanelVisible: Bool = false
 
+    /// True while ESC has an in-editor job: close the slash command menu or
+    /// clear a non-empty selection (reported by JS).
+    private(set) var editorEscapeActive: Bool = false
+
+    /// True while an input method is composing text in the WebView (reported by JS).
+    private(set) var imeComposing: Bool = false
+
+    /// True when ESC should go to JS (close a menu/panel/overlay) instead of hiding the note.
+    var handlesEscapeInEditor: Bool {
+        overlayVisible || searchPanelVisible || editorEscapeActive
+    }
+
     /// Opacity of the note background (1 = fully opaque). See `setBackgroundAlpha`.
     private(set) var backgroundAlpha: Double = 1
     /// Last value pushed to `--chirami-bg-alpha`; nil until the first sync.
@@ -160,6 +172,12 @@ final class NoteWebView: NSView {
         }
         bridge.onSearchPanelVisibleChanged = { [weak self] visible in
             self?.searchPanelVisible = visible
+        }
+        bridge.onEditorEscapeActiveChanged = { [weak self] active in
+            self?.editorEscapeActive = active
+        }
+        bridge.onImeComposingChanged = { [weak self] composing in
+            self?.imeComposing = composing
         }
         bridge.onPluginStateRequest = { [weak self] pluginId in
             self?.sendPluginState(pluginId: pluginId)

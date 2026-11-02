@@ -260,6 +260,17 @@ class SlashCommandPicker {
 
 const picker = new SlashCommandPicker();
 
+export function isSlashMenuOpen(): boolean {
+  return picker.isOpen;
+}
+
+/** Closes the slash command menu if open. Returns true when it was open. */
+export function closeSlashMenu(): boolean {
+  if (!picker.isOpen) return false;
+  picker.close();
+  return true;
+}
+
 class SlashCommandPlugin {
   constructor(_view: EditorView) {}
 

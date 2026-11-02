@@ -27,6 +27,8 @@ type JsToSwiftMessage =
   | { type: "log"; level: "debug" | "info" | "warn" | "error"; message: string }
   | { type: "overlayVisible"; visible: boolean }
   | { type: "searchPanelVisible"; visible: boolean }
+  | { type: "editorEscapeActive"; active: boolean }
+  | { type: "imeComposing"; composing: boolean }
   | { type: "pluginStateRequest"; pluginId: string }
   | { type: "pluginStateChanged"; pluginId: string; stateJson: string };
 

@@ -79,3 +79,31 @@ describe("htmlToMarkdown underscore escaping", () => {
     expect(htmlToMarkdown("<p><code>__init__</code></p>")).toBe("`__init__`");
   });
 });
+
+describe("htmlToMarkdown: pasted sources", () => {
+  it("unwraps the Google Docs <b> wrapper and keeps lists tight", () => {
+    const html =
+      '<meta charset="utf-8"><b style="font-weight:normal;" id="docs-internal-guid-abc"><p dir="ltr"><span style="font-weight:400;">Plain para</span></p>' +
+      '<ul><li dir="ltr"><p dir="ltr"><span style="font-weight:400;">item one</span></p></li>' +
+      '<li dir="ltr"><p dir="ltr"><span style="font-weight:700;">bold item</span></p></li></ul></b>';
+    expect(htmlToMarkdown(html)).toBe("Plain para\n\n- item one\n- **bold item**");
+  });
+
+  it("turns Google Docs italic spans into emphasis", () => {
+    expect(htmlToMarkdown('<p><span style="font-style: italic;">it</span></p>')).toBe("*it*");
+  });
+
+  it("converts <br> to a plain newline, emoji images to shortcodes, and text bullets to list items", () => {
+    const html =
+      '<span>line one</span><br><span>with <a href="https://x.com/a">link</a> </span>' +
+      '<img alt=":tada:" src="https://a.slack-edge.com/tada.png"><br><span>• bullet a</span><br><span>• bullet b</span>';
+    expect(htmlToMarkdown(html)).toBe(
+      "line one\nwith [link](https://x.com/a) :tada:\n- bullet a\n- bullet b",
+    );
+  });
+
+  it("keeps <br> inside table cells as a tag", () => {
+    const html = "<table><thead><tr><th>a</th></tr></thead><tbody><tr><td>x<br>y</td></tr></tbody></table>";
+    expect(htmlToMarkdown(html)).toContain("x<br>y");
+  });
+});

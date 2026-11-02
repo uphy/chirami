@@ -87,6 +87,20 @@ view.contentDOM.addEventListener("blur", () => {
   resetCompositionState();
 });
 
+// Tell Swift while any input in the page (editor, table cell, search field) is
+// composing, so ESC goes to the IME to cancel the composition instead of
+// hiding the note (NotePanel.sendEvent). WKWebView's hasMarkedText is not
+// reliable here because WebKit tracks composition asynchronously.
+let reportedComposing = false;
+function reportComposing(composing: boolean): void {
+  if (composing === reportedComposing) return;
+  reportedComposing = composing;
+  postToSwift({ type: "imeComposing", composing });
+}
+document.addEventListener("compositionstart", () => reportComposing(true), true);
+document.addEventListener("compositionend", () => reportComposing(false), true);
+window.addEventListener("blur", () => reportComposing(false));
+
 // Recovery guard: on macOS, compositionend can be dropped when the IME is toggled
 // via external tools like Karabiner Elements. If CodeMirror reports no active
 // composition but our depth counter is still elevated, reset it so the

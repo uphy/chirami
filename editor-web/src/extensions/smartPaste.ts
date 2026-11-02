@@ -1,4 +1,8 @@
+import { syntaxTree } from "@codemirror/language";
+import { EditorState, TransactionSpec } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
+import type { SyntaxNode } from "@lezer/common";
+import { listLineAt, parsePastedList } from "./listContext";
 import TurndownService from "turndown";
 import { gfm } from "turndown-plugin-gfm";
 import { postToSwift } from "../bridge";
@@ -24,9 +28,12 @@ turndown.use(gfm);
 turndown.addRule("listItem", {
   filter: "li",
   replacement(content, node) {
+    // Trailing newlines are dropped before indenting: a <p> inside <li> (Google
+    // Docs, Notion) ends with "\n\n", and indenting that left a tab-only line
+    // between items, turning a tight list loose.
     const body = content
       .replace(/^\n+/, "")
-      .replace(/\n+$/, "\n")
+      .replace(/\n+$/, "")
       .replace(/\n/gm, "\n\t");
 
     const parent = node.parentNode as HTMLElement | null;
@@ -37,9 +44,78 @@ turndown.addRule("listItem", {
       prefix = `${start ? Number(start) + index : index + 1}. `;
     }
 
-    return prefix + body + (node.nextSibling && !/\n$/.test(body) ? "\n" : "");
+    return prefix + body + (node.nextSibling ? "\n" : "");
   },
 });
+
+function styleOf(node: HTMLElement): string {
+  return (node.getAttribute("style") ?? "").replace(/\s+/g, "").toLowerCase();
+}
+
+// Google Docs wraps the whole clipboard in
+// `<b style="font-weight:normal" id="docs-internal-guid-…">`, which Turndown
+// would turn into "**" lines around everything. Unwrap it.
+turndown.addRule("googleDocsWrapper", {
+  filter: (node) =>
+    node.nodeName === "B" && (node.getAttribute("id") ?? "").startsWith("docs-internal-guid"),
+  replacement: (content) => content,
+});
+
+// Google Docs expresses bold/italic as inline styles on <span>.
+turndown.addRule("styledSpan", {
+  filter: (node) => {
+    if (node.nodeName !== "SPAN") return false;
+    const style = styleOf(node as HTMLElement);
+    return /font-weight:(700|bold)/.test(style) || style.includes("font-style:italic");
+  },
+  replacement: (content, node) => {
+    if (!content.trim()) return content;
+    const style = styleOf(node as HTMLElement);
+    let out = content;
+    if (style.includes("font-style:italic")) out = `*${out}*`;
+    if (/font-weight:(700|bold)/.test(style)) out = `**${out}**`;
+    return out;
+  },
+});
+
+// A <br> becomes a plain newline: Chirami shows the source, so CommonMark's
+// trailing-two-spaces hard break is only invisible junk at the end of the line.
+// Inside a table cell a newline would end the row, so keep the tag there.
+turndown.addRule("lineBreak", {
+  filter: "br",
+  replacement: (_content, node) => {
+    for (let p = node.parentNode; p; p = p.parentNode) {
+      if (p.nodeName === "TD" || p.nodeName === "TH") return "<br>";
+    }
+    return "\n";
+  },
+});
+
+// Slack / GitHub emoji are <img alt=":name:">; keep the shortcode instead of a
+// remote image link.
+turndown.addRule("emojiImage", {
+  filter: (node) => {
+    if (node.nodeName !== "IMG") return false;
+    const alt = node.getAttribute("alt") ?? "";
+    return alt.length > 2 && alt.startsWith(":") && alt.endsWith(":") && !alt.includes(" ");
+  },
+  replacement: (_content, node) => (node as HTMLElement).getAttribute("alt") ?? "",
+});
+
+const TEXT_BULLETS = ["• ", "◦ ", "▪ "];
+
+// Slack copies bullets as literal "• " text lines; make them Markdown list items.
+function convertTextBullets(markdown: string): string {
+  return markdown
+    .split("\n")
+    .map((line) => {
+      const trimmed = line.trimStart();
+      const bullet = TEXT_BULLETS.find((b) => trimmed.startsWith(b));
+      if (!bullet) return line;
+      return line.slice(0, line.length - trimmed.length) + "- " + trimmed.slice(bullet.length);
+    })
+    .join("\n");
+}
 
 const WORD_CHAR_RE = /[\p{L}\p{N}]/u;
 
@@ -95,7 +171,7 @@ turndown.escape = (text: string) => unescapeIntrawordUnderscores(escapeMarkdown(
 
 /** Converts pasted HTML into Chirami-flavored Markdown (tab-indented lists). */
 export function htmlToMarkdown(html: string): string {
-  return turndown.turndown(html);
+  return convertTextBullets(turndown.turndown(html));
 }
 
 function isUrl(text: string): boolean {
@@ -131,8 +207,15 @@ export const smartPaste = EditorView.domEventHandlers({
       }
     }
 
+    const rawPlain = data.getData("text/plain");
+
+    // Inside code, the text is literal: no link wrapping, no HTML conversion.
+    if (isInCode(view.state, view.state.selection.main.from)) {
+      return false;
+    }
+
     // 2. URL (takes priority over HTML per spec)
-    const plainText = data.getData("text/plain").trim();
+    const plainText = rawPlain.trim();
     if (isUrl(plainText)) {
       event.preventDefault();
       const markdown = `[](${plainText})`;
@@ -144,19 +227,127 @@ export const smartPaste = EditorView.domEventHandlers({
       return true;
     }
 
-    // 3. HTML
+    // 3. HTML. Code copied from an editor (VS Code, JetBrains) arrives as
+    // `white-space: pre` HTML; converting it would escape `*`/`#`, split every
+    // line into a paragraph and drop indentation, so use the plain text.
     const html = data.getData("text/html");
-    if (html) {
+    const text = html && !isPreformattedHtml(html) ? htmlToMarkdown(html) : rawPlain;
+    if (!text) return false;
+
+    // 4. Markdown lists are re-indented to fit the list item at the cursor.
+    const listInsert = listPasteTransaction(view, text);
+    if (listInsert) {
       event.preventDefault();
-      const md = htmlToMarkdown(html);
-      view.dispatch(view.state.replaceSelection(md));
+      view.dispatch(listInsert);
       return true;
     }
 
-    // 4. Plain text → default handling
+    if (text !== rawPlain) {
+      event.preventDefault();
+      view.dispatch(view.state.replaceSelection(text));
+      return true;
+    }
+
+    // 5. Plain text → default handling
     return false;
   },
 });
+
+const CODE_NODES = new Set(["FencedCode", "CodeBlock", "InlineCode", "CodeText"]);
+
+function isInCode(state: EditorState, pos: number): boolean {
+  for (let node: SyntaxNode | null = syntaxTree(state).resolveInner(pos, -1); node; node = node.parent) {
+    if (CODE_NODES.has(node.name)) {
+      // The opening fence line itself is not "inside" the code.
+      if (node.name === "FencedCode" && state.doc.lineAt(node.from).number === state.doc.lineAt(pos).number) {
+        return false;
+      }
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * True when every visible piece of the HTML sits in preformatted text
+ * (`<pre>` or `white-space: pre*`), as editors produce when copying code.
+ */
+export function isPreformattedHtml(html: string): boolean {
+  if (typeof DOMParser === "undefined") return false;
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT);
+  let sawText = false;
+  for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+    if (!n.textContent?.trim()) continue;
+    sawText = true;
+    let pre = false;
+    for (let el = n.parentElement; el && el !== doc.body; el = el.parentElement) {
+      if (el.tagName === "PRE" || el.style.whiteSpace.startsWith("pre")) {
+        pre = true;
+        break;
+      }
+    }
+    if (!pre) return false;
+  }
+  return sawText;
+}
+
+/**
+ * Builds the transaction for pasting a pure Markdown list. Depths are rebuilt
+ * with tabs (Chirami's indent unit) under the indentation of the list item at
+ * the cursor:
+ * - on an empty item (`- ` only) the item is replaced by the pasted list;
+ * - at the end of a non-empty item the list goes on the following lines;
+ * - on an empty non-list line the list is inserted at that line's indentation.
+ * Returns null when the text is not a list or the cursor is elsewhere, so the
+ * caller falls back to a plain insertion.
+ */
+export function listPasteTransaction(view: EditorView, text: string): TransactionSpec | null {
+  const { state } = view;
+  const sel = state.selection.main;
+  if (!sel.empty) return null;
+  const pasted = parsePastedList(text);
+  if (!pasted) return null;
+
+  const line = state.doc.lineAt(sel.head);
+  const item = listLineAt(state, line);
+  const render = (indent: string) =>
+    pasted.map((p) => indent + "\t".repeat(p.depth) + p.text).join(state.lineBreak);
+
+  if (item) {
+    const contentEmpty = item.contentStart >= line.to;
+    if (contentEmpty) {
+      const insert = render(item.indent);
+      return {
+        changes: { from: line.from, to: line.to, insert },
+        selection: { anchor: line.from + insert.length },
+        scrollIntoView: true,
+        userEvent: "input.paste",
+      };
+    }
+    if (sel.head === line.to) {
+      const insert = state.lineBreak + render(item.indent);
+      return {
+        changes: { from: line.to, insert },
+        selection: { anchor: line.to + insert.length },
+        scrollIntoView: true,
+        userEvent: "input.paste",
+      };
+    }
+    return null;
+  }
+
+  if (line.text.trim() === "") {
+    const insert = render(line.text);
+    return {
+      changes: { from: line.from, to: line.to, insert },
+      selection: { anchor: line.from + insert.length },
+      scrollIntoView: true,
+      userEvent: "input.paste",
+    };
+  }
+  return null;
+}
 
 // Cmd+Shift+V: force plain text paste via Swift (navigator.clipboard is blocked in WKWebView)
 export const plainPasteKeymap = [
