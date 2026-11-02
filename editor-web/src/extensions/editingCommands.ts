@@ -224,8 +224,11 @@ export const selectSmartLineStart = (view: EditorView) => smartLineStart(view, t
 
 let lastKill: { doc: EditorState["doc"]; pos: number; text: string } | null = null;
 
-/** Writes text to the system clipboard from inside a key handler (user gesture). */
-export function writeClipboard(text: string): boolean {
+/**
+ * Writes text to the system clipboard from inside a key handler (user gesture).
+ * Pass the editor view so its selection survives the textarea fallback.
+ */
+export function writeClipboard(text: string, view?: EditorView): boolean {
   let written = false;
   const onCopy = (e: ClipboardEvent) => {
     e.clipboardData?.setData("text/plain", text);
@@ -254,7 +257,15 @@ export function writeClipboard(text: string): boolean {
     written = document.execCommand("copy");
   } finally {
     area.remove();
-    active?.focus({ preventScroll: true });
+    if (view) {
+      // Selecting the textarea discarded the editor's DOM selection; focusing
+      // the editor again would read a caret at the document start. Write the
+      // editor selection back to the DOM instead.
+      view.focus();
+      view.dispatch({ selection: view.state.selection });
+    } else {
+      active?.focus({ preventScroll: true });
+    }
   }
   if (!written) postToSwift({ type: "log", level: "warn", message: "killLine: clipboard write failed" });
   return written;
@@ -277,7 +288,7 @@ export function killLine(view: EditorView): boolean {
   const text = append && lastKill ? lastKill.text + killed : killed;
   view.dispatch({ changes: { from: sel.head, to }, userEvent: "delete.cut", scrollIntoView: true });
   lastKill = { doc: view.state.doc, pos: sel.head, text };
-  writeClipboard(text);
+  writeClipboard(text, view);
   return true;
 }
 
