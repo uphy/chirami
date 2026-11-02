@@ -54,7 +54,6 @@
 		B31410DFD874046CD21D71D1 /* Assistant-Regular-PLF2XOGW.woff2 in Resources */ = {isa = PBXBuildFile; fileRef = 850CD2308E22D4B723B88ABD /* Assistant-Regular-PLF2XOGW.woff2 */; };
 		BFCCAB2D9367154CBB54D12E /* WindowManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0578EC63E7BF57954B30DB4E /* WindowManager.swift */; };
 		C1F28E6A44CA5164EA471BF0 /* NoteWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19D408CE9CF5E73181D332BF /* NoteWindow.swift */; };
-		CCE882C14E1FF29744042166 /* SmartPasteService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F7D458B27BC9D19729A3933 /* SmartPasteService.swift */; };
 		D1D520533FCF6498872ADFD4 /* ConfigModelsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62B0A82E4A9516E13A19248E /* ConfigModelsTests.swift */; };
 		D3CB17FDD13CC5DD9F79DFC9 /* DisplayWindowManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 169F492DA5E6EC2CB07714DC /* DisplayWindowManager.swift */; };
 		DD926D50F26529581D4EEF86 /* DisplayContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB72F1E44E85FE910F38AFAA /* DisplayContentView.swift */; };
@@ -89,7 +88,6 @@
 		0644F372AB4F8FCBC53526C9 /* AttachmentCleanupService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttachmentCleanupService.swift; sourceTree = "<group>"; };
 		090FC6D064A83B0E726BC742 /* DisplayPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisplayPanel.swift; sourceTree = "<group>"; };
 		096E47CC80BB32685D7EB8B2 /* bundle.css */ = {isa = PBXFileReference; lastKnownFileType = text.css; path = bundle.css; sourceTree = "<group>"; };
-		0F7D458B27BC9D19729A3933 /* SmartPasteService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmartPasteService.swift; sourceTree = "<group>"; };
 		169F492DA5E6EC2CB07714DC /* DisplayWindowManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisplayWindowManager.swift; sourceTree = "<group>"; };
 		19869BE314E75A454E87A179 /* StreamFollowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamFollowTests.swift; sourceTree = "<group>"; };
 		19D408CE9CF5E73181D332BF /* NoteWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteWindow.swift; sourceTree = "<group>"; };
@@ -191,7 +189,6 @@
 				D1DACC907AD069A73A59708A /* PathTemplateResolver.swift */,
 				B23AE53355635F2C5179A350 /* PeriodicFileNavigator.swift */,
 				9E848CB0C7EFD40A1B825C98 /* PipeIO.swift */,
-				0F7D458B27BC9D19729A3933 /* SmartPasteService.swift */,
 				3D074C00DAD53D33DB0FE997 /* StreamFollow.swift */,
 				035781018D25560F061DB083 /* WikiLinkResolver.swift */,
 				0578EC63E7BF57954B30DB4E /* WindowManager.swift */,
@@ -466,7 +463,6 @@
 				8ECD51B52BAEC000ECC4CFE2 /* PeriodicFileNavigator.swift in Sources */,
 				46E9459F111947C27E0EB91B /* PipeIO.swift in Sources */,
 				43A18C3712E30AEEE5864430 /* PluginStateStore.swift in Sources */,
-				CCE882C14E1FF29744042166 /* SmartPasteService.swift in Sources */,
 				F5D220995482915F42463C52 /* StreamFollow.swift in Sources */,
 				03BBB80FFEAA18B0B52FBC76 /* WikiLinkResolver.swift in Sources */,
 				BFCCAB2D9367154CBB54D12E /* WindowManager.swift in Sources */,
@@ -745,7 +741,7 @@
 			repositoryURL = "https://github.com/jpsim/Yams";
 			requirement = {
 				kind = upToNextMajorVersion;
-				minimumVersion = 5.0.0;
+				minimumVersion = 6.2.2;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
