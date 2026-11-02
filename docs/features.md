@@ -92,17 +92,17 @@ excalidraw:
 
 Changes are committed when you navigate to another cell or the editor loses focus. To edit the raw Markdown instead, hover over the table and click the `</>` button — the cursor jumps to the clicked cell. Tables inside blockquotes or lists, and cells containing escapes beyond `\\` and `\|`, fall back to raw Markdown editing.
 
-**Task list toggle** — Cmd+L converts the current line to/from a task list item (`- [ ]`). Click a checkbox to toggle it.
+**Task list toggle** — Cmd+L converts the current line to/from a task list item (`- [ ]`). Inside a blockquote the task is inserted after `> `; headings are left unchanged. Click a checkbox to toggle it.
 
-**List auto-continuation** — Press Enter on a list item to continue the list with the next marker. Press Enter on an empty list item to end the list.
+**List auto-continuation** — Press Enter on a list item to continue the list with the next marker. Press Enter on an empty list item to end the list. Shift+Enter inserts a line break inside the item (an indented continuation line). Enter on an empty `> ` line ends the blockquote.
 
-**Text surround** — Select text and type a bracket or quote character to wrap the selection. Supported pairs:
+**Text surround** — Select text and type a Markdown emphasis character to wrap the selection. Whitespace at the edges of the selection stays outside the markers. Supported pairs:
 
 - `*`, `_`, `` ` ``, `~`, `=` (wrap with same character — type `=` twice to make `==highlight==`)
-- `(`, `[`, `{` (wrap with matching close bracket)
-- `"`, `'` (wrap with same quote)
 
-**Indent / Dedent** — Press Tab on a list item line to indent it (adds one level). Press Shift+Tab to dedent. With multiple lines selected, Tab and Shift+Tab indent or dedent all selected lines at once. Tab and Shift+Tab on non-list lines behave normally.
+Brackets and quotes replace the selection like normal typing.
+
+**Indent / Dedent** — Press Tab on a list item line to indent it (adds one level). Press Shift+Tab to dedent. The item's children move with it. Space-indented lists (pasted from GitHub etc.) keep using spaces and nest at the parent's text column. Ordered items are renumbered to continue the list at their new level. With multiple lines selected, Tab and Shift+Tab indent or dedent all selected lines at once. Tab and Shift+Tab on non-list lines behave normally. Option+↑ / Option+↓ move a list item together with its children past its previous / next sibling. In a table being edited as raw Markdown, Tab / Shift+Tab move between cells, and Tab on the last cell appends a row.
 
 **Image Paste** — Paste an image from the clipboard (Cmd+V) to save it as a PNG file and insert a Markdown image link. See [Images](advanced.md#images).
 

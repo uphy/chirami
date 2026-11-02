@@ -122,20 +122,18 @@ Cmd+V triggers Smart Paste, which converts clipboard content to Markdown before 
 
 | Clipboard Content | Result |
 |-------------------|--------|
-| URL | `[](url)` — cursor placed inside `[]` for quick title entry |
+| URL | `[](url)` — cursor placed inside `[]` for quick title entry. With text selected, the selection becomes the link text. |
 | HTML | Converted to Markdown (headings, lists, links, tables, etc.) |
-| JSON | Wrapped in a `` ```json `` code block |
-| Multi-line code | Wrapped in a `` ``` `` code block |
 | Plain text | Inserted as-is |
 
-Content types are detected in this priority order: URL → HTML → JSON → Code → Plain text.
+Content types are detected in this priority order: URL → HTML → Plain text.
 
-### Settings
+Additional rules:
 
-```yaml
-smart_paste:
-  enabled: true  # Set to false to disable (Cmd+V falls through to normal paste)
-```
+- Inside a code block, the clipboard is pasted as plain text (no link wrapping, no HTML conversion).
+- HTML copied from code editors (VS Code, JetBrains — preformatted `white-space: pre` content) is pasted as its plain text.
+- Google Docs, Slack and similar sources: the Google Docs bold wrapper is removed, bold/italic spans become `**`/`*`, `<br>` becomes a newline, emoji images become their `:shortcode:`, and `• ` bullet lines become list items.
+- A Markdown list pasted into an empty list item (or at the end of one) is re-indented under that item, with nesting expressed as tabs.
 
 ## Karabiner-Elements Integration
 
