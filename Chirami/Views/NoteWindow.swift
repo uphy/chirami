@@ -36,6 +36,10 @@ class NoteWindowController: NSWindowController, NSWindowDelegate, EditorContextP
     private var fadeInTimeoutTask: Task<Void, Never>?
     nonisolated(unsafe) private var warpEventMonitor: Any?
     nonisolated(unsafe) private var shortcutEventMonitor: Any?
+    /// Set when `show()` moved the pointer onto this note from another display:
+    /// where the pointer was, and where it was moved to. `hide()` uses it to
+    /// put the pointer back.
+    private var pointerWarp: (origin: CGPoint, warpedTo: CGPoint)?
 
     var isVisible: Bool { window?.isVisible ?? false }
 
@@ -254,6 +258,7 @@ class NoteWindowController: NSWindowController, NSWindowDelegate, EditorContextP
             // Always make key explicitly. showWindow(nil) calls orderFront (not
             // makeKeyAndOrderFront) for floating panels, so becomeKey never fires.
             panel.makeKeyAndOrderFront(nil)
+            warpPointerToPanelIfOnOtherDisplay(panel)
         }
 
         noteStore.setVisible(true, for: note)
@@ -317,6 +322,40 @@ class NoteWindowController: NSWindowController, NSWindowDelegate, EditorContextP
         window.orderFront(nil)
     }
 
+    /// Moves the pointer to the centre of the panel when it sits on another
+    /// display, so the display the user is looking at follows the keyboard
+    /// focus. `cursor` notes open under the pointer and are left alone.
+    private func warpPointerToPanelIfOnOtherDisplay(_ panel: NSPanel) {
+        guard note.position != .cursor else { return }
+        // Keep the original origin when show() runs again before hide().
+        if pointerWarp != nil { return }
+        let pointer = NSEvent.mouseLocation
+        let displayFrames = NSScreen.screens.map(\.frame)
+        guard let target = PointerWarp.warpTarget(
+            pointer: pointer, windowFrame: panel.frame, displayFrames: displayFrames
+        ) else { return }
+        guard PointerWarp.warp(toCocoa: target) else {
+            logger.warning("Failed to warp pointer to note \(self.note.id, privacy: .public)")
+            return
+        }
+        pointerWarp = (origin: pointer, warpedTo: target)
+        logger.debug("Warped pointer to note \(self.note.id, privacy: .public) on another display")
+    }
+
+    /// Puts the pointer back where it was before `show()` moved it, unless the
+    /// user has moved it since.
+    private func restorePointerIfWarped() {
+        guard let warp = pointerWarp else { return }
+        pointerWarp = nil
+        guard PointerWarp.shouldRestore(
+            current: NSEvent.mouseLocation,
+            warpedTo: warp.warpedTo,
+            origin: warp.origin,
+            displayFrames: NSScreen.screens.map(\.frame)
+        ) else { return }
+        PointerWarp.warp(toCocoa: warp.origin)
+    }
+
     private func screenForCursor() -> NSScreen? {
         let cursorLocation = NSEvent.mouseLocation
         for screen in NSScreen.screens where NSMouseInRect(cursorLocation, screen.frame, false) {
@@ -349,6 +388,7 @@ class NoteWindowController: NSWindowController, NSWindowDelegate, EditorContextP
         let wasKey = panel.isKeyWindow
 
         noteStore.setVisible(false, for: note)
+        restorePointerIfWarped()
 
         NSAnimationContext.runAnimationGroup({ context in
             context.duration = 0.2

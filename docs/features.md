@@ -44,6 +44,8 @@ Chirami renders Markdown in an Obsidian-style Live Preview: the block containing
 
 **Pin** — All notes show a pin button (📌) at the right end of the title bar. It is revealed on title bar hover while the note is unpinned, and stays visible while pinned. While pinned, the note stays visible even when focus moves to another window. Unpinned notes hide automatically when they lose focus. Pin state is persisted in state.yaml across restarts. Default: `cursor` notes start unpinned, `fixed` notes start pinned. Shortcut: **Cmd+Option+P**.
 
+**Pointer follows the note** — In multi-display setups, when a note with a fixed position opens on a different display from the mouse pointer, the pointer moves to the centre of the note. When the note hides, the pointer goes back to where it was, unless you moved it in the meantime. `cursor` notes open under the pointer and never move it.
+
 **Window Warp** — While a note window is focused, press the warp modifier key (default: Ctrl+Option) + H/J/K/L or the arrow keys to instantly move the window to one of 9 positions in a 3×3 grid. The grid uses configurable display-edge gaps (`warp_margin`), which default to 8pt on all four sides. Movement wraps around at the edges — pressing H (or ←) at the left column jumps to the right column of the same row. The current grid position is inferred from the window's actual position, so warp works naturally after manual dragging. In multi-monitor setups, the window warps within the screen it currently occupies. Warp position is persisted across restarts. The same modifier also scales the window with `=` / `-`. The modifier key is configurable via `warp_modifier` in `config.yaml`.
 
 ## Editor Features
