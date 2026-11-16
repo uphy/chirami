@@ -22,6 +22,8 @@
 		2AC7F852F87878D58384C253 /* DisplayPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 090FC6D064A83B0E726BC742 /* DisplayPanel.swift */; };
 		31184FD7FE3922B29D63BC35 /* ChiramiApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CA855E446061538CC13E343 /* ChiramiApp.swift */; };
 		3C12CE2251356B233F5CD9E8 /* NoteListPopover.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80AC5462545113CBC9452EF1 /* NoteListPopover.swift */; };
+		3CC99D2F78AE3D541C139A65 /* PointerWarpTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA6E2972EF37793384CE137C /* PointerWarpTests.swift */; };
+		40372FDC4227B2EFE6F2B288 /* PointerWarp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E35797801E3A213160C4282 /* PointerWarp.swift */; };
 		423D64946DA4AC5981F2ABBC /* PathTemplateResolverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2B9160A1A568048F4DDDDBF /* PathTemplateResolverTests.swift */; };
 		42ECA3879B5A9E7606B6998B /* LocalImageSchemeHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2936EB59B5B6BE24528D67AB /* LocalImageSchemeHandler.swift */; };
 		43A18C3712E30AEEE5864430 /* PluginStateStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4B5FE1CBE1B48C55CC3E9FE /* PluginStateStore.swift */; };
@@ -102,6 +104,7 @@
 		3CA855E446061538CC13E343 /* ChiramiApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChiramiApp.swift; sourceTree = "<group>"; };
 		3D074C00DAD53D33DB0FE997 /* StreamFollow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamFollow.swift; sourceTree = "<group>"; };
 		3E9B976426256BB8C2C64D69 /* ImagePasteService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImagePasteService.swift; sourceTree = "<group>"; };
+		4E35797801E3A213160C4282 /* PointerWarp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PointerWarp.swift; sourceTree = "<group>"; };
 		53ACA2ECCFB0B4CF4F6D62E2 /* bundle.js.map */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.module-map"; path = bundle.js.map; sourceTree = "<group>"; };
 		542A23A975A7EAAD9A26372C /* DurationParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DurationParser.swift; sourceTree = "<group>"; };
 		59AAC7000F6FBA6725F013E6 /* AttachmentCleanupServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttachmentCleanupServiceTests.swift; sourceTree = "<group>"; };
@@ -128,6 +131,7 @@
 		B5FDF5DD4D54BF8F9A9E2B8D /* FileWatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileWatcher.swift; sourceTree = "<group>"; };
 		B69FC9A51CA17968D62C30B2 /* ImagePasteServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImagePasteServiceTests.swift; sourceTree = "<group>"; };
 		BA5FC5F7D7E60276C4975361 /* AppConfigTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConfigTests.swift; sourceTree = "<group>"; };
+		BA6E2972EF37793384CE137C /* PointerWarpTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PointerWarpTests.swift; sourceTree = "<group>"; };
 		BDECF2729D40306B630F8406 /* KarabinerService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KarabinerService.swift; sourceTree = "<group>"; };
 		C2038F8605F6D25442692B1D /* Assistant-Bold-ZDZZ6JHA.woff2 */ = {isa = PBXFileReference; path = "Assistant-Bold-ZDZZ6JHA.woff2"; sourceTree = "<group>"; };
 		C3B4B05AB65EE0B239DC9AEC /* NoteWebViewHost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteWebViewHost.swift; sourceTree = "<group>"; };
@@ -189,6 +193,7 @@
 				D1DACC907AD069A73A59708A /* PathTemplateResolver.swift */,
 				B23AE53355635F2C5179A350 /* PeriodicFileNavigator.swift */,
 				9E848CB0C7EFD40A1B825C98 /* PipeIO.swift */,
+				4E35797801E3A213160C4282 /* PointerWarp.swift */,
 				3D074C00DAD53D33DB0FE997 /* StreamFollow.swift */,
 				035781018D25560F061DB083 /* WikiLinkResolver.swift */,
 				0578EC63E7BF57954B30DB4E /* WindowManager.swift */,
@@ -264,6 +269,7 @@
 				E4F8B8D54D3A5793B0E2F894 /* NoteStoreTests.swift */,
 				E2B9160A1A568048F4DDDDBF /* PathTemplateResolverTests.swift */,
 				AB0326B7CDA5B2F550D01040 /* PeriodicFileNavigatorTests.swift */,
+				BA6E2972EF37793384CE137C /* PointerWarpTests.swift */,
 				19869BE314E75A454E87A179 /* StreamFollowTests.swift */,
 				6BEE64249419CC6701C06D44 /* YAMLStoreTests.swift */,
 			);
@@ -463,6 +469,7 @@
 				8ECD51B52BAEC000ECC4CFE2 /* PeriodicFileNavigator.swift in Sources */,
 				46E9459F111947C27E0EB91B /* PipeIO.swift in Sources */,
 				43A18C3712E30AEEE5864430 /* PluginStateStore.swift in Sources */,
+				40372FDC4227B2EFE6F2B288 /* PointerWarp.swift in Sources */,
 				F5D220995482915F42463C52 /* StreamFollow.swift in Sources */,
 				03BBB80FFEAA18B0B52FBC76 /* WikiLinkResolver.swift in Sources */,
 				BFCCAB2D9367154CBB54D12E /* WindowManager.swift in Sources */,
@@ -484,6 +491,7 @@
 				5C99C8B21101E8E7FDDDDECF /* NoteStoreTests.swift in Sources */,
 				423D64946DA4AC5981F2ABBC /* PathTemplateResolverTests.swift in Sources */,
 				5E3B20DFE5E4E5CE221973DE /* PeriodicFileNavigatorTests.swift in Sources */,
+				3CC99D2F78AE3D541C139A65 /* PointerWarpTests.swift in Sources */,
 				F60D58108237924695716D7C /* StreamFollowTests.swift in Sources */,
 				090A952E65681FF1D1BF6BBB /* YAMLStoreTests.swift in Sources */,
 			);
